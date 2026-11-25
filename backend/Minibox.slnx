@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Minibox.Repo.Tests/Minibox.Repo.Tests.csproj" />
+  </Folder>
+</Solution>
