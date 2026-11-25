@@ -6,3 +6,6 @@ TestResults/
 node_modules/
 .next/
 .env
+next-env.d.ts
+*.tsbuildinfo
+coverage/

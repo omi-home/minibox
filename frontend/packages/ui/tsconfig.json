@@ -1,0 +1,1 @@
+{ "extends": "@minibox/config/tsconfig.base.json", "include": ["src"] }

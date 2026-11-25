@@ -1,0 +1,16 @@
+{
+  "name": "@minibox/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.next.json": "./tsconfig.next.json",
+    "./eslint": "./eslint.config.mjs",
+    "./vitest": "./vitest.config.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "6.3.0",
+    "eslint-config-next": "16.4.6"
+  }
+}
