@@ -1,5 +1,5 @@
 {
-  "name": "minibox",
+  "name": "minibox-frontend",
   "private": true,
   "packageManager": "pnpm@12.23.0",
   "engines": {
@@ -9,11 +9,17 @@
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/node": "26.6.10",
-    "@types/react": "19.3.3",
+    "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "eslint": "10.15.0",
-    "jsdom": "31.0.1",
+    "eslint": "9.39.5",
+    "jsdom": "29.1.1",
     "typescript": "6.0.3",
-    "vitest": "5.1.2"
+    "vitest": "5.1.1"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
   }
 }
