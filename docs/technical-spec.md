@@ -363,7 +363,7 @@ minibox/                             # root sạch: không package.json, không 
 
 ### 9.2 Quy ước nghiệm thu omi
 
-AC thứ i của issue #p ↔ test có tên chứa chuỗi chữ thường `ac<p>_<i>`: .NET `[Fact(DisplayName = "ac42_1 …")]`, Playwright `test('ac42_1 …')`. Một test có thể phủ nhiều AC. AC không tự động hóa được ghi `[manual]`.
+AC thứ i của issue #p ↔ test có tên chứa chuỗi chữ thường `ac<p>_<i>`: .NET: tên method chứa `ac42_1` (`accept` lọc bằng `--filter-method`), kèm `DisplayName = "ac42_1 …"` cho dễ đọc; script Node `test("ac42_1 …")` (`node:test`); Playwright `test('ac42_1 …')`. Một test có thể phủ nhiều AC. AC không tự động hóa được ghi `[manual]`.
 
 ### 9.3 Lệnh chuẩn (`scripts/*.mjs` ở root, Node thuần không dependency; chạy trên Windows và Linux; cần Docker)
 
