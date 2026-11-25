@@ -18,7 +18,7 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | D8 | Tìm kiếm | PostgreSQL `unaccent` + `pg_trgm` trong schema `catalog` |
 | D9 | Database as code | Bootstrap SQL idempotent + migration SQL thuần có phiên bản (DbUp); truy cập dữ liệu bằng Dapper |
 | D10 | Kiến trúc mã | Clean Architecture, CQRS, Generic Repository, Generic Unit of Work, Mediator pipeline; luật phụ thuộc kiểm bằng architecture test |
-| D11 | Repo | Tách thư mục `frontend/`, `backend/`, `database/`; `contracts/`, `deploy/`, `tests/e2e/` ở root |
+| D11 | Repo | Root sạch (không `package.json`/`node_modules`): code ở `src/frontend/`, `src/backend/`; `database/`, `contracts/`, `deploy/`, `scripts/` cùng cấp `src/` (CR #348) |
 | D12 | Môi trường | dev trên máy dev; staging + production trên homeserver Ubuntu bằng Docker Compose |
 | D13 | Deploy | Image trên GHCR; GitHub Actions vào tailnet (Tailscale) và SSH chạy script deploy; production qua Environment có owner duyệt |
 | D14 | Secret | File trên server ngoài repo, mount dạng Docker secret |
@@ -170,7 +170,7 @@ Dữ liệu tham chiếu (vai trò mẫu, mã quyền) đi bằng migration. D�
 ### 5.1 Một service = 5 project, phụ thuộc hướng vào trong
 
 ```
-backend/src/services/<svc>/
+src/backend/services/<svc>/
   src/Minibox.<Svc>.Domain/          # không phụ thuộc gì
   src/Minibox.<Svc>.Application/     # → Domain, BuildingBlocks.Application
   src/Minibox.<Svc>.Infrastructure/  # → Application (Dapper, Wolverine, S3, adapter)
@@ -179,7 +179,7 @@ backend/src/services/<svc>/
   tests/{UnitTests, IntegrationTests, ArchitectureTests}/
 ```
 
-Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `backend/templates/`) sinh đủ khung cho service mới.
+Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới.
 
 ### 5.2 Bên trong layer
 
@@ -190,7 +190,7 @@ Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (Ne
 | Infrastructure | `Persistence/` (repository Dapper, read service), `Messaging/` (Wolverine, consumer), `Storage/` (S3), `Integrations/<Provider>/` (adapter + fake) |
 | Api | `Endpoints/<Tên>/` (Minimal API mỏng: request → command/query → kết quả), `Program.cs`, cấu hình auth/OpenAPI/health |
 
-### 5.3 Building blocks (`backend/src/building-blocks/`)
+### 5.3 Building blocks (`src/backend/building-blocks/`)
 
 - `BuildingBlocks.Domain`: `Entity<TId>`, `AggregateRoot<TId>` (gom domain event), `ValueObject`, `Result<T>`/`Error`, `Money` (VND, bigint, phân bổ phần dư lớn nhất), `Quantity` (kèm đơn vị).
 - `BuildingBlocks.Application`: `ICommand`/`IQuery`, `IRepository<TAggregate,TId>`, `IUnitOfWork`, `ICurrentUser`, `IAuthorizer`, `IClock`, pipeline behavior chung.
@@ -219,7 +219,7 @@ Không áp dụng: event sourcing (sổ append-only đã đủ truy vết), DB �
 
 ### 6.1 Cấu trúc
 
-pnpm workspace: `frontend/apps/shop`, `frontend/apps/admin`, `frontend/packages/{ui,api-clients,config}`. React 19, TypeScript `strict`. Trong mỗi app: `app/` chỉ chứa route và layout mỏng; `features/<miền>/{components, server (action + query gọi api-clients), schemas (zod)}`.
+pnpm workspace gốc tại `src/frontend/` (`package.json`, `pnpm-workspace.yaml`, lockfile, `node_modules` chỉ ở đây): `apps/shop`, `apps/admin`, `packages/{ui,api-clients,config}`, `e2e/`. React 19, TypeScript `strict`. Trong mỗi app: `app/` chỉ chứa route và layout mỏng; `features/<miền>/{components, server (action + query gọi api-clients), schemas (zod)}`.
 
 ### 6.2 `shop`
 
@@ -239,7 +239,7 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
 ### 6.5 Hợp đồng API
 
 - Mỗi service sinh OpenAPI lúc build bằng `Microsoft.AspNetCore.OpenApi` và commit ra `contracts/openapi/<svc>.json`.
-- Client TS sinh bằng `openapi-typescript` + `openapi-fetch` vào `frontend/packages/api-clients`.
+- Client TS sinh bằng `openapi-typescript` + `openapi-fetch` vào `src/frontend/packages/api-clients`.
 - CI fail khi: file OpenAPI lệch code; thay đổi phá vỡ so với `develop` (`oasdiff`) mà chưa tăng phiên bản API; client sinh lại khác bản đã commit.
 - Lỗi theo RFC 9457 với `type` ổn định; BFF ánh xạ sang thông báo tiếng Việt.
 - **Hợp đồng mẫu M0**: OpenAPI của `identity` + sự kiện `identity.AccountRegistered.v1` (JSON Schema), client sinh tự động được `admin` dùng thật.
@@ -286,30 +286,34 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
 ### 8.1 Cấu trúc repo
 
 ```
-minibox/
-├─ frontend/                         # toàn bộ TypeScript/Next.js
-│  ├─ apps/{shop,admin}/
-│  └─ packages/{ui,api-clients,config}/
-├─ backend/                          # toàn bộ .NET
-│  ├─ Minibox.slnx  global.json  Directory.Build.props  Directory.Packages.props
-│  ├─ src/building-blocks/
-│  ├─ src/services/<svc>/{src,tests}/
-│  └─ templates/minibox-service/
+minibox/                             # root sạch: không package.json, không node_modules
+├─ src/
+│  ├─ frontend/                      # toàn bộ TypeScript/Next.js; pnpm workspace gốc
+│  │  ├─ package.json  pnpm-workspace.yaml  pnpm-lock.yaml
+│  │  ├─ apps/{shop,admin}/
+│  │  ├─ packages/{ui,api-clients,config}/
+│  │  └─ e2e/                        # Playwright toàn hệ thống
+│  └─ backend/                       # toàn bộ .NET
+│     ├─ Minibox.slnx  global.json  Directory.Build.props  Directory.Packages.props
+│     ├─ building-blocks/
+│     ├─ services/<svc>/{src,tests}/
+│     ├─ templates/minibox-service/
+│     └─ tests/                      # test cấp repo
 ├─ database/                         # toàn bộ SQL, nguồn sự thật của schema
 │  ├─ bootstrap/
 │  ├─ services/<svc>/migrations/
 │  ├─ seed/demo/
 │  └─ tests/
-├─ contracts/{openapi,events}/
+├─ contracts/{openapi,events}/       # hợp đồng chung frontend ↔ backend, service ↔ service
 ├─ deploy/                           # compose, Caddy, OTel/Grafana, pgBackRest/restic, deploy.sh
-├─ tests/e2e/                        # Playwright toàn hệ thống
-├─ docs/                           # README (mục lục), business-requirements.md, technical-spec.md
-├─ package.json  pnpm-workspace.yaml # script điều phối: pnpm test / accept / e2e / dev
+├─ scripts/                          # lệnh chuẩn: test / accept / e2e / dev (.mjs, Node thuần)
+├─ docs/                             # README (mục lục), business-requirements.md, technical-spec.md
 └─ .github/
 ```
 
 - `database/` là nơi duy nhất chứa DDL. Infrastructure chỉ chứa repository/read service.
-- `frontend/` không tham chiếu `backend/`; hai bên gặp nhau qua `contracts/openapi` → `packages/api-clients`. Service ↔ service qua `contracts/` và `*.Contracts`.
+- `global.json` nằm ở `src/backend/` nên lệnh `dotnet` chạy từ thư mục đó (hoặc qua `scripts/`); lệnh pnpm chạy trong `src/frontend/`.
+- `src/frontend/` không tham chiếu `src/backend/`; hai bên gặp nhau qua `contracts/openapi` → `packages/api-clients`. Service ↔ service qua `contracts/` và `*.Contracts`.
 
 ### 8.2 Môi trường
 
@@ -361,16 +365,16 @@ minibox/
 
 AC thứ i của issue #p ↔ test có tên chứa chuỗi chữ thường `ac<p>_<i>`: .NET `[Fact(DisplayName = "ac42_1 …")]`, Playwright `test('ac42_1 …')`. Một test có thể phủ nhiều AC. AC không tự động hóa được ghi `[manual]`.
 
-### 9.3 Lệnh chuẩn (`package.json` ở root; chạy trên Windows và Linux; cần Docker)
+### 9.3 Lệnh chuẩn (`scripts/*.mjs` ở root, Node thuần không dependency; chạy trên Windows và Linux; cần Docker)
 
 | Lệnh | Việc |
 |---|---|
-| `pnpm test` | Build backend + frontend; unit, architecture, integration, database, contract, frontend. Exit ≠ 0 khi lỗi |
-| `pnpm accept <n>` | `node scripts/accept.mjs <n>`: `dotnet test` lọc `ac<n>_` (gồm `database/tests`) + `playwright test -g "ac<n>_" --reporter=list`, in tên test. Không có test khớp không tính là lỗi (omi phán quyết) |
-| `pnpm e2e` | Toàn bộ Playwright |
-| `pnpm dev` | Compose môi trường dev |
+| `node scripts/test.mjs` | Build backend + frontend; unit, architecture, integration, database, contract, frontend. Exit ≠ 0 khi lỗi |
+| `node scripts/accept.mjs <n>` | `dotnet test` lọc `ac<n>_` (gồm `database/tests`) + `playwright test -g "ac<n>_" --reporter=list` trong `src/frontend`, in tên test. Không có test khớp không tính là lỗi (omi phán quyết) |
+| `node scripts/e2e.mjs` | Toàn bộ Playwright (`src/frontend/e2e`) |
+| `node scripts/dev.mjs` | Compose môi trường dev |
 
-Cấu hình omi: `OMI_CLI init --repo-dir minibox --test-cmd "pnpm test" --accept-cmd "pnpm accept {n}"`.
+Cấu hình omi: `OMI_CLI init --repo-dir minibox --test-cmd "node scripts/test.mjs" --accept-cmd "node scripts/accept.mjs {n}"`.
 
 ## 10. Ngưỡng phi chức năng
 
