@@ -22,3 +22,10 @@ body:
       label: "Ghi chú kỹ thuật"
     validations:
       required: false
+  - type: textarea
+    id: s4
+    attributes:
+      label: "Tham chiếu"
+      description: "Mỗi dòng một docs/<file>.md#<mục>; context ghép đúng mục đó, không chép tài liệu vào đây"
+    validations:
+      required: false

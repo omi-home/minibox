@@ -29,3 +29,10 @@ body:
       label: "Ảnh hưởng dự kiến"
     validations:
       required: false
+  - type: textarea
+    id: s5
+    attributes:
+      label: "Tham chiếu"
+      description: "Mỗi dòng một docs/<file>.md#<mục>; context ghép đúng mục đó, không chép tài liệu vào đây"
+    validations:
+      required: false
