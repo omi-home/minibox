@@ -1,4 +1,4 @@
--- Mẫu migration bảng audit của service — NpgsqlUnitOfWork (BuildingBlocks.Infrastructure) ghi một dòng cho mỗi domain event,
+-- Mẫu migration bảng audit của service — EfUnitOfWork (BuildingBlocks.Infrastructure) ghi một dòng cho mỗi domain event,
 -- cùng transaction với dữ liệu và outbox. Chép vào database/schemas/<svc>/scripts/migrations/NNNN_audit-log.sql (và tables/audit_log.sql + security/audit_log.sql), thay {{svc}}.
 -- Chỉ ghi thêm như append-only-table.sql: thu UPDATE/DELETE/TRUNCATE khỏi role app.
 

@@ -1,6 +1,7 @@
 using JasperFx;
 using JasperFx.CodeGeneration;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
 using Wolverine.RabbitMQ;
 using Wolverine.RabbitMQ.Internal;
@@ -14,6 +15,7 @@ public static class MessagingSetup
     /// <remarks>
     /// <list type="bullet">
     /// <item>Bảng Wolverine do migration DbUp tạo; runtime <c>AutoCreate.None</c> nên role app chỉ cần DML.</item>
+    /// <item>Outbox ghi cùng transaction của <c>DbContext</c> EF Core (<c>AddMiniboxPersistence</c>).</item>
     /// <item>Mọi listener dùng inbox bền: message trùng id chỉ được xử lý một lần; mọi endpoint gửi dùng outbox bền.</item>
     /// <item>Production nạp code sinh sẵn (<c>TypeLoadMode.Static</c>, chạy <c>codegen write</c> lúc build image, không kéo Roslyn);
     /// Development sinh code lúc chạy (cần <c>WolverineFx.RuntimeCompilation</c>).</item>
@@ -28,6 +30,7 @@ public static class MessagingSetup
     {
         options.PersistMessagesWithPostgresql(connectionString, schema);
         options.AutoBuildMessageStorageOnStartup = AutoCreate.None;
+        options.UseEntityFrameworkCoreTransactions();
         options.Policies.UseDurableInboxOnAllListeners();
         options.Policies.UseDurableOutboxOnAllSendingEndpoints();
         options.Services.CritterStackDefaults(x =>

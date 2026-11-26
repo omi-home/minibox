@@ -171,6 +171,10 @@ public sealed class WolverineOutboxSpikeTests : IAsyncLifetime
 
         // Bản gửi trùng chỉ có thể đến từ envelope còn trong outbox; chờ nhận được và outbox về 0 rồi mới đếm.
         await WaitUntil(async () => SpikeItemCreatedHandler.Received.Contains(id) && await Count("SELECT count(*) FROM wolverine_outgoing_envelopes") == 0);
+        // Bản trùng đến muộn vẫn phải lộ ra: chờ thêm một sentinel commit sau cùng queue rồi mới đếm.
+        var sentinel = Guid.CreateVersion7();
+        await WriteAndPublish(sentinel, commit: true);
+        await WaitUntil(() => Task.FromResult(SpikeItemCreatedHandler.Received.Contains(sentinel)));
         Assert.Equal(1, SpikeItemCreatedHandler.Received.Count(x => x == id));
         Assert.Equal(1, await Count($"SELECT count(*) FROM item WHERE id = '{id}'"));
     }

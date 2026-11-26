@@ -1,42 +1,42 @@
 using System.Reflection;
 using System.Text.Json;
-using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 
 namespace Minibox.BuildingBlocks.Infrastructure.Persistence;
 
 /// <summary>Kho <c>Idempotency-Key</c> trong bảng <c>idempotency_key</c> của schema service (mẫu
-/// <c>database/templates/idempotency-key.sql</c>), ghi trên transaction của <see cref="NpgsqlUnitOfWork"/>.</summary>
+/// <c>database/templates/idempotency-key.sql</c>), ghi trên transaction của <see cref="EfUnitOfWork{TDb}"/>.</summary>
 /// <remarks>Giữ chỗ bằng <c>INSERT … ON CONFLICT DO NOTHING</c>: request trùng khoá đang chạy song song bị PostgreSQL bắt chờ tới khi
 /// request trước commit (→ đọc kết quả của nó) hoặc rollback (→ giữ chỗ được). Chỉ lưu giá trị của kết quả thành công (thường là id).</remarks>
-/// <param name="unitOfWork">Unit of Work của command (đã mở transaction).</param>
-public sealed class PostgresIdempotencyStore(NpgsqlUnitOfWork unitOfWork) : IIdempotencyStore
+/// <param name="db">DbContext của command (Unit of Work đã mở transaction).</param>
+public sealed class PostgresIdempotencyStore(DbContext db) : IIdempotencyStore
 {
+    sealed record Row(string RequestHash, string? Response);
+
     /// <inheritdoc/>
     /// <exception cref="InvalidOperationException">Bản ghi đã commit nhưng thiếu kết quả (dữ liệu hỏng).</exception>
     public async ValueTask<IdempotencyRecord<TResponse>?> ReserveAsync<TResponse>(string key, string requestHash, CancellationToken cancellationToken = default)
         where TResponse : Result
     {
-        var reserved = await unitOfWork.Connection.ExecuteAsync(Command(
-            "INSERT INTO idempotency_key (key, request_hash) VALUES (@key, @requestHash) ON CONFLICT (key) DO NOTHING",
-            new { key, requestHash }, cancellationToken));
+        var reserved = await db.Database.ExecuteSqlAsync(
+            $"INSERT INTO idempotency_key (key, request_hash) VALUES ({key}, {requestHash}) ON CONFLICT (key) DO NOTHING", cancellationToken);
         if (reserved == 1) return null;
 
-        var row = await unitOfWork.Connection.QuerySingleAsync<(string RequestHash, string? Response)>(Command(
-            "SELECT request_hash, response::text FROM idempotency_key WHERE key = @key", new { key }, cancellationToken));
+        var row = await db.Database.SqlQuery<Row>(
+            $"SELECT request_hash AS \"RequestHash\", response::text AS \"Response\" FROM idempotency_key WHERE key = {key}")
+            .SingleAsync(cancellationToken);
         return new(row.RequestHash, SuccessJson<TResponse>.Read(
             row.Response ?? throw new InvalidOperationException($"Khoá idempotency '{key}' không có kết quả.")));
     }
 
     /// <inheritdoc/>
-    public async ValueTask CompleteAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result =>
-        await unitOfWork.Connection.ExecuteAsync(Command(
-            "UPDATE idempotency_key SET response = @json::jsonb WHERE key = @key",
-            new { key, json = SuccessJson<TResponse>.Write(response) }, cancellationToken));
-
-    CommandDefinition Command(string sql, object parameters, CancellationToken cancellationToken) =>
-        new(sql, parameters, unitOfWork.Transaction, cancellationToken: cancellationToken);
+    public async ValueTask CompleteAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result
+    {
+        var json = SuccessJson<TResponse>.Write(response);
+        await db.Database.ExecuteSqlAsync($"UPDATE idempotency_key SET response = {json}::jsonb WHERE key = {key}", cancellationToken);
+    }
 
     /// <summary>JSON của kết quả thành công: <c>{}</c> cho <see cref="Result"/>, giá trị cho <see cref="Result{T}"/>.</summary>
     static class SuccessJson<TResponse> where TResponse : Result

@@ -15,7 +15,6 @@
   </ItemGroup>
   <ItemGroup Label="Data">
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
-    <PackageVersion Include="Dapper" Version="2.1.100" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
   </ItemGroup>
   <ItemGroup Label="Security">

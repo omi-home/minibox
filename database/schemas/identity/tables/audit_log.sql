@@ -1,4 +1,4 @@
--- Audit của identity: NpgsqlUnitOfWork ghi một dòng cho mỗi domain event, cùng transaction với dữ liệu và outbox.
+-- Audit của identity: EfUnitOfWork ghi một dòng cho mỗi domain event, cùng transaction với dữ liệu và outbox.
 -- Chỉ ghi thêm: quyền ở security/audit_log.sql.
 CREATE TABLE audit_log (
   id             uuid        PRIMARY KEY,           -- UUIDv7 do ứng dụng sinh
