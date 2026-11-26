@@ -364,7 +364,7 @@ minibox/                             # root sạch: không package.json, không 
 - OpenTelemetry SDK (.NET và Next.js) → OTel Collector → Loki (log), Tempo (trace), Prometheus (metric) → Grafana. Một bộ chung, nhãn `env`; Grafana chỉ qua Tailscale.
 - Trace truyền qua header RabbitMQ; theo được một đơn qua mọi service.
 - Log JSON có `trace_id`; không ghi mật khẩu, token, OTP; che một phần email/số điện thoại.
-- Lưu: log 30 ngày, trace 7 ngày, metric 90 ngày.
+- Lưu: log 30 ngày, trace 7 ngày, metric 90 ngày (trần 10 GB); file log Docker mỗi container xoay vòng 5 × 10 MB. Cấu hình ở `deploy/observability/`; log đi qua stdout → file json-file → Collector, không qua OTLP.
 - Cảnh báo (email + Telegram): service không phản hồi > 2 phút, DLQ có message, outbox tồn > 5 phút, backup/WAL archive lỗi, đĩa > 80%, chứng chỉ sắp hết hạn. Thêm uptime check miễn phí bên ngoài.
 
 ### 8.6 Backup và DR

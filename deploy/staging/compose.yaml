@@ -31,6 +31,10 @@ networks:
   edge:
     name: minibox-staging-edge
     external: true
+  # Do bộ observability chung (deploy/observability/) tạo; backend nối vào để gửi OTLP tới observability-otel-collector:4317.
+  otel:
+    name: minibox-staging-otel
+    external: true
 
 secrets:
   postgres_admin:

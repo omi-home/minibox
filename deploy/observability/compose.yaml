@@ -1,0 +1,101 @@
+# Bộ observability chung cho staging + production trên homeserver (spec §8.5). Chạy trước các môi trường (tạo mạng minibox-<env>-otel):
+#   docker compose -f deploy/observability/compose.yaml --env-file deploy/observability/.env up -d
+# Log: service ghi JSON một dòng ra stdout (đã che); Collector đọc file json-file của Docker, nhãn service/env theo nhãn Compose của container.
+# Trace/metric: service gửi OTLP tới observability-otel-collector:4317 qua mạng minibox-<env>-otel (internal, không publish 4317/4318).
+# Grafana chỉ mở trên IP Tailscale của homeserver. Lưu: log 30 ngày, trace 7 ngày, metric 90 ngày.
+name: minibox-observability
+
+services:
+  observability-otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.166.0@sha256:3e18fe04181de50bdd72e23ad4a4d6214b54351e63d496f1c58127cc4541ad7f
+    container_name: minibox-observability-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    user: "0" # file log của Docker thuộc root (600/640); bỏ hết capability nên chỉ đọc được file của root, không ghi ra ngoài volume
+    cap_drop: [ALL]
+    read_only: true
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - otelcol-data:/var/lib/otelcol # vị trí đã đọc của filelog, khởi động lại không mất/trùng log
+    networks: [default, staging, production]
+    depends_on: [observability-loki, observability-tempo, observability-prometheus] # image distroless: không có shell/wget để healthcheck
+    restart: unless-stopped
+
+  observability-loki:
+    image: grafana/loki:3.7.10@sha256:b43c257ccfc925d4a50b8717cac61a3b51df8c48d01847936057e5c4075a24a7
+    container_name: minibox-observability-loki
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki # image distroless: không có shell/wget để healthcheck; /ready ở :3100 trong mạng nội bộ
+    restart: unless-stopped
+
+  observability-tempo:
+    image: grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38
+    container_name: minibox-observability-tempo
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo # image distroless: không có shell/wget để healthcheck; /ready ở :3200 trong mạng nội bộ
+    restart: unless-stopped
+
+  observability-prometheus:
+    image: prom/prometheus:v3.16.0@sha256:e04987641b57704f408e31f6373ba4138ecf27cb4a165d24aabb6c38fddd0f06
+    container_name: minibox-observability-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=90d
+      - --storage.tsdb.retention.size=10GB # chạm trần thì xoá block cũ nhất trước hạn 90 ngày
+      - --web.enable-otlp-receiver # Collector đẩy metric qua /api/v1/otlp
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  observability-grafana:
+    image: grafana/grafana:13.2.7@sha256:9fd7619deb8923fc422f2183c3f82fc8dc2f668fd2b54b087336f597cfd92b0d
+    container_name: minibox-observability-grafana
+    ports: ["${TAILSCALE_IP:?}:3000:3000"] # chỉ IP Tailscale của homeserver
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    secrets: [grafana_admin]
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/minibox.yaml:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [observability-loki, observability-tempo, observability-prometheus]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+networks:
+  default:
+    name: minibox-observability
+  # Service của từng môi trường nối vào dạng external để gửi OTLP; internal: không định tuyến ra ngoài.
+  staging:
+    name: minibox-staging-otel
+    internal: true
+  production:
+    name: minibox-production-otel
+    internal: true
+
+secrets:
+  grafana_admin:
+    file: /srv/minibox/observability/secrets/grafana_admin.password
+
+volumes:
+  otelcol-data:
+  loki-data:
+  tempo-data:
+  prometheus-data:
+  grafana-data:

@@ -3,6 +3,14 @@
 # Không có mật khẩu ở đây: dev đặt trong deploy/dev/compose.yaml; staging/production mount Docker secret từ /srv/minibox/<env>/secrets/ (spec §8.4).
 # Image ghim theo digest (tag để đọc); nâng cấp: docker buildx imagetools inspect <image:tag> rồi thay digest.
 
+# Collector (deploy/observability/) đọc file json-file của Docker; nhãn Compose (minibox-<env>, <layer>-<tên>) cho biết env/service. Mọi dịch vụ phải dùng.
+x-logging: &logging
+  driver: json-file
+  options:
+    labels: com.docker.compose.project,com.docker.compose.service
+    max-size: 10m
+    max-file: "5"
+
 services:
   database-postgres:
     image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
@@ -17,6 +25,7 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
+    logging: *logging
 
   infra-rabbitmq:
     image: rabbitmq:4-management-alpine@sha256:675e71f68c51d4b6c6f43272a0eb102202af3d80d0e8feb0589cdbe1a13178b9
@@ -29,6 +38,7 @@ services:
       retries: 10
       start_period: 20s
     restart: unless-stopped
+    logging: *logging
 
   infra-seaweedfs:
     image: chrislusf/seaweedfs:4.55@sha256:7ca46aeae2f223b37e5d91593c17ab37738eec6df6ab69b48a0487f7643342b9
@@ -42,6 +52,7 @@ services:
       retries: 20
       start_period: 10s
     restart: unless-stopped
+    logging: *logging
 
   infra-clamav:
     image: clamav/clamav:1.5@sha256:64e30c0bf976198024deb3dc6d5cfe2485fb969c0f73549ba0fdb364b9469614
@@ -54,6 +65,7 @@ services:
       retries: 5
       start_period: 6m # lần đầu freshclam tải CSDL chữ ký
     restart: unless-stopped
+    logging: *logging
 
   infra-mailpit:
     image: axllent/mailpit:v1.34@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
@@ -68,6 +80,7 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    logging: *logging
 
 volumes:
   postgres-data:
