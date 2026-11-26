@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="dbup-postgresql" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.BuildingBlocks.Application/Minibox.BuildingBlocks.Application.csproj" />
   </ItemGroup>
 </Project>
