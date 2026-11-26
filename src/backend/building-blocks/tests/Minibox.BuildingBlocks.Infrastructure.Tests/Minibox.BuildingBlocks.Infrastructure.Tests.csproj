@@ -14,7 +14,6 @@
     <!-- Spike #429: outbox Wolverine dùng chung transaction với EF Core DbContext -->
     <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Dapper" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />

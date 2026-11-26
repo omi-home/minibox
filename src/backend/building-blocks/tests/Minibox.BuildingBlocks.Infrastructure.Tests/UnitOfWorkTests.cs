@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Dapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Minibox.BuildingBlocks.Application;
@@ -11,6 +11,7 @@ using RabbitMQ.Client;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 using Wolverine.Persistence.Durability;
 using Wolverine.RabbitMQ;
 
@@ -45,16 +46,19 @@ public sealed class Item : AggregateRoot<Guid>
     }
 }
 
-public sealed record ItemRow(Guid Id, string Name, long Version);
-
-public sealed class ItemRepository(NpgsqlUnitOfWork uow) : DapperRepository<Item, Guid, ItemRow>(uow)
+/// <summary>DbContext mẫu: aggregate Item (version là shadow property) + envelope Wolverine trong schema test.</summary>
+public sealed class UowTestDb(DbContextOptions<UowTestDb> options) : DbContext(options)
 {
-    protected override string Table => "item";
-    protected override string InsertSql => "INSERT INTO item (id, name) VALUES (@Id, @Name)";
-    protected override string UpdateSetSql => "name = @Name";
-    protected override Item ToAggregate(ItemRow row) => Item.Load(row.Id, row.Name);
-    protected override object ToParameters(Item item) => new { item.Id, item.Name };
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        b.HasDefaultSchema(UnitOfWorkTests.Schema);
+        b.Entity<Item>().IsAggregateRoot();
+        b.MapWolverineEnvelopeStorage(UnitOfWorkTests.Schema);
+        b.UseSnakeCaseNames();
+    }
 }
+
+public sealed class ItemRepository(DbContext db) : EfRepository<Item, Guid>(db);
 
 sealed class ItemEventMapper : IIntegrationEventMapper
 {
@@ -73,10 +77,10 @@ public static class ItemCreatedV1Handler
     public static void Handle(ItemCreatedV1 e) => Received.Add(e.ItemId);
 }
 
-/// <summary>NpgsqlUnitOfWork + DapperRepository + Wolverine outbox/inbox trên PostgreSQL/RabbitMQ thật, chạy bằng role app (chỉ DML).</summary>
+/// <summary>EfUnitOfWork + EfRepository + Wolverine outbox/inbox trên PostgreSQL/RabbitMQ thật, chạy bằng role app (chỉ DML).</summary>
 public sealed class UnitOfWorkTests : IAsyncLifetime
 {
-    const string Schema = "uowtest";
+    public const string Schema = "uowtest";
     const string CaptureQueue = "item-created-capture"; // không ai nghe: đếm message thô
     const string InboxQueue = "item-created";
     readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
@@ -91,8 +95,7 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await Task.WhenAll(_pg.StartAsync(), _mq.StartAsync());
-        await using (var c = new NpgsqlConnection(_pg.GetConnectionString()))
-            await c.ExecuteAsync($"""
+        await Exec(_pg.GetConnectionString(), $"""
                 CREATE ROLE {Schema}_migrator LOGIN PASSWORD 'pw';
                 CREATE ROLE {Schema}_app LOGIN PASSWORD 'pw';
                 REVOKE ALL ON SCHEMA public FROM PUBLIC;
@@ -115,27 +118,23 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
                 o.Discovery.DisableConventionalDiscovery().IncludeType(typeof(ItemCreatedV1Handler));
             })
             .ConfigureServices(s => s
-                .AddSingleton(NpgsqlDataSource.Create(appCs))
+                .AddMiniboxPersistence<UowTestDb>(appCs)
                 .AddSingleton<ICurrentUser, TestUser>()
                 .AddSingleton(TimeProvider.System)
                 .AddSingleton<IIntegrationEventMapper, ItemEventMapper>()
-                .AddScoped<NpgsqlUnitOfWork>()
                 .AddScoped<ItemRepository>())
             .Build();
 
         var wolverineDdl = ((Weasel.Core.Migrations.IDatabase)_app.Services.GetRequiredService<IMessageStore>()).ToDatabaseScript();
         var auditDdl = (await File.ReadAllTextAsync(Path.Combine(RepoRoot(), "database/templates/audit-log.sql"))).Replace("{{svc}}", Schema);
-        await using (var c = new NpgsqlConnection(As($"{Schema}_migrator")))
-        {
-            // UNIQUE DEFERRABLE: vi phạm chỉ nổ lúc COMMIT — sau khi outbox + audit đã ghi trong transaction.
-            await c.ExecuteAsync("""
-                CREATE TABLE item (
-                  id uuid PRIMARY KEY, name text NOT NULL, version bigint NOT NULL DEFAULT 0,
-                  CONSTRAINT item_name_uq UNIQUE (name) DEFERRABLE INITIALLY DEFERRED)
-                """);
-            await c.ExecuteAsync(auditDdl);
-            await c.ExecuteAsync(wolverineDdl);
-        }
+        // UNIQUE DEFERRABLE: vi phạm chỉ nổ lúc COMMIT — sau khi outbox + audit đã ghi trong transaction.
+        await Exec(As($"{Schema}_migrator"), """
+            CREATE TABLE item (
+              id uuid PRIMARY KEY, name text NOT NULL, version bigint NOT NULL DEFAULT 0,
+              CONSTRAINT item_name_uq UNIQUE (name) DEFERRABLE INITIALLY DEFERRED)
+            """);
+        await Exec(As($"{Schema}_migrator"), auditDdl);
+        await Exec(As($"{Schema}_migrator"), wolverineDdl);
         await _app.StartAsync();
     }
 
@@ -153,10 +152,22 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         return dir?.FullName ?? throw new InvalidOperationException("Không tìm thấy thư mục gốc repo");
     }
 
-    async Task<long> Count(string sql, object? args = null)
+    static async Task Exec(string cs, string sql)
+    {
+        await using var c = new NpgsqlConnection(cs);
+        await c.OpenAsync();
+        await using var cmd = new NpgsqlCommand(sql, c);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>Đếm bằng role app; tham số vị trí <c>$1, $2…</c>.</summary>
+    async Task<long> Count(string sql, params object[] args)
     {
         await using var c = new NpgsqlConnection(As($"{Schema}_app"));
-        return await c.ExecuteScalarAsync<long>(sql, args);
+        await c.OpenAsync(Ct);
+        await using var cmd = new NpgsqlCommand(sql, c);
+        foreach (var a in args) cmd.Parameters.Add(new NpgsqlParameter { Value = a });
+        return (long)(await cmd.ExecuteScalarAsync(Ct))!;
     }
 
     static async Task<bool> WaitUntil(Func<Task<bool>> done, TimeSpan timeout)
@@ -179,7 +190,7 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
     async Task CreateAsync(Guid id, string name)
     {
         await using var scope = _app.Services.CreateAsyncScope();
-        var uow = scope.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         await uow.BeginAsync(Ct);
         await scope.ServiceProvider.GetRequiredService<ItemRepository>().AddAsync(Item.Create(id, name), Ct);
         await uow.CommitAsync(Ct);
@@ -191,7 +202,7 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         var (a, b) = (Guid.CreateVersion7(), Guid.CreateVersion7());
         await using (var scope = _app.Services.CreateAsyncScope())
         {
-            var uow = scope.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var repo = scope.ServiceProvider.GetRequiredService<ItemRepository>();
             await uow.BeginAsync(Ct);
             await repo.AddAsync(Item.Create(a, "trùng"), Ct);
@@ -199,8 +210,8 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
             await Assert.ThrowsAsync<PostgresException>(() => uow.CommitAsync(Ct));
         }
 
-        Assert.Equal(0, await Count("SELECT count(*) FROM item WHERE id = ANY(@ids)", new { ids = new[] { a, b } }));
-        Assert.Equal(0, await Count("SELECT count(*) FROM audit_log WHERE aggregate_id = ANY(@ids)", new { ids = new[] { a.ToString(), b.ToString() } }));
+        Assert.Equal(0, await Count("SELECT count(*) FROM item WHERE id = ANY($1)", new[] { a, b }));
+        Assert.Equal(0, await Count("SELECT count(*) FROM audit_log WHERE aggregate_id = ANY($1)", (object)new[] { a.ToString(), b.ToString() }));
         Assert.Equal(0, await Count("SELECT count(*) FROM wolverine_outgoing_envelopes"));
         await using var ch = await Channel();
         Assert.Equal(0u, await ch.MessageCountAsync(CaptureQueue, Ct));
@@ -212,10 +223,10 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         var id = Guid.CreateVersion7();
         await CreateAsync(id, "rau cải");
 
-        Assert.Equal(1, await Count("SELECT count(*) FROM item WHERE id = @id", new { id }));
+        Assert.Equal(1, await Count("SELECT count(*) FROM item WHERE id = $1", id));
         Assert.Equal(1, await Count(
-            "SELECT count(*) FROM audit_log WHERE aggregate_id = @id AND action = 'ItemCreated' AND actor = 'u1' AND payload->>'Name' = 'rau cải'",
-            new { id = id.ToString() }));
+            "SELECT count(*) FROM audit_log WHERE aggregate_id = $1 AND action = 'ItemCreated' AND actor = 'u1' AND payload->>'Name' = 'rau cải'",
+            id.ToString()));
         Assert.True(await WaitUntil(async () => await Count("SELECT count(*) FROM wolverine_outgoing_envelopes") == 0, TimeSpan.FromSeconds(30)));
 
         await using var ch = await Channel();
@@ -244,7 +255,7 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         async Task<Result> Rename(string name, long expectedVersion)
         {
             await using var scope = _app.Services.CreateAsyncScope();
-            var uow = scope.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var repo = scope.ServiceProvider.GetRequiredService<ItemRepository>();
             await uow.BeginAsync(Ct);
             var item = (await repo.GetAsync(id, Ct))!;
@@ -259,8 +270,8 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         var stale = await Rename("ghi đè", 0);
 
         Assert.Equal(ErrorType.Conflict, stale.Error.Type);
-        Assert.Equal(1, await Count("SELECT count(*) FROM item WHERE id = @id AND name = 'v1' AND version = 1", new { id }));
-        Assert.Equal(0, await Count("SELECT count(*) FROM audit_log WHERE aggregate_id = @id AND payload->>'Name' = 'ghi đè'", new { id = id.ToString() }));
+        Assert.Equal(1, await Count("SELECT count(*) FROM item WHERE id = $1 AND name = 'v1' AND version = 1", id));
+        Assert.Equal(0, await Count("SELECT count(*) FROM audit_log WHERE aggregate_id = $1 AND payload->>'Name' = 'ghi đè'", id.ToString()));
     }
 
     [Fact(DisplayName = "GetForUpdateAsync khoá dòng tới hết transaction")]
@@ -270,12 +281,12 @@ public sealed class UnitOfWorkTests : IAsyncLifetime
         await CreateAsync(id, "khoá");
 
         await using var first = _app.Services.CreateAsyncScope();
-        var uow1 = first.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+        var uow1 = first.ServiceProvider.GetRequiredService<IUnitOfWork>();
         await uow1.BeginAsync(Ct);
         Assert.NotNull(await first.ServiceProvider.GetRequiredService<ItemRepository>().GetForUpdateAsync(id, Ct));
 
         await using var second = _app.Services.CreateAsyncScope();
-        var uow2 = second.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+        var uow2 = second.ServiceProvider.GetRequiredService<IUnitOfWork>();
         await uow2.BeginAsync(Ct);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(1));

@@ -77,7 +77,7 @@ public sealed class AccountRegisteredContractTests : IAsyncLifetime
                 .AddSingleton(NpgsqlDataSource.Create(_cs))
                 .AddSingleton<ICurrentUser, SystemUser>()
                 .AddSingleton(TimeProvider.System)
-                .AddIdentityOutbox())
+                .AddIdentityOutbox(_cs))
             .Build();
         // ponytail: bảng Wolverine tạo từ DDL của message store; khi host identity bật Wolverine thì chuyển thành migration.
         await Exec(((Weasel.Core.Migrations.IDatabase)_app.Services.GetRequiredService<IMessageStore>()).ToDatabaseScript());
@@ -125,7 +125,7 @@ public sealed class AccountRegisteredContractTests : IAsyncLifetime
         var account = Account.Register(kind, $"u{Guid.NewGuid():N}@minibox.vn", null, null).Value;
         await using (var scope = _app.Services.CreateAsyncScope())
         {
-            var uow = scope.ServiceProvider.GetRequiredService<NpgsqlUnitOfWork>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await uow.BeginAsync(Ct);
             await scope.ServiceProvider.GetRequiredService<AccountRepository>().AddAsync(account, Ct);
             await uow.CommitAsync(Ct);

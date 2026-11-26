@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Dapper;
 using FluentValidation;
 using JasperFx;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -18,6 +18,7 @@ using Minibox.BuildingBlocks.Infrastructure.Persistence;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 using Wolverine.Persistence.Durability;
 using Wolverine.Postgresql;
 
@@ -29,7 +30,7 @@ public sealed class Item : AggregateRoot<Guid>
 {
     Item(Guid id, string name) : base(id) => Name = name;
 
-    public string Name { get; }
+    public string Name { get; private set; }
 
     public static Item Create(string name)
     {
@@ -41,16 +42,17 @@ public sealed class Item : AggregateRoot<Guid>
     public static Item Load(Guid id, string name) => new(id, name);
 }
 
-public sealed record ItemRow(Guid Id, string Name, long Version);
-
-public sealed class ItemRepository(NpgsqlUnitOfWork uow) : DapperRepository<Item, Guid, ItemRow>(uow)
+public sealed class WebTestDb(DbContextOptions<WebTestDb> options) : DbContext(options)
 {
-    protected override string Table => "item";
-    protected override string InsertSql => "INSERT INTO item (id, name) VALUES (@Id, @Name)";
-    protected override string UpdateSetSql => "name = @Name";
-    protected override Item ToAggregate(ItemRow row) => Item.Load(row.Id, row.Name);
-    protected override object ToParameters(Item item) => new { item.Id, item.Name };
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        b.Entity<Item>().IsAggregateRoot();
+        b.MapWolverineEnvelopeStorage(WebPipelineTests.Schema);
+        b.UseSnakeCaseNames();
+    }
 }
+
+public sealed class ItemRepository(DbContext db) : EfRepository<Item, Guid>(db);
 
 public sealed record CreateItem(string Name, string IdempotencyKey) : ICommand<Guid>, IIdempotentCommand;
 
@@ -77,10 +79,10 @@ sealed class AllowAll : IAuthorizer
     public ValueTask<bool> HasPermissionAsync(string permission, string scope, CancellationToken cancellationToken = default) => ValueTask.FromResult(true);
 }
 
-/// <summary>Endpoint thật → Mediator pipeline → NpgsqlUnitOfWork/PostgresIdempotencyStore trên PostgreSQL thật (role app chỉ DML).</summary>
+/// <summary>Endpoint thật → Mediator pipeline → EfUnitOfWork/PostgresIdempotencyStore trên PostgreSQL thật (role app chỉ DML).</summary>
 public sealed class WebPipelineTests : IAsyncLifetime
 {
-    const string Schema = "webtest";
+    public const string Schema = "webtest";
     readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
     WebApplication _app = null!;
     HttpClient _http = null!;
@@ -93,8 +95,7 @@ public sealed class WebPipelineTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         await _pg.StartAsync(Ct);
-        await using (var c = new NpgsqlConnection(_pg.GetConnectionString()))
-            await c.ExecuteAsync($"""
+        await Exec(_pg.GetConnectionString(), $"""
                 CREATE ROLE {Schema}_migrator LOGIN PASSWORD 'pw';
                 CREATE ROLE {Schema}_app LOGIN PASSWORD 'pw';
                 REVOKE ALL ON SCHEMA public FROM PUBLIC;
@@ -113,6 +114,7 @@ public sealed class WebPipelineTests : IAsyncLifetime
         {
             o.PersistMessagesWithPostgresql(appCs, Schema);
             o.AutoBuildMessageStorageOnStartup = AutoCreate.None;
+            o.UseEntityFrameworkCoreTransactions();
             o.Discovery.DisableConventionalDiscovery();
         });
         builder.Services
@@ -120,9 +122,7 @@ public sealed class WebPipelineTests : IAsyncLifetime
             .AddSingleton(NpgsqlDataSource.Create(appCs))
             .AddSingleton(TimeProvider.System)
             .AddSingleton<IAuthorizer, AllowAll>()
-            .AddScoped<NpgsqlUnitOfWork>()
-            .AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<NpgsqlUnitOfWork>())
-            .AddScoped<IIdempotencyStore, PostgresIdempotencyStore>()
+            .AddMiniboxPersistence<WebTestDb>(appCs)
             .AddScoped<ItemRepository>()
             .AddSingleton<IValidator<CreateItem>, CreateItemValidator>()
             .AddMediator(options =>
@@ -145,13 +145,11 @@ public sealed class WebPipelineTests : IAsyncLifetime
             (await sender.Send(new CreateItem(request.Name, key), ct)).ToHttpResult());
 
         var wolverineDdl = ((Weasel.Core.Migrations.IDatabase)_app.Services.GetRequiredService<IMessageStore>()).ToDatabaseScript();
-        await using (var c = new NpgsqlConnection(As($"{Schema}_migrator")))
-        {
-            await c.ExecuteAsync("CREATE TABLE item (id uuid PRIMARY KEY, name text NOT NULL, version bigint NOT NULL DEFAULT 0)");
-            foreach (var template in new[] { "audit-log.sql", "idempotency-key.sql" })
-                await c.ExecuteAsync((await File.ReadAllTextAsync(Path.Combine(RepoRoot(), "database", "templates", template), Ct)).Replace("{{svc}}", Schema));
-            await c.ExecuteAsync(wolverineDdl);
-        }
+        var migrator = As($"{Schema}_migrator");
+        await Exec(migrator, "CREATE TABLE item (id uuid PRIMARY KEY, name text NOT NULL, version bigint NOT NULL DEFAULT 0)");
+        foreach (var template in new[] { "audit-log.sql", "idempotency-key.sql" })
+            await Exec(migrator, (await File.ReadAllTextAsync(Path.Combine(RepoRoot(), "database", "templates", template), Ct)).Replace("{{svc}}", Schema));
+        await Exec(migrator, wolverineDdl);
 
         await _app.StartAsync(Ct);
         _http = _app.GetTestClient();
@@ -172,10 +170,20 @@ public sealed class WebPipelineTests : IAsyncLifetime
         return dir?.FullName ?? throw new InvalidOperationException("Không tìm thấy thư mục gốc repo");
     }
 
+    static async Task Exec(string cs, string sql)
+    {
+        await using var c = new NpgsqlConnection(cs);
+        await c.OpenAsync(Ct);
+        await using var cmd = new NpgsqlCommand(sql, c);
+        await cmd.ExecuteNonQueryAsync(Ct);
+    }
+
     async Task<long> Count(string sql)
     {
         await using var c = new NpgsqlConnection(As($"{Schema}_app"));
-        return await c.ExecuteScalarAsync<long>(sql);
+        await c.OpenAsync(Ct);
+        await using var cmd = new NpgsqlCommand(sql, c);
+        return (long)(await cmd.ExecuteScalarAsync(Ct))!;
     }
 
     Task<HttpResponseMessage> Post(string name, string? key)
