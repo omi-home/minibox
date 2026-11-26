@@ -9,6 +9,10 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.15" />
   </ItemGroup>
+  <ItemGroup Label="Contracts">
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.15" />
+  </ItemGroup>
   <ItemGroup Label="Data">
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
     <PackageVersion Include="Dapper" Version="2.1.100" />
