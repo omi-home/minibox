@@ -1,0 +1,58 @@
+// restic cho SeaweedFS + secret (scripts/restic-backup.mjs). AC4 của #227 là [manual] (đích ngoài nhà chờ OPEN-03); test này khóa phần chạy được cục bộ. Cần Docker.
+import { after, before, test } from "node:test";
+import assert from "node:assert/strict";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { resticBackup, RESTIC_IMAGE } from "./restic-backup.mjs";
+import { root } from "./run.mjs";
+
+const MARK = "minibox-restic-plaintext-marker";
+const dir = mkdtempSync(join(tmpdir(), "minibox-restic-"));
+const config = join(dir, "config"), secrets = join(dir, "secrets"), volume = `minibox-restic-test-${process.pid}`;
+let restic;
+
+before(() => {
+  mkdirSync(config);
+  mkdirSync(secrets);
+  writeFileSync(join(config, "restic.env"), "RESTIC_REPOSITORY=/config/repo\n");
+  writeFileSync(join(config, "restic.password"), "test-only-password\n"); // chỉ cho repo tạm của test
+  writeFileSync(join(secrets, "postgres_admin.password"), `${MARK}-secret\n`);
+  execFileSync("docker", ["run", "--rm", "-v", `${volume}:/data`, "--entrypoint", "sh", RESTIC_IMAGE, "-c", `echo ${MARK}-blob > /data/1.dat`]);
+  restic = resticBackup("staging", { config, volume, secrets });
+  resticBackup("staging", { config, volume, secrets }); // lần 2: repo đã có, không init lại
+}, { timeout: 300000 });
+
+after(() => {
+  spawnSync("docker", ["volume", "rm", "-f", volume]);
+  // file repo do root trong container tạo; xóa bằng container để không kẹt quyền trên Linux
+  spawnSync("docker", ["run", "--rm", "-v", `${dir}:/d`, "--entrypoint", "sh", RESTIC_IMAGE, "-c", "rm -rf /d/*"]);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("restic_backup sao lưu dữ liệu SeaweedFS và thư mục secret, khôi phục được", () => {
+  const snap = JSON.parse(restic("snapshots", "--json", "latest"))[0];
+  assert.deepEqual(snap.paths.sort(), ["/data/seaweedfs", "/data/secrets"]);
+  assert.equal(snap.hostname, "minibox-staging");
+  assert.deepEqual(snap.tags, ["staging"]);
+  assert.equal(restic("dump", "latest", "/data/seaweedfs/1.dat").trim(), `${MARK}-blob`);
+  assert.equal(restic("dump", "latest", "/data/secrets/postgres_admin.password").trim(), `${MARK}-secret`);
+});
+
+test("restic_backup repo được mã hóa: không có bản rõ, sai khóa không mở được", () => {
+  // repo do root trong container tạo (0700 trên Linux) → quét bằng container
+  const g = spawnSync("docker", ["run", "--rm", "-v", `${config}:/c:ro`, "--entrypoint", "grep", RESTIC_IMAGE, "-rl", MARK, "/c/repo"], { encoding: "utf8" });
+  assert.equal(g.status, 1, `bản rõ trong repo: ${g.stdout}${g.stderr}`);
+  writeFileSync(join(config, "restic.password"), "wrong\n");
+  assert.throws(() => restic("snapshots"));
+});
+
+test("restic_backup cron mỗi giờ cho staging và production", () => {
+  const cron = readFileSync(join(root, "deploy", "backup", "restic.cron"), "utf8").split("\n").filter((l) => /^\d/.test(l));
+  for (const env of ["staging", "production"]) {
+    const line = cron.find((l) => l.endsWith(`restic-backup.mjs" ${env}`));
+    assert.ok(line, env);
+    assert.deepEqual(line.split(/\s+/).slice(1, 5), ["*", "*", "*", "*"], `${env} phải chạy mỗi giờ`);
+  }
+});

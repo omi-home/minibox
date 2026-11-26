@@ -94,7 +94,7 @@ describe("restore thử (scripts/restore-test.mjs)", { timeout: 900000 }, () => 
     assert.equal(result.actual.split(" ")[0], "1000");
   });
 
-  test("ac227_2 kết quả xuất thành metric OTLP (success, thời gian, tuổi backup, trạng thái pgBackRest)", () => {
+  test("metric_otlp kết quả restore thử xuất thành metric OTLP (success, thời gian, tuổi backup, trạng thái pgBackRest)", () => {
     const rm = sent.resourceMetrics[0];
     assert.deepEqual(rm.resource.attributes.find((a) => a.key === "deployment.environment").value, { stringValue: "staging" });
     const m = Object.fromEntries(rm.scopeMetrics[0].metrics.map((x) => [x.name, x.gauge.dataPoints[0].asDouble]));
