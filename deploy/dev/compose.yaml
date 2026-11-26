@@ -4,10 +4,15 @@ name: minibox-dev
 services:
   database-postgres:
     container_name: minibox-dev-database-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibox} # chỉ dev; staging/production dùng Docker secret
     ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
 
   infra-rabbitmq:
     container_name: minibox-dev-infra-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-minibox}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-minibox}
     ports:
       - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
       - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672" # giao diện quản trị

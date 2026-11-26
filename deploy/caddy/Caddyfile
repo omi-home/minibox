@@ -1,0 +1,32 @@
+# Caddy chung cho staging + production, route theo hostname (spec §8.2). Upstream gọi theo container_name vì Caddy nằm trên
+# cả hai mạng edge, tên dịch vụ (frontend-shop) trùng giữa hai môi trường. Chỉ frontend (BFF) ra ngoài; backend, /health/*,
+# /.well-known/* không có route ở đây.
+{
+	email {$ACME_EMAIL}
+}
+
+(staging) {
+	# Staging chỉ vào qua Tailscale (dải CGNAT 100.64.0.0/10 và ULA của tailnet), không bị index.
+	# ponytail: dựa vào IP nguồn còn nguyên qua port publishing của Docker; nếu đổi sang userland-proxy/tunnel thì bind cổng staging vào IP tailscale.
+	@outside not remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+	abort @outside
+	header X-Robots-Tag "noindex, nofollow"
+}
+
+{$SHOP_HOST} {
+	reverse_proxy minibox-production-frontend-shop:3000
+}
+
+{$ADMIN_HOST} {
+	reverse_proxy minibox-production-frontend-admin:3000
+}
+
+{$STAGING_SHOP_HOST} {
+	import staging
+	reverse_proxy minibox-staging-frontend-shop:3000
+}
+
+{$STAGING_ADMIN_HOST} {
+	import staging
+	reverse_proxy minibox-staging-frontend-admin:3000
+}

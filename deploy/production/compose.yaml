@@ -1,0 +1,41 @@
+# Môi trường production trên homeserver (spec §8.2, §8.4): Compose project riêng, không publish cổng — chỉ Caddy chung (deploy/caddy/) ra ngoài.
+# Secret: /srv/minibox/production/secrets/ (root, quyền 600), mount dạng Docker secret; repo không chứa giá trị. Danh sách file: deploy/production/.env.example.
+name: minibox-production
+
+services:
+  database-postgres:
+    container_name: minibox-production-database-postgres
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin
+    secrets: [postgres_admin]
+
+  infra-rabbitmq:
+    container_name: minibox-production-infra-rabbitmq
+    secrets:
+      - source: rabbitmq_conf # default_user/default_pass dạng rabbitmq.conf (image RabbitMQ 4 không đọc *_PASS_FILE)
+        target: /etc/rabbitmq/conf.d/90-secret.conf
+
+  infra-seaweedfs:
+    container_name: minibox-production-infra-seaweedfs
+    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-s3.config=/run/secrets/seaweedfs_s3"]
+    secrets: [seaweedfs_s3]
+
+  infra-clamav:
+    container_name: minibox-production-infra-clamav
+
+  infra-mailpit:
+    container_name: minibox-production-infra-mailpit
+
+networks:
+  # Do Caddy chung (deploy/caddy/) tạo; chỉ frontend (BFF) được nối vào để backend, /health/*, /.well-known/* không lộ ra ngoài.
+  edge:
+    name: minibox-production-edge
+    external: true
+
+secrets:
+  postgres_admin:
+    file: /srv/minibox/production/secrets/postgres_admin.password
+  rabbitmq_conf:
+    file: /srv/minibox/production/secrets/rabbitmq.conf
+  seaweedfs_s3:
+    file: /srv/minibox/production/secrets/seaweedfs_s3.json
