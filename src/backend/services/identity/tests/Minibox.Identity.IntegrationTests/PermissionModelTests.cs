@@ -1,3 +1,6 @@
+using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure.Accounts;
+using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -75,6 +78,15 @@ public sealed class PermissionModelTests : IAsyncLifetime
         Assert.DoesNotContain("finance.payment.confirm", await Strings("SELECT permission_code FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = 'sales'"));
     }
 
+    [Theory(DisplayName = "Mã quyền sai dạng miền.tài-nguyên.hành-động bị CHECK từ chối")]
+    [InlineData("inventory.adjustment")]
+    [InlineData("Inventory.adjustment.approve")]
+    [InlineData("inventory..approve")]
+    [InlineData("inventory.adjustment.approve.extra")]
+    [InlineData("inventory.adjustment_x.approve")]
+    public async Task malformed_permission_code_rejected(string code) =>
+        await Assert.ThrowsAsync<PostgresException>(() => Exec($"INSERT INTO permission (code, description) VALUES ('{code}', 'x')"));
+
     [Fact(DisplayName = "Phân công: một người nhiều vai trò, nhiều phạm vi (*, wh:n, farm:n); phạm vi sai dạng bị từ chối")]
     public async Task assignment_scopes()
     {
@@ -89,5 +101,67 @@ public sealed class PermissionModelTests : IAsyncLifetime
         foreach (var bad in new[] { "all", "wh:", "wh:0", "kho:1", "wh:1,wh:2", "" })
             await Assert.ThrowsAsync<PostgresException>(() =>
                 Exec($"INSERT INTO role_assignment (account_id, role_id, scope) SELECT '{_staff}', id, '{bad}' FROM role WHERE code = 'qc'"));
+    }
+
+    sealed class FixedTime : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
+    }
+
+    async Task<Guid> NewStaff(string email)
+    {
+        var id = Guid.CreateVersion7();
+        await Exec($"INSERT INTO account (id, kind, email) VALUES ('{id}', 'staff', '{email}')");
+        return id;
+    }
+
+    Task Assign(Guid account, string role, params string[] scopes) => Exec($"""
+        INSERT INTO role_assignment (account_id, role_id, scope)
+        SELECT '{account}'::uuid, id, s FROM role, unnest(ARRAY['{string.Join("','", scopes)}']) s WHERE code = '{role}'
+        """);
+
+    [Fact(DisplayName = "ac203_1: nhiều phân công → hợp các quyền, gom theo phạm vi (*, wh:n, farm:n)")]
+    public async Task ac203_1_permissions_union_grouped_by_scope()
+    {
+        await Assign(_staff, "warehouse", "wh:1", "wh:2");
+        await Assign(_staff, "qc", "wh:1");
+        await Assign(_staff, "production", "farm:3");
+        await Assign(_staff, "content", "*");
+        var other = await NewStaff("khac@minibox.vn");
+        await Assign(other, "finance", "*");
+
+        var perms = await new PostgresPermissions(_db).ForAccountAsync(_staff, Ct);
+
+        async Task<List<string>> Of(string role) =>
+            await Strings($"SELECT permission_code FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}' ORDER BY permission_code COLLATE \"C\"");
+        Assert.Equal(["*", "farm:3", "wh:1", "wh:2"], perms.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal((await Of("warehouse")).Concat(await Of("qc")).Order(StringComparer.Ordinal), perms["wh:1"]);
+        Assert.Equal(await Of("warehouse"), perms["wh:2"]);
+        Assert.Equal(await Of("production"), perms["farm:3"]);
+        Assert.Equal(await Of("content"), perms["*"]);
+        Assert.Empty(await new PostgresPermissions(_db).ForAccountAsync(Guid.CreateVersion7(), Ct));
+    }
+
+    [Fact(DisplayName = "ac203_4: thêm/sửa/xóa phân công hoặc đổi quyền của vai trò thu hồi refresh token của người bị ảnh hưởng")]
+    public async Task ac203_4_permission_change_revokes_refresh_tokens()
+    {
+        var tokens = new PostgresRefreshTokens(_db, new FixedTime());
+        var bystander = await NewStaff("ngoai@minibox.vn");
+        var bystanderSession = await tokens.IssueAsync(bystander, AccountKind.Staff, ["pwd", "mfa"], Ct);
+
+        async Task AssertRevoked(Func<Task> change)
+        {
+            var session = await tokens.IssueAsync(_staff, AccountKind.Staff, ["pwd", "mfa"], Ct);
+            await change();
+            Assert.False((await tokens.RotateAsync(session.Token, Ct)).IsSuccess);
+        }
+
+        await AssertRevoked(() => Assign(_staff, "warehouse", "wh:1"));
+        await AssertRevoked(() => Exec($"UPDATE role_assignment SET scope = 'wh:2' WHERE account_id = '{_staff}'"));
+        await AssertRevoked(() => Exec("INSERT INTO role_permission (role_id, permission_code) SELECT id, 'finance.refund.create' FROM role WHERE code = 'warehouse'"));
+        await AssertRevoked(() => Exec("DELETE FROM role_permission WHERE permission_code = 'inventory.issue.create' AND role_id = (SELECT id FROM role WHERE code = 'warehouse')"));
+        await AssertRevoked(() => Exec($"DELETE FROM role_assignment WHERE account_id = '{_staff}'"));
+
+        Assert.True((await tokens.RotateAsync(bystanderSession.Token, Ct)).IsSuccess); // người không bị đổi quyền giữ phiên
     }
 }
