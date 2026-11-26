@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Isopoh.Cryptography.Argon2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

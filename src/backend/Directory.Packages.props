@@ -13,6 +13,9 @@
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
     <PackageVersion Include="Dapper" Version="2.1.100" />
   </ItemGroup>
+  <ItemGroup Label="Security">
+    <PackageVersion Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
+  </ItemGroup>
   <ItemGroup Label="Messaging">
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- Nhúng database/services/identity/migrations/*.sql cho chế độ migrate (Directory.Build.props, spec §4.4). -->
+    <MiniboxService>identity</MiniboxService>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
+    <ProjectReference Include="../Minibox.Identity.Infrastructure/Minibox.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Web/Minibox.BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+</Project>
