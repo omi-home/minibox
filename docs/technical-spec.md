@@ -16,7 +16,7 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | D6 | Frontend | 2 app Next.js App Router (`shop`, `admin`) làm BFF; không có API gateway; client TS sinh từ OpenAPI |
 | D7 | File | SeaweedFS (API S3) tự host, bucket và credential theo service, presigned URL |
 | D8 | Tìm kiếm | PostgreSQL `unaccent` + `pg_trgm` trong schema `catalog` |
-| D9 | Database as code | Bootstrap SQL idempotent + migration SQL thuần có phiên bản (DbUp); truy cập dữ liệu bằng Dapper |
+| D9 | Database as code | Bootstrap SQL idempotent + `database/<svc>/` tổ chức kiểu SQL Server Database Project (SQL trạng thái đích theo loại đối tượng + script DbUp có phiên bản); truy cập dữ liệu bằng EF Core + LINQ (Npgsql), không dùng EF migrations (CR #427) |
 | D10 | Kiến trúc mã | Clean Architecture, CQRS, Generic Repository, Generic Unit of Work, Mediator pipeline; luật phụ thuộc kiểm bằng architecture test |
 | D11 | Repo | Root sạch (không `package.json`/`node_modules`): code ở `src/frontend/`, `src/backend/`; `database/`, `contracts/`, `deploy/`, `scripts/` cùng cấp `src/` (CR #348) |
 | D12 | Môi trường | dev trên máy dev; staging + production trên homeserver Ubuntu bằng Docker Compose |
@@ -57,13 +57,14 @@ Quy tắc ranh giới:
 ### 2.1 Kênh
 
 - **REST đồng bộ** chỉ cho truy vấn (ví dụ `order` hỏi `catalog` giá/biến thể khi báo giá). Có timeout; chỉ retry GET. Không dùng REST để đổi trạng thái service khác.
-- **Lệnh/sự kiện qua RabbitMQ** bằng Wolverine (MIT). Bảng outbox/inbox nằm trong schema của service, ghi cùng `NpgsqlTransaction` với dữ liệu nghiệp vụ. Bảng của Wolverine được tạo bằng migration DbUp; tắt tự sinh DDL lúc khởi động (role runtime không có DDL).
+- **Lệnh/sự kiện qua RabbitMQ** bằng Wolverine (MIT). Bảng outbox/inbox nằm trong schema của service, ghi cùng transaction của `DbContext` (EF Core) với dữ liệu nghiệp vụ. Bảng của Wolverine được tạo bằng migration DbUp; tắt tự sinh DDL lúc khởi động (role runtime không có DDL).
 - Phía nhận khử trùng theo message id; mọi handler idempotent. Retry có backoff; quá số lần → dead-letter queue + cảnh báo + công cụ replay cho vai trò Kỹ thuật.
 - **Hợp đồng sự kiện**: JSON Schema có phiên bản trong `contracts/events/`; thay đổi phá vỡ phải tạo phiên bản mới (CI kiểm).
 - **Spike M0 (#188) — đạt, giữ Wolverine** (WolverineFx 6.65, test `WolverineOutboxSpikeTests`):
   - Enlist: mở `NpgsqlConnection` + transaction bằng role app → `MessageContext.EnlistInOutboxAsync(new DatabaseEnvelopeTransaction(IMessageDatabase, tx))` → ghi Dapper với cùng `tx` → `PublishAsync` → `tx.CommitAsync()` → `FlushOutgoingMessagesAsync()`. Commit: dữ liệu + message tới RabbitMQ đúng một lần, outbox dọn sạch; rollback: không dữ liệu, không message.
   - DDL: `((Weasel.Core.Migrations.IDatabase)IMessageStore).ToDatabaseScript()` sinh offline toàn bộ bảng Wolverine trong schema service → đưa vào migration DbUp chạy bằng migrator; runtime đặt `AutoBuildMessageStorageOnStartup = AutoCreate.None`, role app (chỉ DML) chạy được.
   - Wolverine 6 tách bộ biên dịch runtime: cần `WolverineFx.RuntimeCompilation` hoặc codegen tĩnh (`codegen write` + `TypeLoadMode.Static`). Service production dùng codegen tĩnh (không kéo Roslyn vào image) — chốt ở #191.
+- **Outbox với EF Core (CR #427, spike #429)**: enlist outbox vào transaction của `DbContext` (`WolverineFx.EntityFrameworkCore`, Npgsql): `SaveChangesAsync` + message trong cùng transaction → commit thì message ra RabbitMQ đúng một lần, rollback thì không. DDL bảng Wolverine vẫn sinh offline vào script DbUp, runtime `AutoCreate.None`. Kết luận và API cụ thể ghi lại ở đây khi #429 xong; luồng Dapper ở trên giữ làm lịch sử.
 
 ### 2.2 Saga đặt hàng (`order` điều phối, trạng thái saga lưu trong schema `order`)
 
@@ -148,15 +149,35 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 `database/bootstrap/*.sql` idempotent (khối `DO`, `IF NOT EXISTS`), chạy bằng `db_admin`: tạo schema, role, extension, grant và `ALTER DEFAULT PRIVILEGES` để bảng mới của migrator tự cấp DML cho role app. Mật khẩu role chưa có được sinh ngẫu nhiên và ghi vào thư mục secret của môi trường. Lệnh: `node database/bootstrap/run.mjs <env> [--secrets <dir>]` (đẩy SQL vào psql của container `database-postgres`; file secret `<role>.password`, dev ở `deploy/dev/secrets/` đã .gitignore). Chỉ `catalog` được `USAGE` trên `extensions`. Bootstrap không `GRANT ... ON ALL TABLES` để không trả lại quyền mà migration đã thu hồi.
 
-### 4.4 Migration (DbUp)
+### 4.4 Cấu trúc `database/<svc>/` và migration (DbUp)
 
-- Script tại `database/services/<svc>/migrations/NNNN_mo-ta.sql`, được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; journal `<svc>.schema_versions`, chạy lại không đổi gì. Runner: `DbMigrator` (`Minibox.BuildingBlocks.Infrastructure.Migrations`); project Api đặt `<MiniboxService><svc></MiniboxService>` để `Directory.Build.props` nhúng script với LogicalName `migrations/<file>.sql`, và đầu `Program.cs` gọi `DbMigrator.RunIfRequested(args, "<svc>", typeof(Program).Assembly, ...)` (mỗi script một transaction; lỗi → exit 1).
+Mỗi service một thư mục tổ chức theo kiểu SQL Server Database Project (SSDT). Không dùng `.sqlproj`/dacpac vì chúng chỉ chạy với SQL Server (CR #427).
+
+```
+database/<svc>/
+├─ Tables/<bang>.sql              # CREATE TABLE trạng thái đích, kèm constraint, index, COMMENT
+├─ Views/<view>.sql
+├─ Functions/<ham>.sql            # function, trigger function
+├─ Stored Procedures/<thu_tuc>.sql
+├─ Security/<doi_tuong>.sql       # GRANT/REVOKE riêng của service (vd. REVOKE UPDATE, DELETE bảng append-only)
+└─ Scripts/
+   ├─ Pre-Deployment/NNNN_mo-ta.sql   # chạy mọi lần deploy, trước Migrations; bắt buộc idempotent
+   ├─ Migrations/NNNN_mo-ta.sql       # chạy một lần theo journal; nguồn thay đổi thật của DB
+   └─ Post-Deployment/NNNN_mo-ta.sql  # chạy mọi lần deploy, sau Migrations; bắt buộc idempotent
+```
+
+- Thư mục đối tượng (`Tables/`, `Views/`, `Functions/`, `Stored Procedures/`, `Security/`) là **trạng thái đích**: một đối tượng một file, tên file = tên đối tượng, viết bằng `CREATE`. Chúng không được chạy khi deploy; dùng để đọc và review schema hiện tại. Mọi PR đổi schema phải sửa cả file trạng thái đích lẫn thêm script `Migrations/`. Test trong `database/tests` áp file trạng thái đích vào DB trống, so catalog với DB đã chạy migration; lệch là fail.
+- Script `Scripts/` được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; thứ tự Pre-Deployment → Migrations → Post-Deployment, trong mỗi nhóm theo tên. Journal `<svc>.schema_versions` chỉ ghi script `Migrations/`; chạy lại không đổi gì. Runner: `DbMigrator` (`Minibox.BuildingBlocks.Infrastructure.Migrations`); project Api đặt `<MiniboxService><svc></MiniboxService>` để `Directory.Build.props` nhúng `database/<svc>/Scripts/**` với LogicalName giữ đường dẫn tương đối (`Scripts/Migrations/<file>.sql`…), và đầu `Program.cs` gọi `DbMigrator.RunIfRequested(args, "<svc>", typeof(Program).Assembly, ...)` (mỗi script một transaction; lỗi → exit 1).
+- Schema chỉ do DbUp tạo. Không dùng EF Core migrations, `EnsureCreated` hay tự sinh DDL lúc chạy.
 - Chỉ đi tiến, không có script down. Quay lui bằng migration mới; PITR là phương án cuối.
 - Thay đổi phá vỡ theo expand → migrate → contract để bản cũ vẫn chạy trong lúc deploy.
 
 ### 4.5 Truy cập dữ liệu và quy ước
 
-- Dapper + Npgsql, SQL viết tay trong repository/read service của layer Infrastructure; không dùng EF Core.
+- EF Core + `Npgsql.EntityFrameworkCore.PostgreSQL`, truy vấn bằng LINQ trong repository/read service của layer Infrastructure (CR #427). Mỗi service một `DbContext` (`HasDefaultSchema("<svc>")`, ánh xạ `snake_case`), cấu hình entity bằng `IEntityTypeConfiguration<T>` trong `Persistence/Configurations/`. Mapping phải khớp DDL ở `database/<svc>/`; integration test chạy trên DB đã migrate để bắt lệch.
+- Project runtime không tham chiếu `Microsoft.EntityFrameworkCore.Design`/`Tools`; không có thư mục `Migrations/` của EF.
+- Cập nhật có điều kiện và hàng loạt dùng `ExecuteUpdateAsync`/`ExecuteDeleteAsync` (vd. `Where(s => s.Available >= qty).ExecuteUpdateAsync(...)` cho §2.4). Chỉ dùng SQL thô khi LINQ không biểu diễn được (`FOR UPDATE`, `pg_advisory_xact_lock`, `ON CONFLICT`), qua `FromSql`/`ExecuteSql` có tham số; cấm `FromSqlRaw`/`ExecuteSqlRaw` nối chuỗi.
+- Tìm kiếm (§7.2) dùng `EF.Functions` của Npgsql (`ILike`, `TrigramsSimilarity`, `Unaccent`).
 - Tên `snake_case`; khóa chính UUIDv7 (`Guid.CreateVersion7()`); mã cho người đọc (SKU, số đơn, số phiếu) là cột riêng có unique, không dùng làm bằng chứng quyền truy cập.
 - Tiền `bigint` (đồng); thời gian `timestamptz`; bảng sửa được có cột `version` (optimistic concurrency).
 - Không xóa mềm chung; đối tượng nghiệp vụ kết thúc bằng trạng thái (`archived`, `cancelled`…).
@@ -176,7 +197,7 @@ Dữ liệu tham chiếu (vai trò mẫu, mã quyền) đi bằng migration. D�
 src/backend/services/<svc>/
   src/Minibox.<Svc>.Domain/          # không phụ thuộc gì
   src/Minibox.<Svc>.Application/     # → Domain, BuildingBlocks.Application
-  src/Minibox.<Svc>.Infrastructure/  # → Application (Dapper, Wolverine, S3, adapter)
+  src/Minibox.<Svc>.Infrastructure/  # → Application (EF Core, Wolverine, S3, adapter)
   src/Minibox.<Svc>.Api/             # → Application, Infrastructure (composition root, endpoint, --migrate)
   src/Minibox.<Svc>.Contracts/       # integration event/message công khai, không phụ thuộc gì
   tests/{UnitTests, IntegrationTests, ArchitectureTests}/
@@ -190,24 +211,24 @@ Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (Ne
 |---|---|
 | Domain | `Aggregates/<Tên>/` (aggregate root, entity, value object, domain event, máy trạng thái), `Services/`, `Errors/` |
 | Application | `Features/<Tên>/Commands/<Lệnh>/` (command + handler + validator), `Features/<Tên>/Queries/<Truy vấn>/` (query + handler + DTO), `Abstractions/` (port: repository riêng, read service, adapter ngoài), `Behaviors/` riêng nếu có |
-| Infrastructure | `Persistence/` (repository Dapper, read service), `Messaging/` (Wolverine, consumer), `Storage/` (S3), `Integrations/<Provider>/` (adapter + fake) |
+| Infrastructure | `Persistence/` (`<Svc>DbContext`, `Configurations/`, repository EF Core, read service LINQ), `Messaging/` (Wolverine, consumer), `Storage/` (S3), `Integrations/<Provider>/` (adapter + fake) |
 | Api | `Endpoints/<Tên>/` (Minimal API mỏng: request → command/query → kết quả), `Program.cs`, cấu hình auth/OpenAPI/health |
 
 ### 5.3 Building blocks (`src/backend/building-blocks/`)
 
 - `BuildingBlocks.Domain`: `Entity<TId>`, `AggregateRoot<TId>` (gom domain event), `ValueObject`, `Result<T>`/`Error`, `Money` (VND, bigint, phân bổ phần dư lớn nhất), `Quantity` (kèm đơn vị).
 - `BuildingBlocks.Application`: `ICommand`/`IQuery`, `IRepository<TAggregate,TId>`, `IUnitOfWork`, `ICurrentUser`, `IAuthorizer`, `IClock`, pipeline behavior chung.
-- `BuildingBlocks.Infrastructure`: `DapperRepository<TAggregate,TId>`, `NpgsqlUnitOfWork`, outbox/inbox, audit writer, DbUp runner, OpenTelemetry.
+- `BuildingBlocks.Infrastructure`: `EfRepository<TAggregate,TId>`, Unit of Work trên `DbContext`, outbox/inbox, audit writer, DbUp runner, OpenTelemetry.
 - `BuildingBlocks.Web`: idempotency middleware, attribute phân quyền, ánh xạ `Result` → ProblemDetails, health check.
 
 ### 5.4 Pattern
 
 | Pattern | Cách dùng |
 |---|---|
-| CQRS | Command đi qua aggregate + repository + UoW. Query không qua repository: read service Dapper trả DTO trực tiếp. Hai phía cùng DB; chỉ dữ liệu liên service mới có read model riêng |
+| CQRS | Command đi qua aggregate + repository + UoW. Query không qua repository: read service dùng LINQ `AsNoTracking()` + `Select` chiếu thẳng ra DTO (không tải entity). Hai phía cùng DB; chỉ dữ liệu liên service mới có read model riêng |
 | Mediator + pipeline | `Mediator` (martinothamar, MIT, source-generated); không dùng MediatR (giấy phép thương mại từ v13). Thứ tự behavior: logging/trace → validation (FluentValidation) → authorization → transaction (chỉ command) → idempotency (giữ chỗ `Idempotency-Key` trong cùng transaction với dữ liệu: rollback thì khoá mất, request trùng song song chờ rồi nhận kết quả lần đầu; cùng khoá khác nội dung → 409) |
-| Generic Repository | `IRepository<TAggregate,TId>`: `GetAsync`, `GetForUpdateAsync` (`SELECT … FOR UPDATE`), `AddAsync`, `UpdateAsync` (kiểm `version`). Chỉ cho aggregate root; không có `IQueryable`/`Find(predicate)`. Truy vấn đặc thù đặt trong repository riêng kế thừa bản generic (ví dụ `IStockRepository.ReserveAsync`) |
-| Generic Unit of Work | `IUnitOfWork` giữ một `NpgsqlConnection` + transaction dùng chung cho mọi repository trong một command. `CommitAsync`: lưu thay đổi → domain event thành integration event vào outbox → ghi audit → commit, trong một transaction |
+| Generic Repository | `IRepository<TAggregate,TId>`: `GetAsync`, `GetForUpdateAsync` (`FromSql` `SELECT … FOR UPDATE`), `AddAsync`, `UpdateAsync` (`version` là concurrency token của EF; lệch → lỗi xung đột). Bản cài đặt `EfRepository` dùng LINQ bên trong, nhưng interface chỉ cho aggregate root và không lộ `IQueryable`/`Find(predicate)` ra Application. Truy vấn đặc thù đặt trong repository riêng kế thừa bản generic (ví dụ `IStockRepository.ReserveAsync`) |
+| Generic Unit of Work | `IUnitOfWork` giữ một `DbContext` + transaction dùng chung cho mọi repository trong một command. `CommitAsync`: `SaveChangesAsync` → domain event thành integration event vào outbox → ghi audit → commit, trong một transaction |
 | Domain event / integration event | Domain event xử lý nội bộ trong transaction; integration event (trong `*.Contracts`) đi qua outbox ra RabbitMQ |
 | Result pattern | Lỗi nghiệp vụ trả `Result`, không ném exception; exception chỉ cho lỗi hạ tầng. Api ánh xạ sang RFC 9457 |
 | State machine | Mỗi chiều trạng thái BRD §6.3 có bảng chuyển tường minh trong aggregate; chuyển sai trả lỗi, chuyển đúng ghi lịch sử |
@@ -216,7 +237,7 @@ Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (Ne
 | Saga / process manager | Saga đặt hàng trong `order` (§2.2), trạng thái lưu DB |
 | Specification | Không dùng làm chuẩn chung; chỉ thêm khi một quy tắc chọn lọc lặp ở nhiều nơi |
 
-Không áp dụng: event sourcing (sổ append-only đã đủ truy vết), DB đọc riêng (chưa cần ở < 100 đơn/ngày), repository `IQueryable` (xung đột với Dapper).
+Không áp dụng: event sourcing (sổ append-only đã đủ truy vết), DB đọc riêng (chưa cần ở < 100 đơn/ngày), repository lộ `IQueryable` ra Application (Application không phụ thuộc EF Core; truy vấn tùy biến đi qua read service), EF Core migrations (schema do DbUp quản, §4.4).
 
 ## 6. Frontend và hợp đồng API
 
@@ -304,7 +325,10 @@ minibox/                             # root sạch: không package.json, không 
 │     └─ tests/                      # test cấp repo
 ├─ database/                         # toàn bộ SQL, nguồn sự thật của schema
 │  ├─ bootstrap/
-│  ├─ services/<svc>/migrations/
+│  ├─ <svc>/                         # kiểu SQL Server Database Project (§4.4)
+│  │  ├─ Tables/ Views/ Functions/ Stored Procedures/ Security/
+│  │  └─ Scripts/{Pre-Deployment,Migrations,Post-Deployment}/
+│  ├─ templates/
 │  ├─ seed/demo/
 │  └─ tests/
 ├─ contracts/{openapi,events}/       # hợp đồng chung frontend ↔ backend, service ↔ service
