@@ -59,12 +59,14 @@ export function bootstrap(psql, secretsDir) {
   return r.status ?? 1;
 }
 
+/** Lệnh psql vào database minibox bằng db_admin trong container `database-postgres` của môi trường (chạy với cwd = root repo). */
+export const composePsql = (env) => ["docker", ...composeArgs(env), "exec", "-T", "database-postgres",
+  "sh", "-c", 'exec psql -U "$POSTGRES_USER" -d minibox "$@"', "psql"];
+
 if (isMain(import.meta.url)) {
   const [env = "dev", ...rest] = process.argv.slice(2);
   const i = rest.indexOf("--secrets");
   const dir = i >= 0 ? rest[i + 1] : defaultSecretsDir(env);
-  const psql = ["docker", ...composeArgs(env), "exec", "-T", "database-postgres",
-    "sh", "-c", 'exec psql -U "$POSTGRES_USER" -d minibox "$@"', "psql"];
   process.chdir(root);
-  process.exit(bootstrap(psql, dir));
+  process.exit(bootstrap(composePsql(env), dir));
 }
