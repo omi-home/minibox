@@ -1,21 +1,21 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Accounts;
 using Minibox.Identity.Application.Tokens;
 using Minibox.Identity.Domain.Accounts;
-using Npgsql;
 
 namespace Minibox.Identity.Infrastructure.Accounts;
 
 /// <summary>MFA TOTP trên <c>identity.mfa_totp</c> và <c>identity.mfa_recovery_code</c>; sai mã đếm ở <c>identity.login_throttle</c>.</summary>
-/// <param name="dataSource">Kết nối role <c>identity_app</c>.</param>
+/// <param name="dbs">Factory DbContext identity (role <c>identity_app</c>).</param>
 /// <param name="encryptionKey">Khóa AES-256 (32 byte) mã hóa secret TOTP, đọc từ secret <c>Mfa:EncryptionKey</c>.</param>
 /// <param name="refreshTokens">Mở phiên sau khi xác minh.</param>
 /// <param name="time">Đồng hồ.</param>
 /// <remarks>Dòng <c>mfa_totp</c> khóa <c>FOR UPDATE</c> khi kiểm mã nên hai request song song cùng mã chỉ một cái thành công.
 /// Không log secret, mã hay mã khôi phục.</remarks>
-public sealed class PostgresMfa(NpgsqlDataSource dataSource, byte[] encryptionKey, IRefreshTokens refreshTokens, TimeProvider time) : IMfa
+public sealed class PostgresMfa(IDbContextFactory<IdentityDbContext> dbs, byte[] encryptionKey, IRefreshTokens refreshTokens, TimeProvider time) : IMfa
 {
     const string Issuer = "Minibox";
     const int NonceSize = 12, TagSize = 16;
@@ -31,30 +31,24 @@ public sealed class PostgresMfa(NpgsqlDataSource dataSource, byte[] encryptionKe
     /// <inheritdoc />
     public async Task<Result<MfaEnrollment>> BeginEnrollmentAsync(Guid accountId, CancellationToken cancellationToken = default)
     {
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var find = new NpgsqlCommand("""
-            SELECT coalesce(a.email, a.username), m.confirmed_at IS NOT NULL
-            FROM account a LEFT JOIN mfa_totp m ON m.account_id = a.id WHERE a.id = $1
-            """, conn) { Parameters = { new() { Value = accountId } } };
-        string label;
-        await using (var r = await find.ExecuteReaderAsync(cancellationToken))
-        {
-            if (!await r.ReadAsync(cancellationToken))
-                return NotEnrolled;
-            if (r.GetBoolean(1))
-                return AlreadyEnrolled;
-            label = r.GetString(0);
-        }
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        var account = await db.Set<Account>().Where(a => a.Id == accountId)
+            .Select(a => new { Label = a.Email ?? a.Username, Confirmed = db.Set<MfaTotpRow>().Any(m => m.AccountId == a.Id && m.ConfirmedAt != null) })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (account is null)
+            return NotEnrolled;
+        if (account.Confirmed)
+            return AlreadyEnrolled;
 
         var secret = RandomNumberGenerator.GetBytes(Totp.SecretLength);
-        await using var upsert = new NpgsqlCommand("""
-            INSERT INTO mfa_totp (account_id, secret_enc) VALUES ($1, $2)
-            ON CONFLICT (account_id) DO UPDATE SET secret_enc = $2, last_used_step = NULL WHERE mfa_totp.confirmed_at IS NULL
-            """, conn) { Parameters = { new() { Value = accountId }, new() { Value = Encrypt(accountId, secret) } } };
-        if (await upsert.ExecuteNonQueryAsync(cancellationToken) == 0)
+        var encrypted = Encrypt(accountId, secret);
+        if (await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO mfa_totp (account_id, secret_enc) VALUES ({accountId}, {encrypted})
+                ON CONFLICT (account_id) DO UPDATE SET secret_enc = {encrypted}, last_used_step = NULL WHERE mfa_totp.confirmed_at IS NULL
+                """, cancellationToken) == 0)
             return AlreadyEnrolled; // vừa được xác nhận bởi request song song
         var base32 = Totp.Base32(secret);
-        var uri = $"otpauth://totp/{Issuer}:{Uri.EscapeDataString(label)}?secret={base32}&issuer={Issuer}&algorithm=SHA1&digits=6&period=30";
+        var uri = $"otpauth://totp/{Issuer}:{Uri.EscapeDataString(account.Label!)}?secret={base32}&issuer={Issuer}&algorithm=SHA1&digits=6&period=30";
         return new MfaEnrollment(base32, uri);
     }
 
@@ -63,30 +57,33 @@ public sealed class PostgresMfa(NpgsqlDataSource dataSource, byte[] encryptionKe
     {
         var now = time.GetUtcNow();
         var throttleKey = ThrottleKey(accountId);
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        if (await PostgresPasswordLogin.IsLockedAsync(conn, [throttleKey], now, cancellationToken))
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        if (await PostgresPasswordLogin.IsLockedAsync(db, [throttleKey], now, cancellationToken))
             return Throttled;
 
-        await using var tx = await conn.BeginTransactionAsync(cancellationToken);
-        await using var select = new NpgsqlCommand("SELECT secret_enc FROM mfa_totp WHERE account_id = $1 AND confirmed_at IS NULL FOR UPDATE", conn, tx)
-            { Parameters = { new() { Value = accountId } } };
-        if (await select.ExecuteScalarAsync(cancellationToken) is not byte[] encrypted)
-            return NotEnrolled;
-        if (Totp.Match(Decrypt(accountId, encrypted), code, now, null) is not { } step)
+        string[] codes;
+        await using (var tx = await db.Database.BeginTransactionAsync(cancellationToken))
         {
-            await tx.CommitAsync(cancellationToken);
-            await PostgresPasswordLogin.RecordFailureAsync(conn, throttleKey, LoginThrottle.AccountThreshold, now, cancellationToken);
-            return InvalidCode;
-        }
+            var totp = (await db.Set<MfaTotpRow>()
+                .FromSql($"SELECT * FROM mfa_totp WHERE account_id = {accountId} AND confirmed_at IS NULL FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault();
+            if (totp is null)
+                return NotEnrolled;
+            if (Totp.Match(Decrypt(accountId, totp.SecretEnc), code, now, null) is not { } step)
+            {
+                await tx.CommitAsync(cancellationToken);
+                await PostgresPasswordLogin.RecordFailureAsync(db, throttleKey, LoginThrottle.AccountThreshold, now, cancellationToken);
+                return InvalidCode;
+            }
 
-        await ExecAsync(conn, tx, "UPDATE mfa_totp SET confirmed_at = $2, last_used_step = $3 WHERE account_id = $1", cancellationToken, accountId, now, step);
-        await ExecAsync(conn, tx, "DELETE FROM mfa_recovery_code WHERE account_id = $1", cancellationToken, accountId);
-        var codes = Enumerable.Range(0, MfaPolicy.RecoveryCodeCount).Select(_ => MfaPolicy.NewRecoveryCode()).ToArray();
-        await using (var insert = new NpgsqlCommand("INSERT INTO mfa_recovery_code (account_id, code_hash) SELECT $1, unnest($2::bytea[])", conn, tx)
-                     { Parameters = { new() { Value = accountId }, new() { Value = codes.Select(c => HashRecoveryCode(MfaPolicy.NormalizeRecoveryCode(c)!)).ToArray() } } })
-            await insert.ExecuteNonQueryAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
-        await ResetAsync(conn, throttleKey, cancellationToken);
+            totp.ConfirmedAt = now;
+            totp.LastUsedStep = step;
+            await db.Set<MfaRecoveryCodeRow>().Where(c => c.AccountId == accountId).ExecuteDeleteAsync(cancellationToken);
+            codes = [.. Enumerable.Range(0, MfaPolicy.RecoveryCodeCount).Select(_ => MfaPolicy.NewRecoveryCode())];
+            db.AddRange(codes.Select(c => new MfaRecoveryCodeRow { AccountId = accountId, CodeHash = HashRecoveryCode(MfaPolicy.NormalizeRecoveryCode(c)!) }));
+            await db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+        }
+        await ResetAsync(db, throttleKey, cancellationToken);
         return codes;
     }
 
@@ -95,58 +92,54 @@ public sealed class PostgresMfa(NpgsqlDataSource dataSource, byte[] encryptionKe
     {
         var now = time.GetUtcNow();
         var throttleKey = ThrottleKey(accountId);
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        if (await PostgresPasswordLogin.IsLockedAsync(conn, [throttleKey], now, cancellationToken))
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        if (await PostgresPasswordLogin.IsLockedAsync(db, [throttleKey], now, cancellationToken))
             return Throttled;
 
-        await using var tx = await conn.BeginTransactionAsync(cancellationToken);
-        await using var select = new NpgsqlCommand("""
-            SELECT a.kind, m.secret_enc, m.last_used_step
-            FROM mfa_totp m JOIN account a ON a.id = m.account_id
-            WHERE m.account_id = $1 AND m.confirmed_at IS NOT NULL FOR UPDATE OF m
-            """, conn, tx) { Parameters = { new() { Value = accountId } } };
         AccountKind kind;
-        byte[] encrypted;
-        long? lastUsed;
-        await using (var r = await select.ExecuteReaderAsync(cancellationToken))
+        bool ok;
+        await using (var tx = await db.Database.BeginTransactionAsync(cancellationToken))
         {
-            if (!await r.ReadAsync(cancellationToken))
+            var totp = (await db.Set<MfaTotpRow>()
+                .FromSql($"SELECT * FROM mfa_totp WHERE account_id = {accountId} AND confirmed_at IS NOT NULL FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault();
+            if (totp is null)
                 return NotEnrolled;
-            kind = Enum.Parse<AccountKind>(r.GetString(0), ignoreCase: true);
-            encrypted = r.GetFieldValue<byte[]>(1);
-            lastUsed = r.IsDBNull(2) ? null : r.GetInt64(2);
-        }
+            kind = await db.Set<Account>().Where(a => a.Id == accountId).Select(a => a.Kind).SingleAsync(cancellationToken);
 
-        var ok = (code ?? "").Trim() is { Length: 6 } totp
-            ? Totp.Match(Decrypt(accountId, encrypted), totp, now, lastUsed) is { } step
-              && await ExecAsync(conn, tx, "UPDATE mfa_totp SET last_used_step = $2 WHERE account_id = $1", cancellationToken, accountId, step) == 1
-            : MfaPolicy.NormalizeRecoveryCode(code ?? "") is { } recovery
-              && await ExecAsync(conn, tx, "UPDATE mfa_recovery_code SET used_at = $3 WHERE account_id = $1 AND code_hash = $2 AND used_at IS NULL",
-                  cancellationToken, accountId, HashRecoveryCode(recovery), now) == 1;
-        await tx.CommitAsync(cancellationToken);
+            if ((code ?? "").Trim() is { Length: 6 } six)
+            {
+                var step = Totp.Match(Decrypt(accountId, totp.SecretEnc), six, now, totp.LastUsedStep);
+                ok = step is not null;
+                if (ok)
+                {
+                    totp.LastUsedStep = step;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                var hash = MfaPolicy.NormalizeRecoveryCode(code ?? "") is { } recovery ? HashRecoveryCode(recovery) : null;
+                ok = hash is not null && await db.Set<MfaRecoveryCodeRow>()
+                    .Where(c => c.AccountId == accountId && c.CodeHash == hash && c.UsedAt == null)
+                    .ExecuteUpdateAsync(s => s.SetProperty(c => c.UsedAt, now), cancellationToken) == 1;
+            }
+            await tx.CommitAsync(cancellationToken);
+        }
         if (!ok)
         {
-            await PostgresPasswordLogin.RecordFailureAsync(conn, throttleKey, LoginThrottle.AccountThreshold, now, cancellationToken);
+            await PostgresPasswordLogin.RecordFailureAsync(db, throttleKey, LoginThrottle.AccountThreshold, now, cancellationToken);
             return InvalidCode;
         }
 
-        await ResetAsync(conn, throttleKey, cancellationToken);
+        await ResetAsync(db, throttleKey, cancellationToken);
         // ponytail: amr cố định pwd+mfa vì hiện chỉ có đăng nhập mật khẩu; thêm tham số phương thức gốc khi có đăng nhập xã hội.
         return await refreshTokens.IssueAsync(accountId, kind, ["pwd", "mfa"], cancellationToken);
     }
 
     static string ThrottleKey(Guid accountId) => "mfa:" + accountId;
 
-    static async Task ResetAsync(NpgsqlConnection conn, string key, CancellationToken ct) =>
-        await ExecAsync(conn, null, "DELETE FROM login_throttle WHERE key = $1", ct, key);
-
-    static async Task<int> ExecAsync(NpgsqlConnection conn, NpgsqlTransaction? tx, string sql, CancellationToken ct, params object[] args)
-    {
-        await using var cmd = new NpgsqlCommand(sql, conn, tx);
-        foreach (var arg in args)
-            cmd.Parameters.Add(new() { Value = arg });
-        return await cmd.ExecuteNonQueryAsync(ct);
-    }
+    static Task ResetAsync(IdentityDbContext db, string key, CancellationToken ct) =>
+        db.Set<LoginThrottleRow>().Where(t => t.Key == key).ExecuteDeleteAsync(ct);
 
     static byte[] HashRecoveryCode(string normalized) => SHA256.HashData(Encoding.ASCII.GetBytes(normalized));
 

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
@@ -6,6 +7,7 @@ using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
 using Minibox.Identity.Application.Accounts;
 using Minibox.Identity.Application.Tokens;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Accounts;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
@@ -24,6 +26,7 @@ builder.Services
     // Runtime dùng role identity_app (chỉ DML): ConnectionStrings__App.
     .AddSingleton(sp => NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("App")
         ?? throw new InvalidOperationException("Thiếu ConnectionStrings:App")))
+    .AddSingleton(sp => IdentityDbContext.Factory(sp.GetRequiredService<NpgsqlDataSource>()))
     .AddSingleton<IPasswordHasher, Argon2idPasswordHasher>()
     .AddSingleton(TimeProvider.System)
     .AddSingleton(sp => new SigningKeyRing(sp.GetRequiredService<TimeProvider>(), SigningKeyRing.DefaultPeriod))
@@ -31,7 +34,7 @@ builder.Services
     .AddSingleton<IPasswordLogin, PostgresPasswordLogin>()
     .AddSingleton<IPermissions, PostgresPermissions>()
     // Mfa:EncryptionKey: base64 32 byte, từ Docker secret; mất khóa = mọi secret TOTP vô hiệu.
-    .AddSingleton<IMfa>(sp => new PostgresMfa(sp.GetRequiredService<NpgsqlDataSource>(),
+    .AddSingleton<IMfa>(sp => new PostgresMfa(sp.GetRequiredService<IDbContextFactory<IdentityDbContext>>(),
         Convert.FromBase64String(sp.GetRequiredService<IConfiguration>()["Mfa:EncryptionKey"] ?? throw new InvalidOperationException("Thiếu cấu hình Mfa:EncryptionKey")),
         sp.GetRequiredService<IRefreshTokens>(), sp.GetRequiredService<TimeProvider>()))
     .AddSingleton<IAccessTokenIssuer>(sp => new JwtAccessTokenIssuer(
