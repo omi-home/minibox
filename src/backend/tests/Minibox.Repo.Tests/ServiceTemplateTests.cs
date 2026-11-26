@@ -44,8 +44,19 @@ public class ServiceTemplateTests
         }
         finally
         {
-            if (Directory.Exists(outDir)) Directory.Delete(outDir, recursive: true);
-            Directory.Delete(hive, recursive: true);
+            TryDelete(outDir);
+            TryDelete(hive);
+        }
+    }
+
+    // Windows: IDE/build server có thể giữ handle thư mục vừa build vài giây; dọn dẹp không được làm hỏng kết quả test.
+    static void TryDelete(string dir)
+    {
+        for (var i = 0; Directory.Exists(dir); i++)
+        {
+            try { Directory.Delete(dir, recursive: true); }
+            catch (IOException) when (i < 10) { Thread.Sleep(1000); }
+            catch (IOException) { return; }
         }
     }
 }
