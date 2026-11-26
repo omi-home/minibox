@@ -1,0 +1,5 @@
+# Prometheus nhận metric OTLP từ Collector; giữ 90 ngày (cờ --storage.tsdb.retention.time trong compose).
+otlp:
+  promote_resource_attributes: [service.name, service.namespace, deployment.environment]
+
+scrape_configs: []
