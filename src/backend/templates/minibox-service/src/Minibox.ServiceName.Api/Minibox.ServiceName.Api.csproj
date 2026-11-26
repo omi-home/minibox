@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <!-- Nhúng database/services/servicename/migrations/*.sql cho chế độ migrate (Directory.Build.props, spec §4.4). -->
+    <!-- Nhúng database/schemas/servicename/scripts/**/*.sql cho chế độ migrate (Directory.Build.props, spec §4.4). -->
     <MiniboxService>servicename</MiniboxService>
   </PropertyGroup>
   <ItemGroup>

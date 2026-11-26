@@ -1,5 +1,5 @@
 -- Mẫu migration bảng Idempotency-Key của service — PostgresIdempotencyStore (BuildingBlocks.Infrastructure) giữ chỗ khoá và lưu
--- kết quả thành công cùng transaction với dữ liệu nghiệp vụ. Chép vào database/services/<svc>/migrations/NNNN_idempotency-key.sql.
+-- kết quả thành công cùng transaction với dữ liệu nghiệp vụ. Chép vào database/schemas/<svc>/scripts/migrations/NNNN_idempotency-key.sql (và tables/idempotency_key.sql).
 -- key = "<sub>|<loại lệnh>|<Idempotency-Key>"; response chỉ chứa giá trị kết quả thành công (thường là id), không chứa PII.
 -- ponytail: chưa có TTL; khi bảng lớn thêm job dọn: DELETE FROM idempotency_key WHERE created_at < now() - interval '7 days'.
 

@@ -12,10 +12,12 @@
   <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('Tests'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/services/<svc>/migrations/*.sql
-       với LogicalName migrations/<file>.sql cho DbMigrator (spec §4.4). Item được đánh giá sau property nên đọc được giá trị của csproj. -->
+  <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/schemas/<svc>/scripts/{pre-deployment,migrations,post-deployment}/*.sql
+       với LogicalName scripts/<nhóm>/<file>.sql cho DbMigrator (spec §4.4). File trạng thái đích (tables/, views/...) không nhúng.
+       Item được đánh giá sau property nên đọc được giá trị của csproj. -->
   <ItemGroup Condition="'$(MiniboxService)' != ''">
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../database/services/$(MiniboxService)/migrations/*.sql"
-                      LogicalName="migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

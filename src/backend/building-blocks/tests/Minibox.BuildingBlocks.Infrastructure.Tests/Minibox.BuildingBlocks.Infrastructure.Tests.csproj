@@ -20,8 +20,10 @@
     <ProjectReference Include="../../src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Cùng quy ước nhúng với service: LogicalName migrations/<file>.sql -->
-    <EmbeddedResource Include="Migrations/*.sql" LogicalName="migrations/%(Filename)%(Extension)" />
+    <!-- Cùng quy ước nhúng với service (Directory.Build.props): LogicalName scripts/<nhóm>/<file>.sql -->
+    <EmbeddedResource Include="scripts/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="scripts/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="scripts/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

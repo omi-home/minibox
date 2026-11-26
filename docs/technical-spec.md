@@ -16,7 +16,7 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | D6 | Frontend | 2 app Next.js App Router (`shop`, `admin`) làm BFF; không có API gateway; client TS sinh từ OpenAPI |
 | D7 | File | SeaweedFS (API S3) tự host, bucket và credential theo service, presigned URL |
 | D8 | Tìm kiếm | PostgreSQL `unaccent` + `pg_trgm` trong schema `catalog` |
-| D9 | Database as code | Bootstrap SQL idempotent + `database/<svc>/` tổ chức kiểu SQL Server Database Project (SQL trạng thái đích theo loại đối tượng + script DbUp có phiên bản); truy cập dữ liệu bằng EF Core + LINQ (Npgsql), không dùng EF migrations (CR #427) |
+| D9 | Database as code | Bootstrap SQL idempotent + `database/schemas/<svc>/` tổ chức kiểu SQL Server Database Project (SQL trạng thái đích theo loại đối tượng + script DbUp có phiên bản); truy cập dữ liệu bằng EF Core + LINQ (Npgsql), không dùng EF migrations (CR #427) |
 | D10 | Kiến trúc mã | Clean Architecture, CQRS, Generic Repository, Generic Unit of Work, Mediator pipeline; luật phụ thuộc kiểm bằng architecture test |
 | D11 | Repo | Root sạch (không `package.json`/`node_modules`): code ở `src/frontend/`, `src/backend/`; `database/`, `contracts/`, `deploy/`, `scripts/` cùng cấp `src/` (CR #348) |
 | D12 | Môi trường | dev trên máy dev; staging + production trên homeserver Ubuntu bằng Docker Compose |
@@ -152,33 +152,33 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 `database/bootstrap/*.sql` idempotent (khối `DO`, `IF NOT EXISTS`), chạy bằng `db_admin`: tạo schema, role, extension, grant và `ALTER DEFAULT PRIVILEGES` để bảng mới của migrator tự cấp DML cho role app. Mật khẩu role chưa có được sinh ngẫu nhiên và ghi vào thư mục secret của môi trường. Lệnh: `node database/bootstrap/run.mjs <env> [--secrets <dir>]` (đẩy SQL vào psql của container `database-postgres`; file secret `<role>.password`, dev ở `deploy/dev/secrets/` đã .gitignore). Chỉ `catalog` được `USAGE` trên `extensions`. Bootstrap không `GRANT ... ON ALL TABLES` để không trả lại quyền mà migration đã thu hồi.
 
-### 4.4 Cấu trúc `database/<svc>/` và migration (DbUp)
+### 4.4 Cấu trúc `database/schemas/<svc>/` và migration (DbUp)
 
-Mỗi service một thư mục tổ chức theo kiểu SQL Server Database Project (SSDT). Không dùng `.sqlproj`/dacpac vì chúng chỉ chạy với SQL Server (CR #427).
+Mỗi service (= một schema) một thư mục dưới `database/schemas/`, tổ chức theo kiểu SQL Server Database Project (SSDT). Không dùng `.sqlproj`/dacpac vì chúng chỉ chạy với SQL Server (CR #427). Tên thư mục trong repo viết thường-kebab (kể cả `stored-procedures/`, `pre-deployment/`); ý nghĩa giữ như SSDT.
 
 ```
-database/<svc>/
-├─ Tables/<bang>.sql              # CREATE TABLE trạng thái đích, kèm constraint, index, COMMENT
-├─ Views/<view>.sql
-├─ Functions/<ham>.sql            # function, trigger function
-├─ Stored Procedures/<thu_tuc>.sql
-├─ Security/<doi_tuong>.sql       # GRANT/REVOKE riêng của service (vd. REVOKE UPDATE, DELETE bảng append-only)
-└─ Scripts/
-   ├─ Pre-Deployment/NNNN_mo-ta.sql   # chạy mọi lần deploy, trước Migrations; bắt buộc idempotent
-   ├─ Migrations/NNNN_mo-ta.sql       # chạy một lần theo journal; nguồn thay đổi thật của DB
-   └─ Post-Deployment/NNNN_mo-ta.sql  # chạy mọi lần deploy, sau Migrations; bắt buộc idempotent
+database/schemas/<svc>/
+├─ tables/<bang>.sql              # CREATE TABLE trạng thái đích, kèm constraint, index, COMMENT
+├─ views/<view>.sql
+├─ functions/<ham>.sql            # function, trigger function
+├─ stored-procedures/<thu_tuc>.sql
+├─ security/<doi_tuong>.sql       # GRANT/REVOKE riêng của service (vd. REVOKE UPDATE, DELETE bảng append-only)
+└─ scripts/
+   ├─ pre-deployment/NNNN_mo-ta.sql   # chạy mọi lần deploy, trước Migrations; bắt buộc idempotent
+   ├─ migrations/NNNN_mo-ta.sql       # chạy một lần theo journal; nguồn thay đổi thật của DB
+   └─ post-deployment/NNNN_mo-ta.sql  # chạy mọi lần deploy, sau Migrations; bắt buộc idempotent
 ```
 
-- Thư mục đối tượng (`Tables/`, `Views/`, `Functions/`, `Stored Procedures/`, `Security/`) là **trạng thái đích**: một đối tượng một file, tên file = tên đối tượng, viết bằng `CREATE`. Chúng không được chạy khi deploy; dùng để đọc và review schema hiện tại. Mọi PR đổi schema phải sửa cả file trạng thái đích lẫn thêm script `Migrations/`. Test trong `database/tests` áp file trạng thái đích vào DB trống, so catalog với DB đã chạy migration; lệch là fail.
-- Script `Scripts/` được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; thứ tự Pre-Deployment → Migrations → Post-Deployment, trong mỗi nhóm theo tên. Journal `<svc>.schema_versions` chỉ ghi script `Migrations/`; chạy lại không đổi gì. Runner: `DbMigrator` (`Minibox.BuildingBlocks.Infrastructure.Migrations`); project Api đặt `<MiniboxService><svc></MiniboxService>` để `Directory.Build.props` nhúng `database/<svc>/Scripts/**` với LogicalName giữ đường dẫn tương đối (`Scripts/Migrations/<file>.sql`…), và đầu `Program.cs` gọi `DbMigrator.RunIfRequested(args, "<svc>", typeof(Program).Assembly, ...)` (mỗi script một transaction; lỗi → exit 1).
+- Thư mục đối tượng (`tables/`, `views/`, `functions/`, `stored-procedures/`, `security/`) là **trạng thái đích**: một đối tượng một file, tên file = tên đối tượng, viết bằng `CREATE`. Chúng không được chạy khi deploy; dùng để đọc và review schema hiện tại. Mọi PR đổi schema phải sửa cả file trạng thái đích lẫn thêm script `migrations/`. Test `database/tests/state.test.mjs` chạy `scripts/` vào schema trống, `pg_dump --schema-only` (DDL + quyền), rồi dựng lại schema chỉ từ file trạng thái đích (functions → tables → views → stored-procedures → security) và so hai bản; lệch là fail, thông báo nêu dòng lệch. Dữ liệu tham chiếu (INSERT trong migration) không thuộc trạng thái đích. Thứ tự cột trong `CREATE TABLE` phải trùng thứ tự sau migration (cột `ADD COLUMN` nằm cuối).
+- Script `scripts/` được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; thứ tự Pre-Deployment → Migrations → Post-Deployment, trong mỗi nhóm theo tên. Journal `<svc>.schema_versions` chỉ ghi script `migrations/`; chạy lại không đổi gì. Runner: `DbMigrator` (`Minibox.BuildingBlocks.Infrastructure.Migrations`); project Api đặt `<MiniboxService><svc></MiniboxService>` để `Directory.Build.props` nhúng `database/schemas/<svc>/scripts/**` với LogicalName giữ đường dẫn tương đối (`scripts/migrations/<file>.sql`…), và đầu `Program.cs` gọi `DbMigrator.RunIfRequested(args, "<svc>", typeof(Program).Assembly, ...)` (mỗi script một transaction; lỗi → exit 1).
 - Schema chỉ do DbUp tạo. Không dùng EF Core migrations, `EnsureCreated` hay tự sinh DDL lúc chạy.
 - Chỉ đi tiến, không có script down. Quay lui bằng migration mới; PITR là phương án cuối.
 - Thay đổi phá vỡ theo expand → migrate → contract để bản cũ vẫn chạy trong lúc deploy.
 
 ### 4.5 Truy cập dữ liệu và quy ước
 
-- EF Core + `Npgsql.EntityFrameworkCore.PostgreSQL`, truy vấn bằng LINQ trong repository/read service của layer Infrastructure (CR #427). Mỗi service một `DbContext` (`HasDefaultSchema("<svc>")`, ánh xạ `snake_case`), cấu hình entity bằng `IEntityTypeConfiguration<T>` trong `Persistence/Configurations/`. Mapping phải khớp DDL ở `database/<svc>/`; integration test chạy trên DB đã migrate để bắt lệch.
-- Project runtime không tham chiếu `Microsoft.EntityFrameworkCore.Design`/`Tools`; không có thư mục `Migrations/` của EF.
+- EF Core + `Npgsql.EntityFrameworkCore.PostgreSQL`, truy vấn bằng LINQ trong repository/read service của layer Infrastructure (CR #427). Mỗi service một `DbContext` (`HasDefaultSchema("<svc>")`, ánh xạ `snake_case`), cấu hình entity bằng `IEntityTypeConfiguration<T>` trong `Persistence/Configurations/`. Mapping phải khớp DDL ở `database/schemas/<svc>/`; integration test chạy trên DB đã migrate để bắt lệch.
+- Project runtime không tham chiếu `Microsoft.EntityFrameworkCore.Design`/`Tools`; không có thư mục `migrations/` của EF.
 - Cập nhật có điều kiện và hàng loạt dùng `ExecuteUpdateAsync`/`ExecuteDeleteAsync` (vd. `Where(s => s.Available >= qty).ExecuteUpdateAsync(...)` cho §2.4). Chỉ dùng SQL thô khi LINQ không biểu diễn được (`FOR UPDATE`, `pg_advisory_xact_lock`, `ON CONFLICT`), qua `FromSql`/`ExecuteSql` có tham số; cấm `FromSqlRaw`/`ExecuteSqlRaw` nối chuỗi.
 - Tìm kiếm (§7.2) dùng `EF.Functions` của Npgsql (`ILike`, `TrigramsSimilarity`, `Unaccent`).
 - Tên `snake_case`; khóa chính UUIDv7 (`Guid.CreateVersion7()`); mã cho người đọc (SKU, số đơn, số phiếu) là cột riêng có unique, không dùng làm bằng chứng quyền truy cập.
@@ -328,9 +328,9 @@ minibox/                             # root sạch: không package.json, không 
 │     └─ tests/                      # test cấp repo
 ├─ database/                         # toàn bộ SQL, nguồn sự thật của schema
 │  ├─ bootstrap/
-│  ├─ <svc>/                         # kiểu SQL Server Database Project (§4.4)
-│  │  ├─ Tables/ Views/ Functions/ Stored Procedures/ Security/
-│  │  └─ Scripts/{Pre-Deployment,Migrations,Post-Deployment}/
+│  ├─ Schemas/<svc>/                 # một schema = một service, kiểu SQL Server Database Project (§4.4)
+│  │  ├─ tables/ views/ functions/ stored-procedures/ security/
+│  │  └─ scripts/{pre-deployment,migrations,post-deployment}/
 │  ├─ templates/
 │  ├─ seed/demo/
 │  └─ tests/

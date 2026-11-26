@@ -23,6 +23,8 @@ export function startPostgres(label) {
 
   return {
     sql,
+    /** Tên container, để chạy công cụ khác của PostgreSQL (vd. pg_dump) bằng `docker exec`. */
+    name,
     /** Lệnh psql qua socket bằng db_admin, dùng cho `bootstrap()`. */
     psql: ["docker", "exec", "-i", name, "psql", "-U", "db_admin", "-d", "minibox"],
     stop: () => spawnSync("docker", ["rm", "-f", name]),
