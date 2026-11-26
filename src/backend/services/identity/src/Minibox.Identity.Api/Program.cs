@@ -24,6 +24,10 @@ builder.Services
     .AddSingleton(sp => new SigningKeyRing(sp.GetRequiredService<TimeProvider>(), SigningKeyRing.DefaultPeriod))
     .AddSingleton<IRefreshTokens, PostgresRefreshTokens>()
     .AddSingleton<IPasswordLogin, PostgresPasswordLogin>()
+    // Mfa:EncryptionKey: base64 32 byte, từ Docker secret; mất khóa = mọi secret TOTP vô hiệu.
+    .AddSingleton<IMfa>(sp => new PostgresMfa(sp.GetRequiredService<NpgsqlDataSource>(),
+        Convert.FromBase64String(sp.GetRequiredService<IConfiguration>()["Mfa:EncryptionKey"] ?? throw new InvalidOperationException("Thiếu cấu hình Mfa:EncryptionKey")),
+        sp.GetRequiredService<IRefreshTokens>(), sp.GetRequiredService<TimeProvider>()))
     .AddSingleton<IAccessTokenIssuer>(sp => new JwtAccessTokenIssuer(
         sp.GetRequiredService<SigningKeyRing>(), sp.GetRequiredService<TimeProvider>(), Program.Issuer(sp.GetRequiredService<IConfiguration>())));
 
