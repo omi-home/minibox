@@ -1,24 +1,13 @@
-// Bootstrap trên PostgreSQL 18 tạm (docker run), spec §4.1–4.3. Cần Docker.
+// Bootstrap trên PostgreSQL 18 tạm, spec §4.1–4.3. Cần Docker.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap, ROLES, SERVICES } from "../bootstrap/run.mjs";
+import { startPostgres } from "./pg.mjs";
 
-const name = `minibox-test-bootstrap-${process.pid}`;
 const secrets = mkdtempSync(join(tmpdir(), "minibox-secrets-"));
-const psql = ["docker", "exec", "-i", name, "psql", "-U", "db_admin", "-d", "minibox"];
-
-/** Chạy SQL bằng db_admin (hoặc `user`/`password`), trả stdout dạng không căn lề. */
-const sql = (q, user = "db_admin", password = "minibox") => {
-  const env = ["-e", `PGPASSWORD=${password}`];
-  const r = spawnSync("docker", ["exec", ...env, name, "psql", "-h", "127.0.0.1", "-U", user, "-d", "minibox",
-    "-XAtq", "-v", "ON_ERROR_STOP=1", "-c", q], { encoding: "utf8" });
-  return { ok: r.status === 0, out: r.stdout.trim(), err: r.stderr };
-};
-
 // Ảnh chụp mọi thứ bootstrap quản lý, để so lần chạy 1 và 2.
 const SNAPSHOT = `
   SELECT string_agg(x, E'\\n' ORDER BY x) FROM (
@@ -29,15 +18,14 @@ const SNAPSHOT = `
     UNION ALL SELECT 'defacl ' || defaclrole::regrole || ' ' || defaclnamespace::regnamespace || ' ' || defaclacl::text FROM pg_default_acl
     UNION ALL SELECT 'ext ' || extname || ' ' || extnamespace::regnamespace FROM pg_extension) t`;
 
+let pg, sql, psql;
 before(() => {
-  execFileSync("docker", ["run", "-d", "--rm", "--name", name, "-e", "POSTGRES_USER=db_admin",
-    "-e", "POSTGRES_PASSWORD=minibox", "-e", "POSTGRES_DB=minibox", "postgres:18-alpine"]);
-  // Image chạy initdb rồi khởi động lại; đợi tới khi nhận kết nối TCP.
-  for (let i = 0; i < 60 && !sql("SELECT 1").ok; i++) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+  pg = startPostgres("bootstrap");
+  ({ sql, psql } = pg);
 });
 
 after(() => {
-  spawnSync("docker", ["rm", "-f", name]);
+  pg?.stop();
   rmSync(secrets, { recursive: true, force: true });
 });
 
