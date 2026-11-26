@@ -348,6 +348,11 @@ minibox/                             # root sạch: không package.json, không 
 - Diễn tập DR toàn phần hằng quý (thủ công): dựng lại trên máy sạch, bấm giờ so với RTO.
 - Khi OPEN-03 chưa chốt: **chưa đạt điều kiện DR mở bán** (BRD §15 điều kiện 6).
 
+### 8.7 Comment tài liệu
+
+- Viết bằng tiếng Việt, mô tả *ý nghĩa/hợp đồng* (làm gì, điều kiện, lỗi trả về), không chép lại tên hay kiểu. Không bắt buộc với test và file cấu hình.
+- **Backend**: chuẩn Microsoft XML documentation cho mọi type/member `public`/`protected` ở project không phải `*.Tests`: `<summary>`; `<param>`/`<typeparam>` cho từng tham số; `<returns>` khi có giá trị trả về; `<exception>` cho ngoại lệ chủ động ném; `<see cref>`/`<inheritdoc/>` khi phù hợp. `Directory.Build.props` bật `GenerateDocumentationFile` nên thiếu doc (CS1591) hoặc sai tên param/cref (CS1572/CS1573/CS1574) là lỗi build.
+- **Frontend**: chuẩn TSDoc cho mọi export (function, component, class, interface, type, enum, hằng): câu tóm tắt; `@param name - mô tả` (tên không có dấu chấm, mô tả prop của object trong câu); `@returns`; `@throws`; `@remarks`/`@example` khi cần. ESLint (`@minibox/config/eslint`) chặn thiếu comment (`jsdoc/require-jsdoc`, `jsdoc/require-description`) và sai cú pháp (`tsdoc/syntax`).
 ## 9. Test và lệnh chuẩn
 
 ### 9.1 Tầng test

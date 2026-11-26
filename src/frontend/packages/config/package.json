@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "6.3.0",
-    "eslint-config-next": "16.4.6"
+    "eslint-config-next": "16.4.6",
+    "eslint-plugin-jsdoc": "65.5.4",
+    "eslint-plugin-tsdoc": "0.5.4"
   }
 }

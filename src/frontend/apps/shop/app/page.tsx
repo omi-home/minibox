@@ -1,3 +1,8 @@
+/**
+ * Trang chủ app shop.
+ *
+ * @returns Nội dung trang chủ.
+ */
 export default function Home() {
   return (
     <main>
