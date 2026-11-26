@@ -22,6 +22,7 @@ builder.Services
     .AddSingleton<IPasswordHasher, Argon2idPasswordHasher>()
     .AddSingleton(TimeProvider.System)
     .AddSingleton(sp => new SigningKeyRing(sp.GetRequiredService<TimeProvider>(), SigningKeyRing.DefaultPeriod))
+    .AddSingleton<IRefreshTokens, PostgresRefreshTokens>()
     .AddSingleton<IAccessTokenIssuer>(sp => new JwtAccessTokenIssuer(
         sp.GetRequiredService<SigningKeyRing>(), sp.GetRequiredService<TimeProvider>(), Program.Issuer(sp.GetRequiredService<IConfiguration>())));
 
