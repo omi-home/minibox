@@ -9,7 +9,7 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | # | Chủ đề | Quyết định |
 |---|---|---|
 | D1 | Stack | Backend .NET 10, frontend Next.js (bản ổn định mới nhất lúc khởi tạo, ghim lockfile), PostgreSQL 18, monorepo |
-| D2 | Ranh giới | 11 microservice theo miền BRD, mỗi service một schema + role DB riêng |
+| D2 | Ranh giới | 12 microservice theo miền BRD (thêm `localization`, CR #387), mỗi service một schema + role DB riêng |
 | D3 | Giao tiếp | REST đồng bộ cho truy vấn; lệnh/sự kiện qua RabbitMQ với transactional outbox/inbox (Wolverine); saga đặt hàng do `order` điều phối |
 | D4 | Xác thực | Identity tự xây (không dùng ASP.NET Core Identity), tự cấp JWT + refresh token; MFA TOTP bắt buộc cho nhân viên |
 | D5 | Phân quyền | Quyền + phạm vi farm/kho nằm trong access token 5 phút; thư viện kiểm tra dùng chung |
@@ -26,10 +26,11 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | D16 | Backup | pgBackRest + WAL liên tục (PITR); restic cho file và secret; restore thử tự động hằng tuần |
 | D17 | Test | xUnit v3, Testcontainers, NetArchTest, oasdiff, Vitest, Playwright; lệnh chuẩn qua pnpm script ở root |
 | D18 | "Hợp đồng mẫu" M0 | Hợp đồng API/sự kiện mẫu (OpenAPI của `identity` + sự kiện `identity.AccountRegistered.v1`), không phải văn bản pháp lý |
+| D19 | Đa ngôn ngữ | Locale cấu hình trong DB (service `localization`), chuỗi UI từ API, nội dung dịch bằng `*_translation` ở service sở hữu; vi ở gốc `/`, locale khác `/<locale>/`; tiền tệ chỉ hiển thị, giao dịch VND (CR #387, §6.6) |
 
 ## 1. Kiến trúc tổng thể và ranh giới service
 
-11 service .NET 10 sau Caddy (TLS) và hai app Next.js làm BFF. Chỉ Caddy mở ra ngoài; service chỉ nằm trong mạng nội bộ của môi trường.
+12 service .NET 10 sau Caddy (TLS) và hai app Next.js làm BFF. Chỉ Caddy mở ra ngoài; service chỉ nằm trong mạng nội bộ của môi trường.
 
 | Service | Sở hữu (nguồn sự thật) | Xuất hiện từ |
 |---|---|---|
@@ -44,6 +45,7 @@ Tài liệu này chốt các quyết định kỹ thuật để triển khai BRD
 | `purchasing` | Nhà cung cấp, đề nghị/đơn mua, nhận hàng, trả NCC, công nợ, đề xuất bổ sung tồn | M5 (nhận hàng cơ bản ở M3) |
 | `finance` | Chủ thể pháp lý theo thời gian, hóa đơn điện tử, thu/chi/điều chỉnh, kỳ đối soát, báo cáo lợi nhuận/tiền (read model từ sự kiện) | M4 |
 | `support` | Ticket, ghi chú nội bộ, thông báo email/in-app (gộp, chống gửi lặp) | M4 |
+| `localization` | Danh mục locale (bật/tắt, thứ tự, fallback), chuỗi giao diện theo key/namespace/locale (nháp → xuất bản, audit), tiền tệ hiển thị, tỷ giá; phát `localization.LocaleChanged` | M0 |
 
 Quy tắc ranh giới:
 
@@ -92,7 +94,7 @@ Khách không thấy "đã xác nhận" trước bước 3 (BRD §6.1 bước 3)
 
 - Tiền VND lưu `bigint` theo đồng, không dùng số thực. Phân bổ ưu đãi/xu/phần dư theo phần dư lớn nhất với thứ tự xác định, lưu kết quả trên từng dòng (BRD §6.4).
 - Sổ tiền (`payment`) và sổ xu (`minixu`) chỉ ghi thêm; sửa bằng bút toán điều chỉnh. Bất biến có test: tổng phân bổ = tổng tiền vào; số dư xu = tổng sổ.
-- Thời gian lưu UTC (`timestamptz`); hiển thị và kỳ báo cáo theo `Asia/Ho_Chi_Minh`.
+- Thời gian lưu UTC (`timestamptz`). Hiển thị theo múi giờ người xem (§6.6); mốc nghiệp vụ (kỳ đối soát/báo cáo, hạn xu, hạn giữ) tính theo múi giờ cửa hàng (CFG, mặc định `Asia/Ho_Chi_Minh`).
 
 ## 3. Identity và phân quyền
 
@@ -140,7 +142,7 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 ### 4.1 Bố trí
 
-- Mỗi môi trường một instance PostgreSQL 18, một database `minibox`, 11 schema (một schema mỗi service).
+- Mỗi môi trường một instance PostgreSQL 18, một database `minibox`, 12 schema (một schema mỗi service).
 - Extension `unaccent`, `pg_trgm` trong schema `extensions`; chỉ cấp `USAGE` cho service cần.
 
 ### 4.2 Role
@@ -223,6 +225,7 @@ Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (Ne
 - `BuildingBlocks.Application`: `ICommand`/`IQuery`, `IRepository<TAggregate,TId>`, `IUnitOfWork`, `ICurrentUser`, `IAuthorizer`, `IClock`, pipeline behavior chung.
 - `BuildingBlocks.Infrastructure`: `EfRepository<TAggregate,TId>`, Unit of Work trên `DbContext`, outbox/inbox, audit writer, DbUp runner, OpenTelemetry.
 - `BuildingBlocks.Web`: idempotency middleware, attribute phân quyền, ánh xạ `Result` → ProblemDetails, health check.
+- Đa ngôn ngữ (§6.6): mẫu migration bảng `*_translation`, helper xác định locale, helper truy vấn bản dịch có fallback, bản sao danh sách locale nhận qua `localization.LocaleChanged`.
 
 ### 5.4 Pattern
 
@@ -268,13 +271,29 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
 - Mỗi service sinh OpenAPI lúc build bằng `Microsoft.AspNetCore.OpenApi` và commit ra `contracts/openapi/<svc>.json`.
 - Client TS sinh bằng `openapi-typescript` + `openapi-fetch` vào `src/frontend/packages/api-clients`.
 - CI fail khi: file OpenAPI lệch code; thay đổi phá vỡ so với `develop` (`oasdiff`) mà chưa tăng phiên bản API; client sinh lại khác bản đã commit.
-- Lỗi theo RFC 9457 với `type` ổn định; BFF ánh xạ sang thông báo tiếng Việt.
+- Lỗi theo RFC 9457 với `type` ổn định; BFF ánh xạ `type` sang thông báo theo locale (chuỗi từ `localization`).
 - **Hợp đồng mẫu M0**: OpenAPI của `identity` + sự kiện `identity.AccountRegistered.v1` (JSON Schema), client sinh tự động được `admin` dùng thật.
 
 ### 6.6 Bảo mật web và ngôn ngữ
 
 - CSP có nonce, HSTS, `frame-ancestors 'none'`. Chống CSRF: cookie `SameSite=Lax` + kiểm tra `Origin` ở Route Handler; Server Action đã kiểm origin sẵn.
-- Giao diện tiếng Việt; chuỗi gom vào một file messages mỗi app; chưa thêm thư viện i18n cho đến khi mở quốc tế. CMS có sẵn cấu trúc bản dịch ở tầng dữ liệu (`content`, BRD §12).
+
+Đa ngôn ngữ, múi giờ, tiền tệ hiển thị (CR #387):
+
+- **Locale cấu hình trong DB**: bảng `locale` của `localization` (mã BCP 47, tên, bật/tắt, thứ tự, locale fallback). Admin thêm ngôn ngữ không cần sửa code/deploy; seed khởi đầu `vi` + `en`. `vi` là mặc định và fallback cuối. Không cột/enum/kiểu cố định theo ngôn ngữ — bản dịch là dòng khóa `(…, locale)`.
+- **Chuỗi giao diện** thuộc `localization` (key, namespace, locale; nháp → xuất bản, có audit). BFF shop/admin nạp chuỗi theo locale qua API, cache và làm mới khi xuất bản; frontend không có file JSON/messages chuỗi.
+- **Nội dung nghiệp vụ** (sản phẩm, bài viết, banner/menu/trang chính sách) dịch trong chính service sở hữu bằng bảng `<bảng>_translation` (khóa gồm `locale`), làm cùng mốc của service đó (M1 `catalog`, M6 `content`). Service khác giữ bản sao danh sách locale qua sự kiện `localization.LocaleChanged`.
+- **Chọn locale**: URL → cookie → `Accept-Language` → fallback → `vi`. Truy vấn bản dịch đi theo chuỗi fallback của locale; thiếu hết thì dùng bản `vi`.
+- **Múi giờ**: DB giữ `timestamptz` (UTC). Tài khoản chọn múi giờ (mặc định `Asia/Ho_Chi_Minh`); khách chưa đăng nhập theo trình duyệt. Mốc nghiệp vụ tính theo múi giờ cửa hàng (§2.5).
+- **Tiền tệ chỉ hiển thị**: giao dịch, sổ tiền/xu, hóa đơn vẫn VND (`bigint`). Giá quy đổi theo tỷ giá lưu ở `localization`, ghi rõ là ước tính; đổi tiền tệ không đổi URL.
+- **SEO đa ngôn ngữ** (shop, CMS):
+  - URL theo thư mục con: `vi` ở gốc `/`, locale khác có tiền tố `/<locale>/` (`/en/`, `/ja/`…). Một URL = một ngôn ngữ; không đổi nội dung theo cookie/IP trên cùng URL, không tự redirect theo `Accept-Language`/IP (chỉ gợi ý đổi ngôn ngữ bằng banner).
+  - Slug dịch theo ngôn ngữ; đổi slug lưu lịch sử và redirect 301 về slug mới.
+  - SSR/ISR với nội dung đã dịch trong HTML; `<html lang>` đúng locale; ISR làm mới khi xuất bản bản dịch.
+  - `hreflang` cho mọi locale đã xuất bản + `x-default` (trỏ bản `vi`); `canonical` tự trỏ chính nó theo locale. Chỉ locale có bản dịch đã xuất bản vào `hreflang`/sitemap; trang đang hiển thị fallback đặt `noindex`.
+  - Sitemap theo locale kèm `xhtml:link` alternate; `og:locale`/`og:locale:alternate`; JSON-LD (Product, Article, BreadcrumbList) dịch theo locale, `priceCurrency` VND.
+  - Test tự động: hreflang hai chiều, canonical, sitemap hợp lệ, `noindex` trang fallback; ngưỡng LCP/INP/CLS của shop (§10) giữ nguyên.
+- **Mốc**: M0 hạ tầng locale/timezone/currency + chuỗi UI từ DB cho shop/admin; M1 dịch nội dung `catalog`; M6 bài viết/banner/menu (`content`).
 
 ## 7. File, tìm kiếm, tích hợp ngoài
 
