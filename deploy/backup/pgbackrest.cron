@@ -7,3 +7,7 @@
 30 2 * * 1-6 root docker exec -u postgres minibox-production-database-postgres pgbackrest --stanza=minibox --type=diff backup
 0 3 * * 0    root docker exec -u postgres minibox-staging-database-postgres pgbackrest --stanza=minibox --type=full backup
 0 3 * * 1-6  root docker exec -u postgres minibox-staging-database-postgres pgbackrest --stanza=minibox --type=diff backup
+# Restore thử + PITR staging sau bản full (scripts/restore-test.mjs, kết quả là metric minibox.backup.* trong Prometheus).
+# MINIBOX_REPO = thư mục checkout repo trên homeserver (cùng chỗ deploy/deploy.sh chạy) — sửa khi cài nếu khác.
+MINIBOX_REPO=/srv/minibox/repo
+0 5 * * 0    root node "$MINIBOX_REPO/scripts/restore-test.mjs" staging
