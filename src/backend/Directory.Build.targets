@@ -1,0 +1,12 @@
+<Project>
+  <!-- Ở .targets (sau csproj) để đọc được MiniboxService. -->
+  <!-- OpenAPI sinh lúc build (spec §6.3): chạy host tới Build() rồi ghi contracts/openapi/<svc>.json; file lệch bản commit → contracts/tests fail. -->
+  <PropertyGroup Condition="'$(MiniboxService)' != ''">
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../contracts/openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name $(MiniboxService)</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MiniboxService)' != ''">
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

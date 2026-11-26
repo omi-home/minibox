@@ -17,7 +17,7 @@ public static class WebSetup
 {
     /// <summary>Đăng ký ProblemDetails, authentication/authorization (scheme JWT thêm bằng
     /// <see cref="JwtAuthenticationSetup.AddMiniboxJwtAuthentication"/>), <see cref="ICurrentUser"/> từ claim <c>sub</c> và <see cref="IAuthorizer"/> từ claim <c>perms</c> của token đã kiểm,
-    /// health check PostgreSQL (tag <c>ready</c>).</summary>
+    /// health check PostgreSQL (tag <c>ready</c>), tài liệu OpenAPI (chỉ sinh lúc build ra <c>contracts/openapi</c>, không map endpoint).</summary>
     /// <param name="services">DI container.</param>
     /// <returns><paramref name="services"/> để gọi tiếp.</returns>
     public static IServiceCollection AddMiniboxWeb(this IServiceCollection services)
@@ -32,6 +32,7 @@ public static class WebSetup
         services.TryAddSingleton(TimeProvider.System);
         services.AddOptions<MfaPolicyOptions>();
         services.AddHealthChecks().AddCheck<NpgsqlHealthCheck>("postgres", tags: ["ready"]);
+        services.AddOpenApi();
         return services;
     }
 

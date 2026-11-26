@@ -17,6 +17,8 @@ export function acceptSteps(n) {
       cwd: backend,
       okCodes: [0, NO_TESTS],
     },
+    // Sau dotnet test (đã build → sinh lại contracts/openapi).
+    { cmd: "node", args: ["--test", "--test-name-pattern", pat, "contracts/tests/*.test.mjs"], cwd: root },
   ];
   if (existsSync(join(frontend, "e2e")))
     steps.push({ cmd: "pnpm", args: ["exec", "playwright", "test", "-g", pat, "--reporter=list", "--pass-with-no-tests"], cwd: frontend });

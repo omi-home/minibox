@@ -24,8 +24,12 @@ public class ServiceTemplateTests
     [Fact(DisplayName = "ac174_5 ac193_3 dotnet new minibox-service -n Demo sinh 5 project + 3 project test, build và test pass")]
     public void ac174_5_ac193_3_template_generates_buildable_service()
     {
+        // IDE/MSBuild node có thể ghi lại obj/ ngay sau khi xoá → lần chạy trước để sót thư mục; dọn trước khi sinh mới.
+        foreach (var stale in Directory.GetDirectories(Path.Combine(Backend, "services"), "ac174-*"))
+            TryDelete(stale);
         var hive = Directory.CreateTempSubdirectory("minibox-hive").FullName; // không đụng danh sách template của máy
         var outDir = Path.Combine(Backend, "services", $"ac174-{Guid.NewGuid():N}"[..14]);
+        var openApi = Path.Combine(Backend, "..", "..", "contracts", "openapi", "demo.json"); // build sinh ra; xoá để không lệch contracts
         try
         {
             Run(Backend, "new", "install", Path.Combine(Backend, "templates", "minibox-service"), "--debug:custom-hive", hive);
@@ -41,9 +45,11 @@ public class ServiceTemplateTests
             Run(outDir, "new", "sln", "-n", "Demo", "--format", "slnx");
             Run(outDir, ["sln", "Demo.slnx", "add", .. Directory.GetFiles(outDir, "*.csproj", SearchOption.AllDirectories)]);
             Run(outDir, "test", "--solution", "Demo.slnx");
+            Assert.True(File.Exists(openApi), "build service mới phải sinh contracts/openapi/demo.json");
         }
         finally
         {
+            File.Delete(openApi);
             TryDelete(outDir);
             TryDelete(hive);
         }
