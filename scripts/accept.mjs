@@ -10,7 +10,7 @@ export function acceptSteps(n) {
   if (!/^\d+$/.test(n ?? "")) throw new Error(`Cần số issue, nhận: ${n}`);
   const pat = `ac${n}_`;
   const steps = [
-    { cmd: "node", args: ["--test", "--test-name-pattern", pat, "scripts/*.test.mjs"], cwd: root },
+    { cmd: "node", args: ["--test", "--test-name-pattern", pat, "scripts/*.test.mjs", "database/tests/*.test.mjs"], cwd: root },
     {
       cmd: "dotnet",
       args: ["test", "--solution", "Minibox.slnx", "--filter-method", `*${pat}*`, "--output", "detailed"],

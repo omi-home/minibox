@@ -29,6 +29,11 @@ test("ac174_3 accept chỉ lọc test có tên chứa ac<n>_ và in tên test", 
   assert.doesNotMatch(all, /ac4_|ac420_/);
 });
 
+test("#425 accept chạy cả database/tests như test.mjs", () => {
+  const all = acceptSteps("42").map((s) => s.args.join(" ")).join("\n");
+  assert.match(all, /--test-name-pattern ac42_ .*database\/tests\/\*\.test\.mjs/);
+});
+
 test("ac174_3 accept từ chối n không phải số", () => {
   assert.throws(() => acceptSteps("1; rm -rf /"));
 });
