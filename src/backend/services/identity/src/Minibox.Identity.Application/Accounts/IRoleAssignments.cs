@@ -13,6 +13,12 @@ public interface IRoleAssignments
     /// <summary>Mã lỗi khi phạm vi sai dạng hoặc vai trò khách gán cho nhân viên (và ngược lại).</summary>
     const string InvalidCode = "Identity.AssignmentInvalid";
 
+    /// <summary>Đọc mã quyền của vai trò, để endpoint đòi người gọi có đủ các quyền đó trong phạm vi (chống leo thang đặc quyền).</summary>
+    /// <param name="roleCode">Mã vai trò.</param>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Mã quyền (rỗng với vai trò khách); <c>null</c> nếu vai trò không tồn tại.</returns>
+    Task<IReadOnlyCollection<string>?> PermissionsOfRoleAsync(string roleCode, CancellationToken cancellationToken = default);
+
     /// <summary>Gán vai trò trong phạm vi cho tài khoản.</summary>
     /// <param name="actor">Tài khoản người thực hiện (claim <c>sub</c>).</param>
     /// <param name="accountId">Tài khoản được gán.</param>

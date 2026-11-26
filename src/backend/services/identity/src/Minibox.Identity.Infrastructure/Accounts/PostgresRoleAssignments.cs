@@ -14,10 +14,21 @@ public sealed partial class PostgresRoleAssignments(NpgsqlDataSource dataSource,
 {
     static readonly Error NotFound = Error.NotFound(IRoleAssignments.NotFoundCode, "Không tìm thấy tài khoản, vai trò hoặc phân công.");
 
-    [GeneratedRegex(@"^(\*|(wh|farm):[1-9][0-9]{0,18})$")]
+    [GeneratedRegex(@"\A(\*|(wh|farm):[1-9][0-9]{0,18})\z")]
     private static partial Regex ScopePattern();
 
     sealed record Item(string Role, string Scope);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyCollection<string>?> PermissionsOfRoleAsync(string roleCode, CancellationToken cancellationToken = default)
+    {
+        await using var cmd = dataSource.CreateCommand("""
+            SELECT array_remove(array_agg(rp.permission_code), NULL)
+            FROM role r LEFT JOIN role_permission rp ON rp.role_id = r.id WHERE r.code = $1 GROUP BY r.id
+            """);
+        cmd.Parameters.Add(new() { Value = roleCode });
+        return await cmd.ExecuteScalarAsync(cancellationToken) as string[];
+    }
 
     /// <inheritdoc />
     public async Task<Result> GrantAsync(Guid actor, Guid accountId, string roleCode, string scope, CancellationToken cancellationToken = default)

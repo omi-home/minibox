@@ -70,7 +70,14 @@ public sealed class AssignmentApiTests : IAsyncLifetime
             .Issue(new AccessTokenRequest(_admin.ToString(), "staff", perms, DateTimeOffset.UtcNow - (authAge ?? TimeSpan.Zero), ["pwd", "mfa"]))
             .Token;
 
-    static Dictionary<string, IReadOnlyCollection<string>> Manage(string scope) => new() { [scope] = [Program.AssignmentPermission] };
+    /// <summary>Quyền quản trị phân công + quyền của <paramref name="role"/> (mặc định owner: mọi quyền) trong <paramref name="scope"/>.</summary>
+    async Task<Dictionary<string, IReadOnlyCollection<string>>> Manager(string scope, string role = "owner")
+    {
+        await using var cmd = _db.CreateCommand($"SELECT array_agg(permission_code) FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}'");
+        return new() { [scope] = [.. (string[])(await cmd.ExecuteScalarAsync(Ct))!, Program.AssignmentPermission] };
+    }
+
+    async Task<string> Owner(TimeSpan? authAge = null) => Token(await Manager("*"), authAge);
 
     HttpClient Client(string token)
     {
@@ -89,7 +96,7 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     [Fact(DisplayName = "ac203_5 Gán/thu hồi phân công ghi audit (ai, lúc nào, trước/sau); role app không UPDATE/DELETE/TRUNCATE được audit")]
     public async Task ac203_5_assignment_changes_audited()
     {
-        var token = Token(Manage("*"));
+        var token = await Owner();
         var start = DateTimeOffset.UtcNow.AddSeconds(-1);
 
         Assert.Equal(HttpStatusCode.NoContent, await Grant(token, "warehouse", "wh:1"));
@@ -115,7 +122,7 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     {
         var tokens = new PostgresRefreshTokens(_db, TimeProvider.System);
         var session = await tokens.IssueAsync(_staff, AccountKind.Staff, ["pwd", "mfa"], Ct);
-        Assert.Equal(HttpStatusCode.NoContent, await Grant(Token(Manage("*")), "warehouse", "wh:1"));
+        Assert.Equal(HttpStatusCode.NoContent, await Grant(await Owner(), "warehouse", "wh:1"));
         Assert.False((await tokens.RotateAsync(session.Token, Ct)).IsSuccess);
     }
 
@@ -124,19 +131,32 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     {
         Assert.Equal(HttpStatusCode.Forbidden, await Grant(Token(new() { ["*"] = ["report.dashboard.read"] }), "warehouse", "wh:1"));
 
-        var wh1 = Token(Manage("wh:1"));
+        var wh1 = Token(await Manager("wh:1", "warehouse"));
         Assert.Equal(HttpStatusCode.Forbidden, await Grant(wh1, "warehouse", "wh:2"));
         Assert.Equal(HttpStatusCode.Forbidden, await Grant(wh1, "warehouse", "*"));
         Assert.Equal(HttpStatusCode.NoContent, await Grant(wh1, "warehouse", "wh:1"));
-        Assert.Equal(HttpStatusCode.NoContent, await Grant(Token(Manage("*")), "qc", "wh:2"));
+        Assert.Equal(HttpStatusCode.NoContent, await Grant(await Owner(), "qc", "wh:2"));
         Assert.Equal(HttpStatusCode.Forbidden, await Revoke(wh1, "qc", "wh:2"));
         Assert.Equal(0L, await Scalar<long>("SELECT count(*) FROM audit_log WHERE payload->>'scope' = 'wh:2' AND action = 'RoleAssignmentRevoked'"));
+    }
+
+    [Fact(DisplayName = "ac203_3 Chống leo thang: không gán vai trò có quyền mình không có trong phạm vi đó; không tự đổi phân công của mình")]
+    public async Task ac203_3_no_privilege_escalation()
+    {
+        var wh1 = Token(await Manager("wh:1", "warehouse"));
+        Assert.Equal(HttpStatusCode.Forbidden, await Grant(wh1, "owner", "wh:1"));
+        Assert.Equal(HttpStatusCode.Forbidden, await Grant(wh1, "finance", "wh:1"));
+        Assert.Equal(HttpStatusCode.Forbidden, await Grant(wh1, "qc", "wh:1"));
+        Assert.Equal(HttpStatusCode.Forbidden, await Grant(await Owner(), "owner", "*", _admin)); // tự gán cho mình
+        Assert.Equal(HttpStatusCode.NoContent, await Grant(await Owner(), "owner", "*"));
+        Assert.Equal(HttpStatusCode.Forbidden, await Revoke(wh1, "owner", "*"));
+        Assert.Equal(1L, await Scalar<long>("SELECT count(*) FROM audit_log"));
     }
 
     [Fact(DisplayName = "Đổi phân công là thao tác nhạy cảm: MFA quá 5 phút → 401 step_up_required; chưa đăng nhập → 401")]
     public async Task requires_step_up()
     {
-        Assert.Equal(HttpStatusCode.Unauthorized, await Grant(Token(Manage("*"), TimeSpan.FromMinutes(10)), "warehouse", "wh:1"));
+        Assert.Equal(HttpStatusCode.Unauthorized, await Grant(await Owner(TimeSpan.FromMinutes(10)), "warehouse", "wh:1"));
         var anonymous = _api.CreateClient();
         anonymous.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString());
         Assert.Equal(HttpStatusCode.Unauthorized,
@@ -146,8 +166,9 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     [Fact(DisplayName = "Phạm vi sai dạng hoặc vai trò khách cho nhân viên → 400; vai trò/tài khoản/phân công không có → 404")]
     public async Task invalid_requests_rejected()
     {
-        var token = Token(Manage("*"));
+        var token = await Owner();
         Assert.Equal(HttpStatusCode.BadRequest, await Grant(token, "warehouse", "wh:0"));
+        Assert.Equal(HttpStatusCode.BadRequest, await Grant(token, "warehouse", "wh:1\n"));
         Assert.Equal(HttpStatusCode.BadRequest, await Grant(token, "customer", "*"));
         Assert.Equal(HttpStatusCode.NotFound, await Grant(token, "khong-co", "*"));
         Assert.Equal(HttpStatusCode.NotFound, await Grant(token, "qc", "*", Guid.CreateVersion7()));
