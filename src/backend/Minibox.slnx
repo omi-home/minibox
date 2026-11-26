@@ -28,6 +28,39 @@
     <Project Path="services/identity/tests/Minibox.Identity.IntegrationTests/Minibox.Identity.IntegrationTests.csproj" />
     <Project Path="services/identity/tests/Minibox.Identity.UnitTests/Minibox.Identity.UnitTests.csproj" />
   </Folder>
+  <!-- Mã nguồn template dotnet new minibox-service: chỉ hiển thị để sửa, không build/test cùng solution (ac174_5 sinh service rồi mới build). -->
+  <Folder Name="/templates/" />
+  <Folder Name="/templates/minibox-service/">
+    <File Path="templates/minibox-service/.template.config/template.json" />
+  </Folder>
+  <Folder Name="/templates/minibox-service/src/">
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Api/Minibox.ServiceName.Api.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Application/Minibox.ServiceName.Application.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Contracts/Minibox.ServiceName.Contracts.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Domain/Minibox.ServiceName.Domain.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Infrastructure/Minibox.ServiceName.Infrastructure.csproj">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/templates/minibox-service/tests/">
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.ArchitectureTests/Minibox.ServiceName.ArchitectureTests.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.IntegrationTests/Minibox.ServiceName.IntegrationTests.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.UnitTests/Minibox.ServiceName.UnitTests.csproj">
+      <Build Project="false" />
+    </Project>
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Minibox.Repo.Tests/Minibox.Repo.Tests.csproj" />
   </Folder>
