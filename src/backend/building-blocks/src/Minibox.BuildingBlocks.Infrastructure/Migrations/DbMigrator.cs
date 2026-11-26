@@ -1,31 +1,44 @@
 using System.Reflection;
 using DbUp;
+using DbUp.Engine;
+using DbUp.Support;
 
 namespace Minibox.BuildingBlocks.Infrastructure.Migrations;
 
-/// <summary>Bộ chạy migration SQL thuần của service bằng DbUp (spec §4.4).</summary>
+/// <summary>Bộ chạy script SQL thuần của service bằng DbUp (spec §4.4).</summary>
 /// <remarks>
-/// Script nhúng vào assembly của service với LogicalName <c>migrations/NNNN_mo-ta.sql</c>, chạy theo thứ tự tên,
-/// mỗi script một transaction. Journal ở <c>&lt;schema&gt;.schema_versions</c>; script đã chạy không chạy lại (idempotent).
+/// Script nhúng vào assembly của service với LogicalName giữ đường dẫn dưới <c>database/schemas/&lt;svc&gt;/</c>:
+/// <c>scripts/pre-deployment/</c> → <c>scripts/migrations/</c> → <c>scripts/post-deployment/</c>, trong mỗi nhóm theo tên,
+/// mỗi script một transaction. Journal ở <c>&lt;schema&gt;.schema_versions</c> chỉ ghi script <c>Migrations/</c> (chạy một lần);
+/// Pre/Post-Deployment chạy mọi lần nên phải idempotent.
 /// </remarks>
 public static class DbMigrator
 {
-    /// <summary>Tiền tố LogicalName của script migration nhúng trong assembly.</summary>
-    public const string ResourcePrefix = "migrations/";
+    /// <summary>Tiền tố LogicalName của script chạy mọi lần, trước migration.</summary>
+    public const string PreDeploymentPrefix = "scripts/pre-deployment/";
+
+    /// <summary>Tiền tố LogicalName của script migration (chạy một lần theo journal).</summary>
+    public const string MigrationsPrefix = "scripts/migrations/";
+
+    /// <summary>Tiền tố LogicalName của script chạy mọi lần, sau migration.</summary>
+    public const string PostDeploymentPrefix = "scripts/post-deployment/";
 
     /// <summary>Cờ dòng lệnh bật chế độ migrate của service.</summary>
     public const string MigrateFlag = "--migrate";
 
-    /// <summary>Áp dụng các script chưa chạy lên schema của service.</summary>
+    /// <summary>Chạy Pre-Deployment, các migration chưa chạy rồi Post-Deployment lên schema của service.</summary>
     /// <param name="connectionString">Kết nối bằng role <c>&lt;svc&gt;_migrator</c> (chủ schema).</param>
     /// <param name="schema">Schema của service, chứa journal <c>schema_versions</c>.</param>
     /// <param name="scripts">Assembly chứa script nhúng.</param>
-    /// <param name="include">Lọc thêm theo tên script (mặc định: mọi script dưới <see cref="ResourcePrefix"/>).</param>
-    /// <returns><c>true</c> nếu mọi script thành công; <c>false</c> nếu một script lỗi (script đó và các script sau không được ghi journal).</returns>
+    /// <param name="include">Lọc thêm theo tên script (mặc định: mọi script dưới ba tiền tố).</param>
+    /// <returns><c>true</c> nếu mọi script thành công; <c>false</c> nếu một script lỗi (script đó và các script sau không chạy/không ghi journal).</returns>
     public static bool Migrate(string connectionString, string schema, Assembly scripts, Func<string, bool>? include = null)
     {
+        Func<string, bool> Under(string prefix) => n => n.StartsWith(prefix, StringComparison.Ordinal) && (include?.Invoke(n) ?? true);
         var result = DeployChanges.To.PostgresqlDatabase(connectionString)
-            .WithScriptsEmbeddedInAssembly(scripts, n => n.StartsWith(ResourcePrefix, StringComparison.Ordinal) && (include?.Invoke(n) ?? true))
+            .WithScriptsEmbeddedInAssembly(scripts, Under(PreDeploymentPrefix), new SqlScriptOptions { ScriptType = ScriptType.RunAlways, RunGroupOrder = 1 })
+            .WithScriptsEmbeddedInAssembly(scripts, Under(MigrationsPrefix), new SqlScriptOptions { ScriptType = ScriptType.RunOnce, RunGroupOrder = 2 })
+            .WithScriptsEmbeddedInAssembly(scripts, Under(PostDeploymentPrefix), new SqlScriptOptions { ScriptType = ScriptType.RunAlways, RunGroupOrder = 3 })
             .JournalToPostgresqlTable(schema, "schema_versions")
             .WithTransactionPerScript()
             .LogToConsole()

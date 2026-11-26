@@ -11,6 +11,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public string Admin => _pg.GetConnectionString();
 
+    // Mật khẩu "pw" chỉ dùng cho container Testcontainers tạm, không sao chép sang cấu hình thật.
     public string Migrator(string db) =>
         new NpgsqlConnectionStringBuilder(Admin) { Username = "demo_migrator", Password = "pw", Database = db }.ConnectionString;
 
@@ -90,6 +91,24 @@ public sealed class DbMigratorTests(PostgresFixture pg) : IClassFixture<Postgres
         await PostgresFixture.Exec(cs, "CREATE TABLE item (id int)"); // 0001 sẽ lỗi vì bảng đã có
 
         Assert.False(DbMigrator.Migrate(cs, "demo", Scripts));
+        // Journal (nếu đã được tạo) không ghi script lỗi; Post-Deployment không chạy sau lỗi.
+        Assert.Equal(0L, await PostgresFixture.Scalar(cs, "SELECT count(*) FROM pg_tables WHERE schemaname = 'demo' AND tablename = 'schema_versions'") is 0L
+            ? 0L : await PostgresFixture.Scalar(cs, "SELECT count(*) FROM demo.schema_versions WHERE scriptname LIKE '%0001_%'"));
+        Assert.Equal("pre", await PostgresFixture.Scalar(cs, "SELECT string_agg(phase, ',' ORDER BY seq) FROM deploy_log"));
+    }
+
+    [Fact(DisplayName = "Pre-Deployment → Migrations → Post-Deployment; Pre/Post chạy mọi lần, không ghi journal")]
+    public async Task pre_and_post_run_every_time_around_migrations()
+    {
+        var cs = pg.Migrator(await pg.FreshDatabase());
+
+        Assert.True(DbMigrator.Migrate(cs, "demo", Scripts));
+        Assert.True(DbMigrator.Migrate(cs, "demo", Scripts));
+
+        // Post thấy cột note của migration 0002 ngay lần đầu → chạy sau Migrations; Pre tạo bảng deploy_log trước mọi script khác.
+        Assert.Equal("pre,post:true,pre,post:true", await PostgresFixture.Scalar(cs, "SELECT string_agg(phase, ',' ORDER BY seq) FROM deploy_log"));
+        Assert.Equal("scripts/migrations/0001_create_item.sql,scripts/migrations/0002_add_item_note.sql",
+            await PostgresFixture.Scalar(cs, "SELECT string_agg(scriptname, ',' ORDER BY schemaversionsid) FROM demo.schema_versions"));
     }
 
     [Fact(DisplayName = "--migrate: không có cờ → null; có cờ → chạy migrate và trả exit code")]

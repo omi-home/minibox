@@ -48,9 +48,9 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Equal(0, Migrate()); // chạy lại không đổi gì
     }
 
-    [Fact(DisplayName = "Assembly Api nhúng migration của identity (migrations/*.sql)")]
+    [Fact(DisplayName = "Assembly Api nhúng script của identity (scripts/migrations/*.sql)")]
     public void api_embeds_migrations() =>
-        Assert.Contains("migrations/0001_account.sql", typeof(Program).Assembly.GetManifestResourceNames());
+        Assert.Contains("scripts/migrations/0001_account.sql", typeof(Program).Assembly.GetManifestResourceNames());
 
     [Fact(DisplayName = "Bảng account: kind chỉ customer|staff, email/username duy nhất, phải có một trong hai")]
     public async Task account_table_constraints()
