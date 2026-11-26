@@ -71,6 +71,22 @@ public interface IAuthorizer
     ValueTask<bool> HasPermissionAsync(string permission, string scope, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Kiểm quyền trong handler sau khi tải bản ghi (phạm vi dữ liệu, spec §3.6).</summary>
+public static class AuthorizerExtensions
+{
+    /// <summary>Đòi người gọi có quyền trong phạm vi của bản ghi.</summary>
+    /// <param name="authorizer">Bộ kiểm quyền.</param>
+    /// <param name="permission">Mã quyền.</param>
+    /// <param name="scope">Phạm vi của bản ghi (<c>wh:2</c>, <c>farm:1</c>…); quyền ở phạm vi <c>*</c> cũng đạt.</param>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Thành công nếu được phép; lỗi <see cref="ErrorType.Forbidden"/> mã
+    /// <see cref="Behaviors.AuthorizationBehavior{TMessage, TResponse}.ErrorCode"/> nếu không.</returns>
+    public static async ValueTask<Result> EnsureAsync(this IAuthorizer authorizer, string permission, string scope, CancellationToken cancellationToken = default) =>
+        await authorizer.HasPermissionAsync(permission, scope, cancellationToken)
+            ? Result.Success()
+            : Error.Forbidden(Behaviors.AuthorizationBehavior<Mediator.IMessage, Result>.ErrorCode, $"Thiếu quyền {permission} trên {scope}.");
+}
+
 /// <summary>Bản ghi idempotency đã hoàn tất của lần gửi đầu.</summary>
 /// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
 /// <param name="RequestHash">Hash nội dung lệnh lần đầu.</param>
