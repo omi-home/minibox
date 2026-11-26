@@ -147,7 +147,7 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 ### 4.4 Migration (DbUp)
 
-- Script tại `database/services/<svc>/migrations/NNNN_mo-ta.sql`, được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; journal `<svc>.schema_versions`, chạy lại không đổi gì.
+- Script tại `database/services/<svc>/migrations/NNNN_mo-ta.sql`, được nhúng vào image của service (`EmbeddedResource`). Image có chế độ `--migrate` chạy bằng role migrator; journal `<svc>.schema_versions`, chạy lại không đổi gì. Runner: `DbMigrator` (`Minibox.BuildingBlocks.Infrastructure.Migrations`); project Api đặt `<MiniboxService><svc></MiniboxService>` để `Directory.Build.props` nhúng script với LogicalName `migrations/<file>.sql`, và đầu `Program.cs` gọi `DbMigrator.RunIfRequested(args, "<svc>", typeof(Program).Assembly, ...)` (mỗi script một transaction; lỗi → exit 1).
 - Chỉ đi tiến, không có script down. Quay lui bằng migration mới; PITR là phương án cuối.
 - Thay đổi phá vỡ theo expand → migrate → contract để bản cũ vẫn chạy trong lúc deploy.
 

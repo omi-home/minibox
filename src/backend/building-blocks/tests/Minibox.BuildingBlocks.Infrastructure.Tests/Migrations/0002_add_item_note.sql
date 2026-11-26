@@ -1,0 +1,1 @@
+ALTER TABLE item ADD COLUMN note text NOT NULL DEFAULT '';

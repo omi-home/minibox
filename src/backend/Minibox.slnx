@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/building-blocks/">
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Infrastructure.Tests/Minibox.BuildingBlocks.Infrastructure.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Minibox.Repo.Tests/Minibox.Repo.Tests.csproj" />
   </Folder>
