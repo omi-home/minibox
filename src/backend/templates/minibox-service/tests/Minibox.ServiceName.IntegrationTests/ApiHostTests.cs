@@ -1,6 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Minibox.ServiceName.Application.Samples;
+using Minibox.ServiceName.Domain.Samples;
+using Minibox.ServiceName.Infrastructure.Persistence;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -36,18 +40,45 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact(DisplayName = "--migrate áp migration rồi thoát với mã 0")]
-    public void migrate_flag_exits_zero()
+    // Superuser của container tạm; search_path như role servicename_migrator thật để migration không schema rơi vào servicename.
+    string MigratorConnection => _pg.GetConnectionString() + ";Search Path=servicename";
+
+    int Migrate()
     {
-        Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, _pg.GetConnectionString());
+        Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, MigratorConnection);
         try
         {
-            var code = typeof(Program).Assembly.EntryPoint!.Invoke(null, [new[] { "--migrate" }]);
-            Assert.Equal(0, code);
+            return (int)typeof(Program).Assembly.EntryPoint!.Invoke(null, [new[] { "--migrate" }])!;
         }
         finally
         {
             Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
         }
+    }
+
+    [Fact(DisplayName = "--migrate áp migration rồi thoát với mã 0")]
+    public void migrate_flag_exits_zero() => Assert.Equal(0, Migrate());
+
+    [Fact(DisplayName = "Sau --migrate, mapping EF khớp DDL: repository ghi, read service LINQ đọc lại")]
+    public async Task ef_mapping_matches_migrated_schema()
+    {
+        Assert.Equal(0, Migrate());
+        await using var factory = new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(b => b.UseSetting("ConnectionStrings:App", _pg.GetConnectionString()));
+        var sample = Sample.Create("mẫu");
+        await using (var scope = factory.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<SampleRepository>().AddAsync(sample, Ct);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var repo = scope.ServiceProvider.GetRequiredService<SampleRepository>();
+            var loaded = await repo.GetAsync(sample.Id, Ct);
+            Assert.NotNull(loaded);
+            Assert.True((await repo.UpdateAsync(loaded, 0, Ct)).IsSuccess);
+            Assert.False((await repo.UpdateAsync(loaded, 0, Ct)).IsSuccess); // version đã lên 1
+        }
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+            Assert.Equal([new SampleDto(sample.Id, "mẫu")], await scope.ServiceProvider.GetRequiredService<ISampleReadService>().ListAsync(Ct));
     }
 }

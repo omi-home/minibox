@@ -1,16 +1,49 @@
 {
   "$schema": "http://json.schemastore.org/template",
   "author": "minibox",
-  "classifications": ["Minibox", "Service"],
+  "classifications": [
+    "Minibox",
+    "Service"
+  ],
   "identity": "Minibox.Templates.Service",
   "name": "Minibox service",
   "shortName": "minibox-service",
-  "description": "Khung service Clean Architecture (spec §5.1). Chạy trong src/backend: dotnet new minibox-service -n Order -o services/order",
-  "tags": { "language": "C#", "type": "project" },
+  "description": "Khung service Clean Architecture (spec §5.1) + database/schemas/<svc>/ kiểu SSDT (spec §4.4). Chạy trong src/backend: dotnet new minibox-service -n Order -o services/order",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
   "sourceName": "ServiceName",
   "preferNameDirectory": true,
   "symbols": {
-    "svc": { "type": "derived", "valueSource": "name", "valueTransform": "lower", "replaces": "servicename" }
+    "svc": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "lower",
+      "replaces": "servicename",
+      "fileRename": "servicename"
+    }
   },
-  "forms": { "lower": { "identifier": "lowerCaseInvariant" } }
+  "forms": {
+    "lower": {
+      "identifier": "lowerCaseInvariant"
+    }
+  },
+  "sources": [
+    {
+      "source": "./",
+      "target": "./",
+      "exclude": [
+        "**/[Bb]in/**",
+        "**/[Oo]bj/**",
+        ".template.config/**",
+        "**/*.user",
+        "database/**"
+      ]
+    },
+    {
+      "source": "database/",
+      "target": "../../../../database/schemas/"
+    }
+  ]
 }
