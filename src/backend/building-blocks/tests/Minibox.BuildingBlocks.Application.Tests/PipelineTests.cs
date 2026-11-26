@@ -9,8 +9,9 @@ using Minibox.BuildingBlocks.Domain;
 namespace Minibox.BuildingBlocks.Application.Tests;
 
 // Message + handler mẫu; source generator của Mediator sinh pipeline thật cho chúng.
-public sealed record CreateItem(string Name, string IdempotencyKey = "") : ICommand<Guid>, IIdempotentCommand, IRequirePermission
+public sealed record CreateItem(string Name, string? Key = null) : ICommand<Guid>, IIdempotentCommand, IRequirePermission
 {
+    public string IdempotencyKey { get; } = Key ?? Guid.NewGuid().ToString("N");
     public string Permission => "item.create";
 }
 
@@ -89,6 +90,8 @@ sealed class MemoryIdempotencyStore : IIdempotencyStore
 
 public sealed class PipelineTests
 {
+    const string K1 = "key-0000000000000001";
+    const string K2 = "key-0000000000000002";
     readonly Log _log = [];
     readonly FakeUser _user = new();
     readonly FakeAuthorizer _authorizer = new();
@@ -178,8 +181,8 @@ public sealed class PipelineTests
     [Fact(DisplayName = "ac187_5: gửi lặp cùng Idempotency-Key trả kết quả lần đầu, handler chạy một lần")]
     public async Task ac187_5_same_key_returns_first_result()
     {
-        var first = await Send(new CreateItem("ok", "k1"));
-        var second = await Send(new CreateItem("ok", "k1"));
+        var first = await Send(new CreateItem("ok", K1));
+        var second = await Send(new CreateItem("ok", K1));
 
         Assert.Equal(first.Value, second.Value);
         Assert.Equal(["begin", "handler", "commit"], _log);
@@ -188,13 +191,26 @@ public sealed class PipelineTests
     [Fact(DisplayName = "Idempotency-Key gắn người gọi; kết quả thất bại không lưu")]
     public async Task idempotency_scoped_by_user_and_skips_failures()
     {
-        var first = await Send(new CreateItem("ok", "k1"));
+        var first = await Send(new CreateItem("ok", K1));
         _user.UserId = "u2";
-        var other = await Send(new CreateItem("ok", "k1"));
+        var other = await Send(new CreateItem("ok", K1));
         Assert.NotEqual(first.Value, other.Value);
 
-        await Send(new CreateItem("reject", "k2"));
-        await Send(new CreateItem("reject", "k2"));
+        await Send(new CreateItem("reject", K2));
+        await Send(new CreateItem("reject", K2));
         Assert.Equal(4, _log.Count(x => x == "handler"));
+    }
+
+    [Theory(DisplayName = "Idempotency-Key rỗng/ngắn/có khoảng trắng → Validation, không gọi handler")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("short")]
+    [InlineData("key 0000000000000001")]
+    public async Task invalid_idempotency_key_rejected(string key)
+    {
+        var result = await Send(new CreateItem("ok", key));
+
+        Assert.Equal(IdempotencyBehavior<CreateItem, Result<Guid>>.InvalidKeyCode, result.Error.Code);
+        Assert.Empty(_log);
     }
 }

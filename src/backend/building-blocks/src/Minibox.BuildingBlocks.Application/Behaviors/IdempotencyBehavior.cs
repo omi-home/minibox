@@ -12,11 +12,24 @@ namespace Minibox.BuildingBlocks.Application.Behaviors;
 public sealed class IdempotencyBehavior<TMessage, TResponse>(IIdempotencyStore store, ICurrentUser currentUser)
     : IPipelineBehavior<TMessage, TResponse> where TMessage : IMessage where TResponse : Result
 {
+    /// <summary>Mã lỗi khi khoá thiếu hoặc sai dạng.</summary>
+    public const string InvalidKeyCode = "Idempotency.InvalidKey";
+
+    /// <summary>Độ dài tối thiểu (UUID không gạch = 32) để khoá không đoán được.</summary>
+    public const int MinKeyLength = 16;
+
+    /// <summary>Độ dài tối đa.</summary>
+    public const int MaxKeyLength = 128;
+
     /// <inheritdoc/>
     public async ValueTask<TResponse> Handle(TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
     {
         if (message is not IIdempotentCommand { IdempotencyKey: var raw })
             return await next(message, cancellationToken);
+
+        // Fail-closed: khoá rỗng sẽ gộp mọi lệnh cùng loại; khoá ngắn đoán được sẽ lộ kết quả của khách (UserId null).
+        if (raw is not { Length: >= MinKeyLength and <= MaxKeyLength } || raw.Any(char.IsWhiteSpace) || raw.Any(char.IsControl))
+            return FailureOf<TResponse>.From(Error.Validation(InvalidKeyCode, $"Idempotency-Key phải dài {MinKeyLength}–{MaxKeyLength} ký tự, không khoảng trắng."));
 
         var key = $"{currentUser.UserId}|{typeof(TMessage).FullName}|{raw}";
         if (await store.GetAsync<TResponse>(key, cancellationToken) is { } cached)
