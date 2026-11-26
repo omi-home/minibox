@@ -1,7 +1,9 @@
 <Solution>
   <Folder Name="/building-blocks/">
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Application/Minibox.BuildingBlocks.Application.csproj" />
     <Project Path="building-blocks/src/Minibox.BuildingBlocks.Domain/Minibox.BuildingBlocks.Domain.csproj" />
     <Project Path="building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Application.Tests/Minibox.BuildingBlocks.Application.Tests.csproj" />
     <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Domain.Tests/Minibox.BuildingBlocks.Domain.Tests.csproj" />
     <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Infrastructure.Tests/Minibox.BuildingBlocks.Infrastructure.Tests.csproj" />
   </Folder>
