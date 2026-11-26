@@ -10,6 +10,7 @@ if (DbMigrator.RunIfRequested(args, "servicename", typeof(Program).Assembly,
     return code;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddMiniboxObservability("servicename");
 builder.Services
     .AddMiniboxWeb()
     // Runtime dùng role servicename_app (chỉ DML): ConnectionStrings__App.

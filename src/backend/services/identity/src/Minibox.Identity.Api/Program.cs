@@ -18,6 +18,7 @@ if (DbMigrator.RunIfRequested(args, "identity", typeof(Program).Assembly,
     return code;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddMiniboxObservability("identity");
 builder.Services
     .AddMiniboxWeb()
     // Runtime dùng role identity_app (chỉ DML): ConnectionStrings__App.
