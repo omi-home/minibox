@@ -41,7 +41,11 @@ public static class DbMigrator
     /// <param name="scripts">Assembly chứa script nhúng.</param>
     /// <param name="connectionString">Lấy chuỗi kết nối migrator; chỉ gọi khi có cờ.</param>
     /// <returns><c>null</c> nếu không có cờ (service chạy bình thường); 0 nếu migrate thành công, 1 nếu lỗi.</returns>
-    /// <example><code>if (DbMigrator.RunIfRequested(args, "order", typeof(Program).Assembly, () => cfg.GetConnectionString("Migrator")!) is int code) return code;</code></example>
+    /// <remarks>
+    /// Chuỗi kết nối migrator lấy từ biến môi trường do job deploy cấp từ secret, không đặt trong appsettings và không dùng cho runtime.
+    /// Lỗi Npgsql chỉ in ra log của job migrate. <paramref name="schema"/> luôn là hằng số trong code, không lấy từ input/config.
+    /// </remarks>
+    /// <example><code>if (DbMigrator.RunIfRequested(args, "order", typeof(Program).Assembly, () => Environment.GetEnvironmentVariable("MINIBOX_MIGRATOR_CONNECTION")!) is int code) return code;</code></example>
     public static int? RunIfRequested(string[] args, string schema, Assembly scripts, Func<string> connectionString) =>
         args.Contains(MigrateFlag) ? (Migrate(connectionString(), schema, scripts) ? 0 : 1) : null;
 }

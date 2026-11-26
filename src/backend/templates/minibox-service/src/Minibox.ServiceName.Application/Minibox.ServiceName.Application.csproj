@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.ServiceName.Domain/Minibox.ServiceName.Domain.csproj" />
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Application/Minibox.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+</Project>
