@@ -206,7 +206,7 @@ src/backend/services/<svc>/
   tests/{UnitTests, IntegrationTests, ArchitectureTests}/
 ```
 
-Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới.
+Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới: 5 project + 3 project test, `DbContext`/`Configurations/`/repository EF/read service LINQ mẫu (`Sample`), và `database/schemas/<svc>/` kiểu SSDT với migration mẫu.
 
 ### 5.2 Bên trong layer
 

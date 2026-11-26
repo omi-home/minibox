@@ -1,5 +1,6 @@
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
+using Minibox.ServiceName.Infrastructure;
 using Npgsql;
 
 // --migrate: áp migration bằng role servicename_migrator rồi thoát (spec §4.4). Chuỗi kết nối migrator chỉ lấy từ biến môi trường
@@ -15,7 +16,8 @@ builder.Services
     .AddMiniboxWeb()
     // Runtime dùng role servicename_app (chỉ DML): ConnectionStrings__App.
     .AddSingleton(sp => NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("App")
-        ?? throw new InvalidOperationException("Thiếu ConnectionStrings:App")));
+        ?? throw new InvalidOperationException("Thiếu ConnectionStrings:App")))
+    .AddServiceNameInfrastructure();
 
 var app = builder.Build();
 app.UseMiniboxWeb();

@@ -1,0 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using Minibox.ServiceName.Application.Samples;
+using Minibox.ServiceName.Domain.Samples;
+
+namespace Minibox.ServiceName.Infrastructure.Persistence;
+
+/// <summary>Read service mẫu: LINQ <c>AsNoTracking</c> + <c>Select</c> chiếu thẳng ra DTO (không tải entity).</summary>
+/// <param name="db">DbContext của request.</param>
+public sealed class SampleReadService(ServiceNameDbContext db) : ISampleReadService
+{
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<SampleDto>> ListAsync(CancellationToken cancellationToken = default) =>
+        await db.Set<Sample>().AsNoTracking().OrderBy(s => s.Name).Select(s => new SampleDto(s.Id, s.Name)).ToListAsync(cancellationToken);
+}
