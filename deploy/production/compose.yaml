@@ -5,6 +5,13 @@ name: minibox-production
 services:
   database-postgres:
     container_name: minibox-production-database-postgres
+    # Image kèm pgBackRest + WAL archive (deploy/backup/, spec §8.6); lịch backup: deploy/backup/pgbackrest.cron.
+    image: minibox/postgres-pgbackrest:18
+    build:
+      context: backup # tính từ deploy/ (file compose đầu tiên)
+      dockerfile: postgres.Dockerfile
+    volumes:
+      - pgbackrest-repo:/var/lib/pgbackrest
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin
     secrets: [postgres_admin]
@@ -25,6 +32,9 @@ services:
 
   infra-mailpit:
     container_name: minibox-production-infra-mailpit
+
+volumes:
+  pgbackrest-repo:
 
 networks:
   # Do Caddy chung (deploy/caddy/) tạo; chỉ frontend (BFF) được nối vào để backend, /health/*, /.well-known/* không lộ ra ngoài.

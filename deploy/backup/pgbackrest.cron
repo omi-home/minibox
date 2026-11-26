@@ -1,0 +1,9 @@
+# Lịch pgBackRest trên homeserver (spec §8.6): full Chủ nhật, diff các ngày còn lại; expire tự chạy sau mỗi backup.
+# Cài: sudo cp deploy/backup/pgbackrest.cron /etc/cron.d/minibox-pgbackrest
+# Cluster khởi tạo trước khi có image này: chạy một lần
+#   docker exec -u postgres minibox-<env>-database-postgres pgbackrest --stanza=minibox stanza-create
+# m h dom mon dow user command
+30 2 * * 0   root docker exec -u postgres minibox-production-database-postgres pgbackrest --stanza=minibox --type=full backup
+30 2 * * 1-6 root docker exec -u postgres minibox-production-database-postgres pgbackrest --stanza=minibox --type=diff backup
+0 3 * * 0    root docker exec -u postgres minibox-staging-database-postgres pgbackrest --stanza=minibox --type=full backup
+0 3 * * 1-6  root docker exec -u postgres minibox-staging-database-postgres pgbackrest --stanza=minibox --type=diff backup
