@@ -23,6 +23,7 @@ builder.Services
     .AddSingleton(TimeProvider.System)
     .AddSingleton(sp => new SigningKeyRing(sp.GetRequiredService<TimeProvider>(), SigningKeyRing.DefaultPeriod))
     .AddSingleton<IRefreshTokens, PostgresRefreshTokens>()
+    .AddSingleton<IPasswordLogin, PostgresPasswordLogin>()
     .AddSingleton<IAccessTokenIssuer>(sp => new JwtAccessTokenIssuer(
         sp.GetRequiredService<SigningKeyRing>(), sp.GetRequiredService<TimeProvider>(), Program.Issuer(sp.GetRequiredService<IConfiguration>())));
 
