@@ -2,7 +2,7 @@ namespace Minibox.Repo.Tests;
 
 public class RepoStructureTests
 {
-    static string BackendDir()
+    internal static string BackendDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Minibox.slnx")))

@@ -9,7 +9,7 @@
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <!-- XML doc bắt buộc cho API public (spec §8.7): thiếu → CS1591, sai param/cref → CS1572/CS1573/CS1574; thành lỗi nhờ TreatWarningsAsErrors. -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('Tests'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/services/<svc>/migrations/*.sql
