@@ -143,7 +143,7 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 ### 4.3 Bootstrap
 
-`database/bootstrap/*.sql` idempotent (khối `DO`, `IF NOT EXISTS`), chạy bằng `db_admin`: tạo schema, role, extension, grant và `ALTER DEFAULT PRIVILEGES` để bảng mới của migrator tự cấp DML cho role app. Mật khẩu role chưa có được sinh ngẫu nhiên và ghi vào thư mục secret của môi trường.
+`database/bootstrap/*.sql` idempotent (khối `DO`, `IF NOT EXISTS`), chạy bằng `db_admin`: tạo schema, role, extension, grant và `ALTER DEFAULT PRIVILEGES` để bảng mới của migrator tự cấp DML cho role app. Mật khẩu role chưa có được sinh ngẫu nhiên và ghi vào thư mục secret của môi trường. Lệnh: `node database/bootstrap/run.mjs <env> [--secrets <dir>]` (đẩy SQL vào psql của container `database-postgres`; file secret `<role>.password`, dev ở `deploy/dev/secrets/` đã .gitignore). Chỉ `catalog` được `USAGE` trên `extensions`. Bootstrap không `GRANT ... ON ALL TABLES` để không trả lại quyền mà migration đã thu hồi.
 
 ### 4.4 Migration (DbUp)
 

@@ -2,7 +2,7 @@
 import { backend, frontend, isMain, root, runAll } from "./run.mjs";
 
 export const testSteps = () => [
-  { cmd: "node", args: ["--test", "scripts/*.test.mjs"], cwd: root },
+  { cmd: "node", args: ["--test", "scripts/*.test.mjs", "database/tests/*.test.mjs"], cwd: root },
   { cmd: "dotnet", args: ["test", "--solution", "Minibox.slnx"], cwd: backend },
   { cmd: "pnpm", args: ["install", "--frozen-lockfile"], cwd: frontend },
   { cmd: "pnpm", args: ["lint"], cwd: frontend },
