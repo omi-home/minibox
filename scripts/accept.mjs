@@ -17,8 +17,10 @@ export function acceptSteps(n) {
       cwd: backend,
       okCodes: [0, NO_TESTS],
     },
-    // Sau dotnet test (đã build → sinh lại contracts/openapi).
+    // Sau dotnet test (đã build → sinh lại contracts/openapi); client TS cần openapi-typescript trong node_modules.
+    { cmd: "pnpm", args: ["install", "--frozen-lockfile"], cwd: frontend },
     { cmd: "node", args: ["--test", "--test-name-pattern", pat, "contracts/tests/*.test.mjs"], cwd: root },
+    { cmd: "pnpm", args: ["-r", "test", "-t", pat, "--reporter=verbose"], cwd: frontend },
   ];
   if (existsSync(join(frontend, "e2e")))
     steps.push({ cmd: "pnpm", args: ["exec", "playwright", "test", "-g", pat, "--reporter=list", "--pass-with-no-tests"], cwd: frontend });

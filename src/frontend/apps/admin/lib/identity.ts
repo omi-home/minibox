@@ -1,42 +1,32 @@
+import { createIdentityClient, type IdentityClient } from "@minibox/api-clients";
 import { NextResponse } from "next/server";
 import { clearSession, type Session, writeSession } from "./session";
 
 /**
- * Gọi API phiên của service identity trong mạng nội bộ (`IDENTITY_URL`), kèm `Idempotency-Key` như mọi API ghi.
+ * Tạo client identity (sinh từ OpenAPI) trỏ tới mạng nội bộ `IDENTITY_URL`; request ghi tự kèm `Idempotency-Key`.
  *
- * @param path - Đường dẫn, ví dụ `/auth/login`.
- * @param body - Thân JSON.
  * @param bearer - Access token khi endpoint cần xác thực.
- * @returns Response của identity.
+ * @returns Client identity có kiểu.
  * @throws Error khi thiếu `IDENTITY_URL`.
  */
-export function identityPost(path: string, body: unknown, bearer?: string): Promise<Response> {
+export function identity(bearer?: string): IdentityClient {
   const base = process.env.IDENTITY_URL;
   if (!base) throw new Error("Thiếu IDENTITY_URL");
-  return fetch(new URL(path, base), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "idempotency-key": crypto.randomUUID(),
-      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  return createIdentityClient(base, bearer ? { headers: { authorization: `Bearer ${bearer}` } } : {});
 }
 
 /**
- * Chuyển response token của identity thành response cho trình duyệt: thành công → 204 + cookie phiên; lỗi → cùng mã HTTP
- * kèm `{ code }`. Token không bao giờ nằm trong thân response.
+ * Chuyển kết quả gọi endpoint token của identity thành response cho trình duyệt: thành công → 204 + cookie phiên; lỗi → cùng
+ * mã HTTP kèm `{ code }`. Token không bao giờ nằm trong thân response.
  *
- * @param res - Response của identity (`TokenResponse` hoặc ProblemDetails).
+ * @param result - Kết quả openapi-fetch: `data` là `TokenResponse`, `error` là ProblemDetails (nếu identity trả JSON).
  * @returns Response cho trình duyệt.
  */
-export async function sessionResponse(res: Response): Promise<NextResponse> {
-  if (res.ok) return writeSession(new NextResponse(null, { status: 204 }), (await res.json()) as Session);
-  const problem = (await res.json().catch(() => ({}))) as { code?: string };
-  const response = NextResponse.json({ code: problem.code ?? "unknown" }, { status: res.status });
-  return res.status === 401 ? clearSession(response) : response;
+export function sessionResponse(result: { data?: Session; error?: unknown; response: Response }): NextResponse {
+  if (result.data) return writeSession(new NextResponse(null, { status: 204 }), result.data);
+  const code = (result.error as { code?: unknown } | undefined)?.code;
+  const response = NextResponse.json({ code: typeof code === "string" ? code : "unknown" }, { status: result.response.status });
+  return result.response.status === 401 ? clearSession(response) : response;
 }
 
 /**
@@ -64,8 +54,9 @@ const inflight = new Map<string, Promise<Session | undefined>>();
 export function refreshSession(refreshToken: string): Promise<Session | undefined> {
   let pending = inflight.get(refreshToken);
   if (!pending) {
-    pending = identityPost("/auth/refresh", { refreshToken })
-      .then(async (res) => (res.ok ? ((await res.json()) as Session) : undefined))
+    pending = identity()
+      .POST("/auth/refresh", { body: { refreshToken } })
+      .then(({ data }) => data)
       .catch(() => undefined);
     inflight.set(refreshToken, pending);
     setTimeout(() => inflight.delete(refreshToken), 30_000).unref?.();

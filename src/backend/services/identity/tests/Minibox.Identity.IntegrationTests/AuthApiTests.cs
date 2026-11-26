@@ -116,6 +116,6 @@ public sealed class AuthApiTests : IAsyncLifetime
     public async Task invalid_credentials_rejected()
     {
         Assert.NotEqual(HttpStatusCode.OK, (await Post("/auth/login", new Program.LoginRequest("an@minibox.vn", "sai", "10.0.0.1"))).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/auth/refresh", new Program.RefreshRequest(null))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/auth/refresh", new Program.RefreshRequest(null!))).StatusCode); // client sai hợp đồng vẫn 401, không 500
     }
 }

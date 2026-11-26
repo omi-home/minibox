@@ -24,5 +24,5 @@ export default [
   ...nextTs,
   { settings: { react: { version: "19" } } },
   docs,
-  { ignores: [".next/**", "next-env.d.ts", "coverage/**"] },
+  { ignores: [".next/**", "next-env.d.ts", "coverage/**", "src/generated/**"] },
 ];

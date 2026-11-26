@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { identityPost } from "../../../../lib/identity";
+import { identity } from "../../../../lib/identity";
 import { clearSession, readSession, sameOrigin } from "../../../../lib/session";
 
 /**
@@ -12,6 +12,6 @@ export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ code: "bad_origin" }, { status: 403 });
   const session = readSession(request);
   // Identity lỗi vẫn xóa cookie: người dùng đã yêu cầu thoát; refresh token sẽ tự hết hạn.
-  if (session) await identityPost("/auth/logout", { refreshToken: session.refreshToken }).catch(() => undefined);
+  if (session) await identity().POST("/auth/logout", { body: { refreshToken: session.refreshToken } }).catch(() => undefined);
   return clearSession(new NextResponse(null, { status: 204 }));
 }

@@ -57,10 +57,12 @@ app.MapMiniboxHealthChecks();
 var assignments = app.MapGroup("/admin/accounts/{accountId:guid}/assignments");
 assignments.MapPost("", [RequirePermission(Program.AssignmentPermission)] [Sensitive] async (
         Guid accountId, Program.AssignmentRequest body, ICurrentUser user, IAuthorizer authz, IRoleAssignments store, CancellationToken ct) =>
-    await Program.AdminAsync(user, authz, store, accountId, body.Role, body.Scope, actor => store.GrantAsync(actor, accountId, body.Role, body.Scope, ct), ct));
+    await Program.AdminAsync(user, authz, store, accountId, body.Role, body.Scope, actor => store.GrantAsync(actor, accountId, body.Role, body.Scope, ct), ct))
+    .Produces(StatusCodes.Status204NoContent);
 assignments.MapDelete("{role}/{scope}", [RequirePermission(Program.AssignmentPermission)] [Sensitive] async (
         Guid accountId, string role, string scope, ICurrentUser user, IAuthorizer authz, IRoleAssignments store, CancellationToken ct) =>
-    await Program.AdminAsync(user, authz, store, accountId, role, scope, actor => store.RevokeAsync(actor, accountId, role, scope, ct), ct));
+    await Program.AdminAsync(user, authz, store, accountId, role, scope, actor => store.RevokeAsync(actor, accountId, role, scope, ct), ct))
+    .Produces(StatusCodes.Status204NoContent);
 // Phiên cho BFF (spec §3.2): token chỉ trả cho BFF trong mạng nội bộ, BFF giữ trong cookie mã hóa. POST vẫn cần Idempotency-Key như mọi API ghi.
 var auth = app.MapGroup("/auth");
 auth.MapPost("login", async (Program.LoginRequest body, IPasswordLogin login, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
@@ -69,7 +71,7 @@ auth.MapPost("login", async (Program.LoginRequest body, IPasswordLogin login, IP
     return result.IsSuccess
         ? Results.Ok(await Program.TokensAsync(result.Value.Session, perms, issuer, ct))
         : ResultHttpExtensions.Problem(result.Error);
-});
+}).Produces<Program.TokenResponse>();
 // Yếu tố thứ hai và xác thực lại: tài khoản lấy từ access token (sub), không từ body; phiên cũ (chỉ pwd) bị thu hồi.
 auth.MapPost("mfa/verify", [AllowWithoutMfa] async (Program.MfaVerifyRequest body, ICurrentUser user, IMfa mfa, IRefreshTokens refresh,
         IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
@@ -82,7 +84,7 @@ auth.MapPost("mfa/verify", [AllowWithoutMfa] async (Program.MfaVerifyRequest bod
     if (!string.IsNullOrEmpty(body.RefreshToken))
         await refresh.RevokeAsync(body.RefreshToken, ct);
     return Results.Ok(await Program.TokensAsync(verified.Value, perms, issuer, ct));
-}).RequireAuthorization();
+}).RequireAuthorization().Produces<Program.TokenResponse>();
 auth.MapPost("refresh", async (Program.RefreshRequest body, IRefreshTokens refresh, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
 {
     var rotated = await refresh.RotateAsync(body.RefreshToken ?? "", ct);
@@ -90,13 +92,13 @@ auth.MapPost("refresh", async (Program.RefreshRequest body, IRefreshTokens refre
         ? Results.Ok(await Program.TokensAsync(rotated.Value, perms, issuer, ct))
         : Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: rotated.Error.Code, detail: rotated.Error.Message,
             extensions: new Dictionary<string, object?> { ["code"] = rotated.Error.Code });
-});
+}).Produces<Program.TokenResponse>();
 auth.MapPost("logout", async (Program.RefreshRequest body, IRefreshTokens refresh, CancellationToken ct) =>
 {
     if (!string.IsNullOrEmpty(body.RefreshToken))
         await refresh.RevokeAsync(body.RefreshToken, ct);
     return Results.NoContent();
-});
+}).Produces(StatusCodes.Status204NoContent);
 // Discovery tối thiểu + JWKS cho service khác tự kiểm chữ ký (JwtAuthenticationSetup); chỉ khóa công khai, chỉ trong mạng nội bộ.
 app.MapGet("/.well-known/openid-configuration", (IConfiguration config) =>
     new { issuer = Program.Issuer(config), jwks_uri = Program.Issuer(config) + "/.well-known/jwks.json" });
@@ -122,16 +124,16 @@ public partial class Program
     /// <param name="Identifier">Email hoặc username.</param>
     /// <param name="Password">Mật khẩu.</param>
     /// <param name="Ip">IP người dùng cuối mà BFF thấy (dùng để giới hạn đăng nhập sai).</param>
-    public sealed record LoginRequest(string? Identifier, string? Password, string? Ip);
+    public sealed record LoginRequest(string Identifier, string Password, string Ip);
 
     /// <summary>Thân request xác minh MFA (sau mật khẩu hoặc khi xác thực lại).</summary>
     /// <param name="Code">Mã TOTP 6 chữ số hoặc mã khôi phục.</param>
-    /// <param name="RefreshToken">Refresh token của phiên hiện tại, bị thu hồi khi xác minh thành công.</param>
-    public sealed record MfaVerifyRequest(string? Code, string? RefreshToken);
+    /// <param name="RefreshToken">Refresh token của phiên hiện tại (không bắt buộc), bị thu hồi khi xác minh thành công.</param>
+    public sealed record MfaVerifyRequest(string Code, string? RefreshToken = null);
 
     /// <summary>Thân request làm mới hoặc đăng xuất.</summary>
     /// <param name="RefreshToken">Refresh token hiện tại.</param>
-    public sealed record RefreshRequest(string? RefreshToken);
+    public sealed record RefreshRequest(string RefreshToken);
 
     /// <summary>Cặp token trả cho BFF; trình duyệt không bao giờ nhận.</summary>
     /// <param name="AccessToken">Access JWT 5 phút.</param>
