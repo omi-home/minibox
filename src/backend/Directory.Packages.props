@@ -23,6 +23,11 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
   </ItemGroup>
   <ItemGroup Label="Messaging">
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.21.0" />
     <PackageVersion Include="JsonSchema.Net" Version="9.7.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />
