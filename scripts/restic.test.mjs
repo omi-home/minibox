@@ -2,7 +2,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resticBackup, RESTIC_IMAGE } from "./restic-backup.mjs";
@@ -41,8 +41,9 @@ test("restic_backup sao lưu dữ liệu SeaweedFS và thư mục secret, khôi 
 });
 
 test("restic_backup repo được mã hóa: không có bản rõ, sai khóa không mở được", () => {
-  const files = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? files(join(d, f)) : [join(d, f)]));
-  for (const f of files(join(config, "repo"))) assert.ok(!readFileSync(f).includes(MARK), `bản rõ trong ${f}`);
+  // repo do root trong container tạo (0700 trên Linux) → quét bằng container
+  const g = spawnSync("docker", ["run", "--rm", "-v", `${config}:/c:ro`, "--entrypoint", "grep", RESTIC_IMAGE, "-rl", MARK, "/c/repo"], { encoding: "utf8" });
+  assert.equal(g.status, 1, `bản rõ trong repo: ${g.stdout}${g.stderr}`);
   writeFileSync(join(config, "restic.password"), "wrong\n");
   assert.throws(() => restic("snapshots"));
 });
