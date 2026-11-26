@@ -1,0 +1,80 @@
+# Hạ tầng chung mọi môi trường (spec §8.2). Mỗi môi trường một thư mục deploy/<env>/ (compose.yaml đặt tên cụm, container_name, cổng; .env.example).
+# Dịch vụ đặt tên `<layer>-<tên>` (frontend|backend|database|infra|observability); container `minibox-<env>-<layer>-<tên>`.
+# Giá trị mặc định chỉ dành cho dev; staging/production lấy từ file secret ngoài repo (spec §8.4). Mẫu: deploy/<env>/.env.example.
+
+services:
+  database-postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-db_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibox}
+      POSTGRES_DB: minibox
+    volumes:
+      - postgres-data:/var/lib/postgresql # PostgreSQL 18: PGDATA nằm dưới /var/lib/postgresql/18/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d minibox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  infra-rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-minibox}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-minibox}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  infra-seaweedfs:
+    image: chrislusf/seaweedfs:4.55
+    command: ["server", "-dir=/data", "-s3", "-s3.port=8333"]
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8333/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  infra-clamav:
+    image: clamav/clamav:1.5
+    volumes:
+      - clamav-data:/var/lib/clamav # giữ CSDL chữ ký, khởi động lại không tải lại
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 6m # lần đầu freshclam tải CSDL chữ ký
+    restart: unless-stopped
+
+  infra-mailpit:
+    image: axllent/mailpit:v1.34
+    volumes:
+      - mailpit-data:/data
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  seaweedfs-data:
+  clamav-data:
+  mailpit-data:
