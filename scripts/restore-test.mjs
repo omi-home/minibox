@@ -36,7 +36,7 @@ export function restoreTest(env, o = {}) {
     docker("exec", "-u", "postgres", src, "pgbackrest", "--stanza=minibox", "check"); // switch WAL: restore point + xóa thử vào repo
     [info] = JSON.parse(docker("exec", "-u", "postgres", src, "pgbackrest", "--stanza=minibox", "--output=json", "info"));
 
-    docker("run", "-d", "--name", r.tmp, "-u", "postgres", "-v", `${volume}:/var/lib/pgbackrest:ro`, "--entrypoint", "sleep", IMAGE, "infinity");
+    docker("run", "-d", "--name", r.tmp, "--network", "none", "-u", "postgres", "-v", `${volume}:/var/lib/pgbackrest:ro`, "--entrypoint", "sleep", IMAGE, "infinity");
     docker("exec", r.tmp, "sh", "-ec", `mkdir -p -m 700 "$PGDATA"
       pgbackrest --stanza=minibox --type=name --target=${target} --target-action=promote restore
       pg_ctl -D "$PGDATA" -l /tmp/postgres.log -w -t 300 -o "-c archive_mode=off -c listen_addresses=''" start`);

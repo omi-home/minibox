@@ -1,0 +1,9 @@
+# restic mỗi giờ: dữ liệu SeaweedFS + thư mục secret của staging/production (spec §8.6), cấu hình ở /srv/minibox/backup/ (deploy/backup/restic.env.example).
+# Cài: sudo install -o root -g root -m 644 deploy/backup/restic.cron /etc/cron.d/minibox-restic
+# Cron chạy root với MINIBOX_REPO → checkout repo phải thuộc root, user khác không ghi được (không thì ai sửa script cũng chạy được lệnh root).
+# MINIBOX_REPO = thư mục checkout repo trên homeserver (cùng chỗ deploy/deploy.sh chạy) — sửa khi cài nếu khác.
+MINIBOX_REPO=/srv/minibox/repo
+PATH=/usr/local/bin:/usr/bin:/bin
+# m h dom mon dow user command
+15 * * * *   root node "$MINIBOX_REPO/scripts/restic-backup.mjs" production
+45 * * * *   root node "$MINIBOX_REPO/scripts/restic-backup.mjs" staging
