@@ -12,4 +12,10 @@
   <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/services/<svc>/migrations/*.sql
+       với LogicalName migrations/<file>.sql cho DbMigrator (spec §4.4). Item được đánh giá sau property nên đọc được giá trị của csproj. -->
+  <ItemGroup Condition="'$(MiniboxService)' != ''">
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../database/services/$(MiniboxService)/migrations/*.sql"
+                      LogicalName="migrations/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
