@@ -7,6 +7,7 @@ using Testcontainers.PostgreSql;
 namespace Minibox.Identity.IntegrationTests;
 
 /// <summary>Api thật trên PostgreSQL tạm: health check và chế độ --migrate.</summary>
+[Collection(MigrateCollection.Name)]
 public sealed class ApiHostTests : IAsyncLifetime
 {
     readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
@@ -85,4 +86,12 @@ public sealed class ApiHostTests : IAsyncLifetime
             Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
         }
     }
+}
+
+/// <summary>Test gọi --migrate đặt biến môi trường toàn process: chạy tuần tự với nhau.</summary>
+[CollectionDefinition(Name)]
+public sealed class MigrateCollection
+{
+    /// <summary>Tên collection.</summary>
+    public const string Name = "migrate";
 }
