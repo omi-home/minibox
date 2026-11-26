@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { identityPost, sessionResponse } from "../../../../lib/identity";
+import { identity, sessionResponse } from "../../../../lib/identity";
 import { sameOrigin } from "../../../../lib/session";
 
 /**
@@ -13,5 +13,5 @@ export async function POST(request: NextRequest) {
   const { identifier, password } = (await request.json().catch(() => ({}))) as { identifier?: string; password?: string };
   // Caddy ghi đè X-Forwarded-For; lấy phần tử cuối để client không chèn IP giả lên đầu.
   const ip = request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ?? "";
-  return sessionResponse(await identityPost("/auth/login", { identifier, password, ip }));
+  return sessionResponse(await identity().POST("/auth/login", { body: { identifier: identifier ?? "", password: password ?? "", ip } }));
 }

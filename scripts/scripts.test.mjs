@@ -25,6 +25,7 @@ test("ac174_3 accept chỉ lọc test có tên chứa ac<n>_ và in tên test", 
   assert.match(all, /--filter-method \*ac42_\*/);
   assert.match(all, /--output detailed/);
   assert.match(all, /--test-name-pattern ac42_/);
+  assert.match(all, /pnpm -r test -t ac42_/);
   assert.doesNotMatch(all, /ac4_|ac420_/);
 });
 

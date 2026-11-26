@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { identityPost, sessionResponse } from "../../../../lib/identity";
+import { identity, sessionResponse } from "../../../../lib/identity";
 import { readSession, sameOrigin } from "../../../../lib/session";
 
 /**
@@ -13,5 +13,7 @@ export async function POST(request: NextRequest) {
   const session = readSession(request);
   if (!session) return NextResponse.json({ code: "unauthenticated" }, { status: 401 });
   const { code } = (await request.json().catch(() => ({}))) as { code?: string };
-  return sessionResponse(await identityPost("/auth/mfa/verify", { code, refreshToken: session.refreshToken }, session.accessToken));
+  return sessionResponse(
+    await identity(session.accessToken).POST("/auth/mfa/verify", { body: { code: code ?? "", refreshToken: session.refreshToken } }),
+  );
 }

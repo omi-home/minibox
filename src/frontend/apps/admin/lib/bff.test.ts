@@ -36,7 +36,8 @@ function cookieValue(setCookie: string) {
 }
 
 const fetchMock = vi.fn<typeof fetch>();
-const call = (i: number) => fetchMock.mock.calls[i] ?? expect.unreachable(`identity chưa được gọi lần ${i + 1}`);
+// openapi-fetch gọi fetch(Request).
+const call = (i: number) => (fetchMock.mock.calls[i]?.[0] as Request | undefined) ?? expect.unreachable(`identity chưa được gọi lần ${i + 1}`);
 
 beforeEach(() => {
   vi.stubEnv("ADMIN_SESSION_KEY", randomBytes(32).toString("base64"));
@@ -51,7 +52,7 @@ afterEach(() => {
   fetchMock.mockReset();
 });
 
-test("ac208_1 đăng nhập + MFA tạo cookie httpOnly; Secure; SameSite=Lax, trình duyệt không nhận token", async () => {
+test("ac208_1 ac212_4 đăng nhập + MFA tạo cookie httpOnly; Secure; SameSite=Lax, trình duyệt không nhận token", async () => {
   const pwd = tokens("pwd");
   fetchMock.mockResolvedValueOnce(Response.json(pwd));
   const loggedIn = await login(request("/api/auth/login", { body: { identifier: "an@minibox.vn", password: "x" } }));
@@ -62,10 +63,11 @@ test("ac208_1 đăng nhập + MFA tạo cookie httpOnly; Secure; SameSite=Lax, t
   const res = await mfa(request("/api/auth/mfa", { body: { code: "123456" }, session: pwd }));
   expect(res.status).toBe(204);
 
-  const [url, init] = call(1);
-  expect(String(url)).toBe("http://identity:8080/auth/mfa/verify");
-  expect(new Headers(init?.headers).get("authorization")).toBe("Bearer access-pwd");
-  expect(JSON.parse(String(init?.body))).toEqual({ code: "123456", refreshToken: "refresh-pwd" });
+  const verify = call(1);
+  expect(verify.url).toBe("http://identity:8080/auth/mfa/verify");
+  expect(verify.headers.get("authorization")).toBe("Bearer access-pwd");
+  expect(verify.headers.get("idempotency-key")).toBeTruthy();
+  expect(await verify.json()).toEqual({ code: "123456", refreshToken: "refresh-pwd" });
 
   const setCookie = res.headers.get("set-cookie") ?? "";
   expect(setCookie).toMatch(/HttpOnly/i);
@@ -111,7 +113,7 @@ test("Proxy làm mới access sắp hết hạn một lần cho các request đ�
 
   const responses = await Promise.all([1, 2, 3].map(() => proxy(request("/", { method: "GET", session: old }))));
   expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(String(call(0)[1]?.body))).toEqual({ refreshToken: "refresh-old" });
+  expect(await call(0).json()).toEqual({ refreshToken: "refresh-old" });
   for (const res of responses) {
     expect(unsealSession(cookieValue(res.headers.get("set-cookie") ?? ""))).toEqual(fresh);
     // Request hiện tại cũng thấy cookie mới (Next chuyển header qua x-middleware-request-cookie).
@@ -131,7 +133,7 @@ test("Đăng xuất thu hồi phiên ở identity và xóa cookie", async () => 
   fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
   const res = await logout(request("/api/auth/logout", { session: tokens("a") }));
   expect(res.status).toBe(204);
-  expect(String(call(0)[0])).toBe("http://identity:8080/auth/logout");
-  expect(JSON.parse(String(call(0)[1]?.body))).toEqual({ refreshToken: "refresh-a" });
+  expect(call(0).url).toBe("http://identity:8080/auth/logout");
+  expect(await call(0).json()).toEqual({ refreshToken: "refresh-a" });
   expect(res.headers.get("set-cookie")).toMatch(/Max-Age=0/i);
 });
