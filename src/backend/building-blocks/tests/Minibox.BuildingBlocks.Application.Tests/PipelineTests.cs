@@ -78,12 +78,21 @@ sealed class FakeAuthorizer : IAuthorizer
 
 sealed class MemoryIdempotencyStore : IIdempotencyStore
 {
-    readonly Dictionary<string, Result> _items = [];
-    public ValueTask<TResponse?> GetAsync<TResponse>(string key, CancellationToken cancellationToken = default) where TResponse : Result =>
-        ValueTask.FromResult(_items.TryGetValue(key, out var r) ? (TResponse)r : null);
-    public ValueTask SaveAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result
+    // Giả lập DB: chỉ bản ghi đã Complete (đã commit) mới còn; giữ chỗ của lệnh thất bại coi như rollback.
+    readonly Dictionary<string, string> _pending = [];
+    readonly Dictionary<string, (string Hash, Result Response)> _done = [];
+
+    public ValueTask<IdempotencyRecord<TResponse>?> ReserveAsync<TResponse>(string key, string requestHash, CancellationToken cancellationToken = default)
+        where TResponse : Result
     {
-        _items[key] = response;
+        if (_done.TryGetValue(key, out var d)) return ValueTask.FromResult<IdempotencyRecord<TResponse>?>(new(d.Hash, (TResponse)d.Response));
+        _pending[key] = requestHash;
+        return ValueTask.FromResult<IdempotencyRecord<TResponse>?>(null);
+    }
+
+    public ValueTask CompleteAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result
+    {
+        _done[key] = (_pending[key], response);
         return ValueTask.CompletedTask;
     }
 }
@@ -115,8 +124,8 @@ public sealed class PipelineTests
                 typeof(LoggingBehavior<,>),
                 typeof(ValidationBehavior<,>),
                 typeof(AuthorizationBehavior<,>),
-                typeof(IdempotencyBehavior<,>),
                 typeof(TransactionBehavior<,>),
+                typeof(IdempotencyBehavior<,>),
             ];
         });
         _mediator = services.BuildServiceProvider().GetRequiredService<IMediator>();
@@ -185,7 +194,7 @@ public sealed class PipelineTests
         var second = await Send(new CreateItem("ok", K1));
 
         Assert.Equal(first.Value, second.Value);
-        Assert.Equal(["begin", "handler", "commit"], _log);
+        Assert.Equal(1, _log.Count(x => x == "handler"));
     }
 
     [Fact(DisplayName = "Idempotency-Key gắn người gọi; kết quả thất bại không lưu")]
@@ -201,6 +210,16 @@ public sealed class PipelineTests
         Assert.Equal(4, _log.Count(x => x == "handler"));
     }
 
+    [Fact(DisplayName = "Cùng Idempotency-Key nhưng khác nội dung → Conflict, không chạy handler lần hai")]
+    public async Task same_key_different_payload_conflicts()
+    {
+        await Send(new CreateItem("ok", K1));
+        var reused = await Send(new CreateItem("khác", K1));
+
+        Assert.Equal(IdempotencyBehavior<CreateItem, Result<Guid>>.KeyReusedCode, reused.Error.Code);
+        Assert.Equal(1, _log.Count(x => x == "handler"));
+    }
+
     [Theory(DisplayName = "Idempotency-Key rỗng/ngắn/có khoảng trắng → Validation, không gọi handler")]
     [InlineData("")]
     [InlineData("   ")]
@@ -210,7 +229,7 @@ public sealed class PipelineTests
     {
         var result = await Send(new CreateItem("ok", key));
 
-        Assert.Equal(IdempotencyBehavior<CreateItem, Result<Guid>>.InvalidKeyCode, result.Error.Code);
+        Assert.Equal(IdempotencyKey.InvalidKeyCode, result.Error.Code);
         Assert.Empty(_log);
     }
 }

@@ -8,7 +8,8 @@ namespace Minibox.BuildingBlocks.Application.Behaviors;
 /// <summary>Behavior ngoài cùng: span trace + log kết quả, thời gian xử lý của mỗi message.</summary>
 /// <remarks>Thứ tự đăng ký trong <c>AddMediator</c> (spec §5.4): <see cref="LoggingBehavior{TMessage, TResponse}"/>,
 /// <see cref="ValidationBehavior{TMessage, TResponse}"/>, <see cref="AuthorizationBehavior{TMessage, TResponse}"/>,
-/// <see cref="IdempotencyBehavior{TMessage, TResponse}"/>, <see cref="TransactionBehavior{TMessage, TResponse}"/>.</remarks>
+/// <see cref="TransactionBehavior{TMessage, TResponse}"/>, <see cref="IdempotencyBehavior{TMessage, TResponse}"/> (giữ chỗ khoá
+/// trong transaction).</remarks>
 /// <typeparam name="TMessage">Kiểu message.</typeparam>
 /// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
 /// <param name="logger">Logger.</param>
