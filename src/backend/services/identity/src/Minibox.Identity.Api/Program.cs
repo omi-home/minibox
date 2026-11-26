@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Minibox.BuildingBlocks.Application;
+using Minibox.BuildingBlocks.Domain;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
 using Minibox.Identity.Application.Accounts;
@@ -30,11 +34,33 @@ builder.Services
         Convert.FromBase64String(sp.GetRequiredService<IConfiguration>()["Mfa:EncryptionKey"] ?? throw new InvalidOperationException("Thiếu cấu hình Mfa:EncryptionKey")),
         sp.GetRequiredService<IRefreshTokens>(), sp.GetRequiredService<TimeProvider>()))
     .AddSingleton<IAccessTokenIssuer>(sp => new JwtAccessTokenIssuer(
-        sp.GetRequiredService<SigningKeyRing>(), sp.GetRequiredService<TimeProvider>(), Program.Issuer(sp.GetRequiredService<IConfiguration>())));
+        sp.GetRequiredService<SigningKeyRing>(), sp.GetRequiredService<TimeProvider>(), Program.Issuer(sp.GetRequiredService<IConfiguration>())))
+    .AddSingleton<IRoleAssignments, PostgresRoleAssignments>();
+
+// Identity tự kiểm token của mình: cùng luật với service khác, nhưng khóa lấy thẳng từ key ring thay vì gọi JWKS qua HTTP.
+builder.Services.AddMiniboxJwtAuthentication("http://identity.self");
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme).Configure<SigningKeyRing, IConfiguration>((o, keys, config) =>
+{
+    // Thiếu Jwt:Issuer thì không token nào khớp iss (fail-closed); request không token (health) vẫn chạy.
+    var issuer = config["Jwt:Issuer"]?.TrimEnd('/');
+    o.Authority = null;
+    o.Configuration = new OpenIdConnectConfiguration { Issuer = issuer };
+    o.TokenValidationParameters.ValidIssuer = issuer;
+    o.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => keys.Published;
+});
 
 var app = builder.Build();
 app.UseMiniboxWeb();
 app.MapMiniboxHealthChecks();
+
+// Quản trị phân công (spec §3.6): mã quyền ở bất kỳ phạm vi để vào endpoint, rồi đúng phạm vi của phân công; đổi quyền là thao tác nhạy cảm (step-up).
+var assignments = app.MapGroup("/admin/accounts/{accountId:guid}/assignments");
+assignments.MapPost("", [RequirePermission(Program.AssignmentPermission)] [Sensitive] async (
+        Guid accountId, Program.AssignmentRequest body, ICurrentUser user, IAuthorizer authz, IRoleAssignments store, CancellationToken ct) =>
+    await Program.AdminAsync(user, authz, body.Scope, actor => store.GrantAsync(actor, accountId, body.Role, body.Scope, ct), ct));
+assignments.MapDelete("{role}/{scope}", [RequirePermission(Program.AssignmentPermission)] [Sensitive] async (
+        Guid accountId, string role, string scope, ICurrentUser user, IAuthorizer authz, IRoleAssignments store, CancellationToken ct) =>
+    await Program.AdminAsync(user, authz, scope, actor => store.RevokeAsync(actor, accountId, role, scope, ct), ct));
 // Discovery tối thiểu + JWKS cho service khác tự kiểm chữ ký (JwtAuthenticationSetup); chỉ khóa công khai, chỉ trong mạng nội bộ.
 app.MapGet("/.well-known/openid-configuration", (IConfiguration config) =>
     new { issuer = Program.Issuer(config), jwks_uri = Program.Issuer(config) + "/.well-known/jwks.json" });
@@ -47,6 +73,29 @@ public partial class Program
 {
     /// <summary>Biến môi trường chứa chuỗi kết nối role <c>identity_migrator</c>, chỉ đọc khi chạy <c>--migrate</c>.</summary>
     public const string MigratorConnectionVariable = "MINIBOX_MIGRATOR_CONNECTION";
+
+    /// <summary>Mã quyền gán/thu hồi phân công.</summary>
+    public const string AssignmentPermission = "identity.assignment.manage";
+
+    /// <summary>Thân request gán vai trò.</summary>
+    /// <param name="Role">Mã vai trò (<c>warehouse</c>, <c>qc</c>…).</param>
+    /// <param name="Scope">Phạm vi <c>*</c>, <c>wh:n</c> hoặc <c>farm:n</c>.</param>
+    public sealed record AssignmentRequest(string Role, string Scope);
+
+    /// <summary>Kiểm người gọi có <see cref="AssignmentPermission"/> trong <paramref name="scope"/> rồi chạy thay đổi với actor = <c>sub</c>.</summary>
+    /// <param name="user">Người gọi.</param>
+    /// <param name="authz">Bộ kiểm quyền.</param>
+    /// <param name="scope">Phạm vi của phân công bị đổi.</param>
+    /// <param name="change">Thay đổi cần chạy.</param>
+    /// <param name="ct">Huỷ thao tác.</param>
+    /// <returns>204 khi thành công; 403 khi thiếu quyền trong phạm vi hoặc <c>sub</c> không phải id tài khoản; lỗi của thay đổi.</returns>
+    internal static async Task<IResult> AdminAsync(ICurrentUser user, IAuthorizer authz, string scope, Func<Guid, Task<Result>> change, CancellationToken ct)
+    {
+        if (!Guid.TryParse(user.UserId, out var actor))
+            return ResultHttpExtensions.Problem(Error.Forbidden("Auth.Forbidden","Không có quyền thực hiện thao tác."));
+        var allowed = await authz.EnsureAsync(AssignmentPermission, scope, ct);
+        return (allowed.IsSuccess ? await change(actor) : allowed).ToHttpResult();
+    }
 
     /// <summary>Đọc <c>Jwt:Issuer</c>: URL nội bộ của identity, dùng làm <c>iss</c> và gốc discovery/JWKS.</summary>
     /// <param name="config">Cấu hình.</param>

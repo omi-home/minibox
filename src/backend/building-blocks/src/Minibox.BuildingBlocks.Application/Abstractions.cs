@@ -84,7 +84,7 @@ public static class AuthorizerExtensions
     public static async ValueTask<Result> EnsureAsync(this IAuthorizer authorizer, string permission, string scope, CancellationToken cancellationToken = default) =>
         await authorizer.HasPermissionAsync(permission, scope, cancellationToken)
             ? Result.Success()
-            : Error.Forbidden(Behaviors.AuthorizationBehavior<Mediator.IMessage, Result>.ErrorCode, $"Thiếu quyền {permission} trên {scope}.");
+            : Error.Forbidden(Behaviors.AuthorizationBehavior<Mediator.IMessage, Result>.ErrorCode, "Không có quyền thực hiện thao tác."); // không lộ mã quyền/phạm vi cho client
 }
 
 /// <summary>Bản ghi idempotency đã hoàn tất của lần gửi đầu.</summary>
