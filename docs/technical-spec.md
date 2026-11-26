@@ -60,7 +60,10 @@ Quy tắc ranh giới:
 - **Lệnh/sự kiện qua RabbitMQ** bằng Wolverine (MIT). Bảng outbox/inbox nằm trong schema của service, ghi cùng `NpgsqlTransaction` với dữ liệu nghiệp vụ. Bảng của Wolverine được tạo bằng migration DbUp; tắt tự sinh DDL lúc khởi động (role runtime không có DDL).
 - Phía nhận khử trùng theo message id; mọi handler idempotent. Retry có backoff; quá số lần → dead-letter queue + cảnh báo + công cụ replay cho vai trò Kỹ thuật.
 - **Hợp đồng sự kiện**: JSON Schema có phiên bản trong `contracts/events/`; thay đổi phá vỡ phải tạo phiên bản mới (CI kiểm).
-- **Rủi ro cần spike ở M0**: Wolverine enlist outbox vào transaction Npgsql/Dapper thuần. Nếu không đạt, dự phòng là bảng outbox tối giản tự viết + publisher dùng `RabbitMQ.Client`.
+- **Spike M0 (#188) — đạt, giữ Wolverine** (WolverineFx 6.65, test `WolverineOutboxSpikeTests`):
+  - Enlist: mở `NpgsqlConnection` + transaction bằng role app → `MessageContext.EnlistInOutboxAsync(new DatabaseEnvelopeTransaction(IMessageDatabase, tx))` → ghi Dapper với cùng `tx` → `PublishAsync` → `tx.CommitAsync()` → `FlushOutgoingMessagesAsync()`. Commit: dữ liệu + message tới RabbitMQ đúng một lần, outbox dọn sạch; rollback: không dữ liệu, không message.
+  - DDL: `((Weasel.Core.Migrations.IDatabase)IMessageStore).ToDatabaseScript()` sinh offline toàn bộ bảng Wolverine trong schema service → đưa vào migration DbUp chạy bằng migrator; runtime đặt `AutoBuildMessageStorageOnStartup = AutoCreate.None`, role app (chỉ DML) chạy được.
+  - Wolverine 6 tách bộ biên dịch runtime: cần `WolverineFx.RuntimeCompilation` hoặc codegen tĩnh (`codegen write` + `TypeLoadMode.Static`). Service production dùng codegen tĩnh (không kéo Roslyn vào image) — chốt ở #191.
 
 ### 2.2 Saga đặt hàng (`order` điều phối, trạng thái saga lưu trong schema `order`)
 

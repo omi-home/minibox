@@ -6,6 +6,12 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Spike #188: Wolverine outbox dùng chung NpgsqlTransaction với Dapper -->
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="Dapper" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />

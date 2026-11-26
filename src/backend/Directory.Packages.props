@@ -4,9 +4,16 @@
   </PropertyGroup>
   <ItemGroup Label="Data">
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
+    <PackageVersion Include="Dapper" Version="2.1.100" />
+  </ItemGroup>
+  <ItemGroup Label="Messaging">
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.65.1" />
+    <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.65.1" />
   </ItemGroup>
   <ItemGroup Label="Test">
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.17.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
   </ItemGroup>
 </Project>
