@@ -61,6 +61,42 @@ assignments.MapPost("", [RequirePermission(Program.AssignmentPermission)] [Sensi
 assignments.MapDelete("{role}/{scope}", [RequirePermission(Program.AssignmentPermission)] [Sensitive] async (
         Guid accountId, string role, string scope, ICurrentUser user, IAuthorizer authz, IRoleAssignments store, CancellationToken ct) =>
     await Program.AdminAsync(user, authz, store, accountId, role, scope, actor => store.RevokeAsync(actor, accountId, role, scope, ct), ct));
+// Phiên cho BFF (spec §3.2): token chỉ trả cho BFF trong mạng nội bộ, BFF giữ trong cookie mã hóa. POST vẫn cần Idempotency-Key như mọi API ghi.
+var auth = app.MapGroup("/auth");
+auth.MapPost("login", async (Program.LoginRequest body, IPasswordLogin login, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
+{
+    var result = await login.LoginAsync(body.Identifier, body.Password, body.Ip ?? "", ct);
+    return result.IsSuccess
+        ? Results.Ok(await Program.TokensAsync(result.Value.Session, perms, issuer, ct))
+        : ResultHttpExtensions.Problem(result.Error);
+});
+// Yếu tố thứ hai và xác thực lại: tài khoản lấy từ access token (sub), không từ body; phiên cũ (chỉ pwd) bị thu hồi.
+auth.MapPost("mfa/verify", [AllowWithoutMfa] async (Program.MfaVerifyRequest body, ICurrentUser user, IMfa mfa, IRefreshTokens refresh,
+        IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
+{
+    if (!Guid.TryParse(user.UserId, out var accountId))
+        return Results.Unauthorized();
+    var verified = await mfa.VerifyAsync(accountId, body.Code ?? "", ct);
+    if (!verified.IsSuccess)
+        return ResultHttpExtensions.Problem(verified.Error);
+    if (!string.IsNullOrEmpty(body.RefreshToken))
+        await refresh.RevokeAsync(body.RefreshToken, ct);
+    return Results.Ok(await Program.TokensAsync(verified.Value, perms, issuer, ct));
+}).RequireAuthorization();
+auth.MapPost("refresh", async (Program.RefreshRequest body, IRefreshTokens refresh, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
+{
+    var rotated = await refresh.RotateAsync(body.RefreshToken ?? "", ct);
+    return rotated.IsSuccess
+        ? Results.Ok(await Program.TokensAsync(rotated.Value, perms, issuer, ct))
+        : Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: rotated.Error.Code, detail: rotated.Error.Message,
+            extensions: new Dictionary<string, object?> { ["code"] = rotated.Error.Code });
+});
+auth.MapPost("logout", async (Program.RefreshRequest body, IRefreshTokens refresh, CancellationToken ct) =>
+{
+    if (!string.IsNullOrEmpty(body.RefreshToken))
+        await refresh.RevokeAsync(body.RefreshToken, ct);
+    return Results.NoContent();
+});
 // Discovery tối thiểu + JWKS cho service khác tự kiểm chữ ký (JwtAuthenticationSetup); chỉ khóa công khai, chỉ trong mạng nội bộ.
 app.MapGet("/.well-known/openid-configuration", (IConfiguration config) =>
     new { issuer = Program.Issuer(config), jwks_uri = Program.Issuer(config) + "/.well-known/jwks.json" });
@@ -81,6 +117,43 @@ public partial class Program
     /// <param name="Role">Mã vai trò (<c>warehouse</c>, <c>qc</c>…).</param>
     /// <param name="Scope">Phạm vi <c>*</c>, <c>wh:n</c> hoặc <c>farm:n</c>.</param>
     public sealed record AssignmentRequest(string Role, string Scope);
+
+    /// <summary>Thân request đăng nhập mật khẩu do BFF gửi.</summary>
+    /// <param name="Identifier">Email hoặc username.</param>
+    /// <param name="Password">Mật khẩu.</param>
+    /// <param name="Ip">IP người dùng cuối mà BFF thấy (dùng để giới hạn đăng nhập sai).</param>
+    public sealed record LoginRequest(string? Identifier, string? Password, string? Ip);
+
+    /// <summary>Thân request xác minh MFA (sau mật khẩu hoặc khi xác thực lại).</summary>
+    /// <param name="Code">Mã TOTP 6 chữ số hoặc mã khôi phục.</param>
+    /// <param name="RefreshToken">Refresh token của phiên hiện tại, bị thu hồi khi xác minh thành công.</param>
+    public sealed record MfaVerifyRequest(string? Code, string? RefreshToken);
+
+    /// <summary>Thân request làm mới hoặc đăng xuất.</summary>
+    /// <param name="RefreshToken">Refresh token hiện tại.</param>
+    public sealed record RefreshRequest(string? RefreshToken);
+
+    /// <summary>Cặp token trả cho BFF; trình duyệt không bao giờ nhận.</summary>
+    /// <param name="AccessToken">Access JWT 5 phút.</param>
+    /// <param name="AccessTokenExpiresAt">Hạn access token.</param>
+    /// <param name="RefreshToken">Refresh token mới (token cũ đã hết hiệu lực).</param>
+    /// <param name="RefreshTokenExpiresAt">Hạn refresh token.</param>
+    /// <param name="AuthMethods">Phương thức đã xác thực của phiên (<c>pwd</c>, <c>mfa</c>).</param>
+    public sealed record TokenResponse(string AccessToken, DateTimeOffset AccessTokenExpiresAt, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt,
+        IReadOnlyList<string> AuthMethods);
+
+    /// <summary>Cấp access token cho phiên với quyền hiện hành của tài khoản.</summary>
+    /// <param name="session">Phiên refresh token vừa mở hoặc vừa xoay.</param>
+    /// <param name="perms">Nguồn quyền.</param>
+    /// <param name="issuer">Bộ ký access token.</param>
+    /// <param name="ct">Huỷ thao tác.</param>
+    /// <returns>Cặp token cho BFF.</returns>
+    internal static async Task<TokenResponse> TokensAsync(RefreshSession session, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct)
+    {
+        var access = issuer.Issue(new AccessTokenRequest(session.AccountId.ToString(), session.Kind.ToString().ToLowerInvariant(),
+            await perms.ForAccountAsync(session.AccountId, ct), session.AuthTime, session.AuthMethods));
+        return new TokenResponse(access.Token, access.ExpiresAt, session.Token, session.ExpiresAt, session.AuthMethods);
+    }
 
     /// <summary>Chống leo thang đặc quyền rồi chạy thay đổi với actor = <c>sub</c>: người gọi phải có <see cref="AssignmentPermission"/>
     /// và mọi quyền của vai trò trong <paramref name="scope"/>, và không đổi phân công của chính mình.</summary>

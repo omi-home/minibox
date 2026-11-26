@@ -9,7 +9,8 @@ namespace Minibox.Identity.Application.Tokens;
 /// <param name="AccountId">Tài khoản.</param>
 /// <param name="AuthTime">Thời điểm xác thực gốc của phiên.</param>
 /// <param name="AuthMethods">Phương thức xác thực gốc của phiên.</param>
-public sealed record RefreshSession(string Token, DateTimeOffset ExpiresAt, Guid AccountId, DateTimeOffset AuthTime, IReadOnlyList<string> AuthMethods);
+/// <param name="Kind">Loại tài khoản (quyết định claim <c>kind</c> của access token).</param>
+public sealed record RefreshSession(string Token, DateTimeOffset ExpiresAt, Guid AccountId, DateTimeOffset AuthTime, IReadOnlyList<string> AuthMethods, AccountKind Kind);
 
 /// <summary>Refresh token xoay vòng, phát hiện dùng lại, đăng xuất (spec §3.2).</summary>
 public interface IRefreshTokens

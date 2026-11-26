@@ -111,7 +111,7 @@ public sealed class PostgresRefreshTokens(NpgsqlDataSource dataSource, TimeProvi
             },
         };
         await cmd.ExecuteNonQueryAsync(ct);
-        return new RefreshSession(token, expires, accountId, authTime, [.. amr]);
+        return new RefreshSession(token, expires, accountId, authTime, [.. amr], kind);
     }
 
     static byte[] Hash(string token) => SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token));
