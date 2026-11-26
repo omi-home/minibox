@@ -13,6 +13,12 @@ public enum AccountKind
     Staff,
 }
 
+/// <summary>Sự kiện tài khoản vừa được tạo; Unit of Work ghi <c>audit_log</c> và phát <c>identity.AccountRegistered.v1</c> qua outbox.</summary>
+/// <param name="AccountId">Id tài khoản.</param>
+/// <param name="Kind">Loại tài khoản.</param>
+/// <remarks>Không mang email/username: payload vào audit_log và message liên service không chứa PII.</remarks>
+public sealed record AccountRegistered(Guid AccountId, AccountKind Kind) : IDomainEvent;
+
 /// <summary>Tài khoản khách hoặc nhân viên (spec §3.1); đăng nhập bằng email hoặc username.</summary>
 public sealed partial class Account : AggregateRoot<Guid>
 {
@@ -54,7 +60,7 @@ public sealed partial class Account : AggregateRoot<Guid>
     /// <param name="email">Email (bỏ khoảng trắng hai đầu, chữ thường); rỗng coi như không có.</param>
     /// <param name="username">Username 3–50 ký tự <c>a-z 0-9 . _ -</c> (không phân biệt hoa thường); rỗng coi như không có.</param>
     /// <param name="passwordHash">Bản băm do <c>IPasswordHasher</c> sinh (mật khẩu đã qua <see cref="PasswordPolicy"/>), hoặc <c>null</c>.</param>
-    /// <returns>Tài khoản; lỗi <see cref="LoginRequiredCode"/>, <see cref="InvalidEmailCode"/> hoặc <see cref="InvalidUsernameCode"/>.</returns>
+    /// <returns>Tài khoản kèm domain event <see cref="AccountRegistered"/>; lỗi <see cref="LoginRequiredCode"/>, <see cref="InvalidEmailCode"/> hoặc <see cref="InvalidUsernameCode"/>.</returns>
     /// <remarks>Trùng email/username do ràng buộc UNIQUE của DB chặn.</remarks>
     public static Result<Account> Register(AccountKind kind, string? email, string? username, string? passwordHash)
     {
@@ -66,7 +72,9 @@ public sealed partial class Account : AggregateRoot<Guid>
             return Error.Validation(InvalidEmailCode, "Email không hợp lệ.");
         if (username is not null && !UsernamePattern().IsMatch(username))
             return Error.Validation(InvalidUsernameCode, "Username gồm 3–50 ký tự chữ, số, dấu chấm, gạch dưới, gạch ngang.");
-        return new Account(Guid.CreateVersion7(), kind, email, username, passwordHash, 0);
+        var account = new Account(Guid.CreateVersion7(), kind, email, username, passwordHash, 0);
+        account.Raise(new AccountRegistered(account.Id, kind));
+        return account;
     }
 
     /// <summary>Mô tả an toàn để log: không chứa bản băm mật khẩu.</summary>
