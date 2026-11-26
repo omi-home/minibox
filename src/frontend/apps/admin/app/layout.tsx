@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
 
 /** Metadata mặc định của app quản trị cho nhân viên; chặn bot index. */
 export const metadata: Metadata = {

@@ -1,0 +1,68 @@
+/*
+ * Design token khối hộp dùng chung cho shop và admin (spec §6.4). Tailwind v4 sinh utility từ các biến @theme
+ * (bg-surface, text-muted, rounded-box, shadow-box-2, max-w-prose, sm:/lg:/2xl:…); `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
+ * Màu/font là TẠM, chờ OPEN-08 (logo, bảng màu, font) — đổi giá trị ở đây, không đổi tên token.
+ * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`
+ */
+@theme static {
+  /* Màu (tạm, OPEN-08): nền giấy kraft nhạt, chữ than, chính là xanh hộp, nhấn cam băng keo. */
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-background: oklch(0.98 0.01 85);
+  --color-surface: oklch(1 0 0);
+  --color-surface-sunken: oklch(0.95 0.015 85);
+  --color-foreground: oklch(0.22 0.02 260);
+  --color-muted: oklch(0.5 0.02 260);
+  --color-border: oklch(0.88 0.02 85);
+  --color-primary: oklch(0.45 0.12 250);
+  --color-primary-foreground: oklch(0.99 0 0);
+  --color-accent: oklch(0.72 0.16 60);
+  --color-accent-foreground: oklch(0.22 0.02 260);
+  --color-success: oklch(0.55 0.14 150);
+  --color-warning: oklch(0.75 0.15 80);
+  --color-danger: oklch(0.55 0.2 25);
+  --color-focus: oklch(0.6 0.18 250);
+
+  /* Chữ (tạm, OPEN-08): font hệ thống có đủ dấu tiếng Việt, không tải font ngoài. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối hộp. */
+  --spacing: 0.25rem;
+  --spacing-box: 1rem;
+  --spacing-box-lg: 1.5rem;
+
+  /* Bo góc: góc hộp gần vuông. */
+  --radius-sm: 0.25rem;
+  --radius-box: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  /* Độ sâu: bóng lệch về một phía như cạnh khối lập phương, 3 tầng. */
+  --shadow-box-1: 2px 2px 0 0 oklch(0.22 0.02 260 / 0.12);
+  --shadow-box-2: 4px 4px 0 0 oklch(0.22 0.02 260 / 0.14), 0 1px 3px oklch(0.22 0.02 260 / 0.1);
+  --shadow-box-3: 8px 8px 0 0 oklch(0.22 0.02 260 / 0.16), 0 4px 12px oklch(0.22 0.02 260 / 0.12);
+
+  /* Breakpoint 4 nhóm thiết bị: mobile < 640 (mặc định), sm: tablet 640–1023, lg: laptop 1024–1535, 2xl: desktop lớn ≥ 1536. */
+  --breakpoint-*: initial;
+  --breakpoint-sm: 40rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-2xl: 96rem;
+
+  /* Giới hạn độ dài dòng ~75 ký tự (max-w-prose); khung trang không kéo giãn vô hạn trên desktop lớn (max-w-page). */
+  --container-prose: 75ch;
+  --container-page: 96rem;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
