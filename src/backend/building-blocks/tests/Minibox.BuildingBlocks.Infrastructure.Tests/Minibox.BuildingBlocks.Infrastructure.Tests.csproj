@@ -6,11 +6,14 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Testcontainers.PostgreSql" />
-    <!-- Spike #188: Wolverine outbox dùng chung NpgsqlTransaction với Dapper -->
+    <!-- Wolverine outbox + RabbitMQ (spike #188, #429) -->
     <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <PackageReference Include="WolverineFx.RabbitMQ" />
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <!-- Spike #429: outbox Wolverine dùng chung transaction với EF Core DbContext -->
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Dapper" />
   </ItemGroup>
   <ItemGroup>

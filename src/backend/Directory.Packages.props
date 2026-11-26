@@ -16,6 +16,7 @@
   <ItemGroup Label="Data">
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
     <PackageVersion Include="Dapper" Version="2.1.100" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
   </ItemGroup>
   <ItemGroup Label="Security">
     <PackageVersion Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
@@ -32,6 +33,7 @@
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.65.1" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.65.1" />
   </ItemGroup>
   <ItemGroup Label="Test">
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
