@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Application.Behaviors;
@@ -26,11 +27,14 @@ public static class WebSetup
         services.AddAuthorization();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<MfaPolicyOptions>();
         services.AddHealthChecks().AddCheck<NpgsqlHealthCheck>("postgres", tags: ["ready"]);
         return services;
     }
 
-    /// <summary>Exception → ProblemDetails 500 (không lộ chi tiết); xác thực bearer token; bắt buộc <c>Idempotency-Key</c> hợp lệ cho mọi request ghi.</summary>
+    /// <summary>Exception → ProblemDetails 500 (không lộ chi tiết); xác thực bearer token; <see cref="MfaPolicy"/> (MFA bắt buộc cho staff,
+    /// step-up cho <see cref="SensitiveAttribute"/>); bắt buộc <c>Idempotency-Key</c> hợp lệ cho mọi request ghi.</summary>
     /// <param name="app">Ứng dụng.</param>
     /// <returns><paramref name="app"/> để gọi tiếp.</returns>
     public static IApplicationBuilder UseMiniboxWeb(this IApplicationBuilder app)
@@ -39,6 +43,7 @@ public static class WebSetup
         app.UseStatusCodePages();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.Use(MfaPolicy.Enforce);
         app.Use(RequireIdempotencyKey);
         return app;
     }
