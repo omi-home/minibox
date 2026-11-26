@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Domain/Minibox.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Mật khẩu phổ biến ≥ 10 ký tự, chữ thường (lọc từ SecLists 100k-most-used-passwords-NCSC + vài mục tiếng Việt). -->
+    <EmbeddedResource Include="Accounts/common-passwords.txt" LogicalName="common-passwords.txt" />
+  </ItemGroup>
+</Project>

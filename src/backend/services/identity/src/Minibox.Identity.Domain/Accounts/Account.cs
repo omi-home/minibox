@@ -1,0 +1,80 @@
+using System.Net.Mail;
+using System.Text.RegularExpressions;
+using Minibox.BuildingBlocks.Domain;
+
+namespace Minibox.Identity.Domain.Accounts;
+
+/// <summary>Loại tài khoản (cột <c>kind</c>).</summary>
+public enum AccountKind
+{
+    /// <summary>Khách mua hàng.</summary>
+    Customer,
+    /// <summary>Nhân viên vận hành.</summary>
+    Staff,
+}
+
+/// <summary>Tài khoản khách hoặc nhân viên (spec §3.1); đăng nhập bằng email hoặc username.</summary>
+public sealed partial class Account : AggregateRoot<Guid>
+{
+    /// <summary>Mã lỗi khi thiếu cả email lẫn username.</summary>
+    public const string LoginRequiredCode = "Identity.LoginRequired";
+
+    /// <summary>Mã lỗi khi email sai định dạng.</summary>
+    public const string InvalidEmailCode = "Identity.InvalidEmail";
+
+    /// <summary>Mã lỗi khi username sai định dạng.</summary>
+    public const string InvalidUsernameCode = "Identity.InvalidUsername";
+
+    Account(Guid id, AccountKind kind, string? email, string? username, string? passwordHash, long version) : base(id)
+    {
+        Kind = kind;
+        Email = email;
+        Username = username;
+        PasswordHash = passwordHash;
+        Version = version;
+    }
+
+    /// <summary>Loại tài khoản.</summary>
+    public AccountKind Kind { get; }
+
+    /// <summary>Email đã chuẩn hoá chữ thường, hoặc <c>null</c>.</summary>
+    public string? Email { get; }
+
+    /// <summary>Username đã chuẩn hoá chữ thường, hoặc <c>null</c>.</summary>
+    public string? Username { get; }
+
+    /// <summary>Chuỗi PHC Argon2id; <c>null</c> khi tài khoản chỉ đăng nhập xã hội.</summary>
+    public string? PasswordHash { get; }
+
+    /// <summary>Phiên bản lúc nạp (optimistic concurrency).</summary>
+    public long Version { get; }
+
+    /// <summary>Tạo tài khoản mới với Id UUIDv7.</summary>
+    /// <param name="kind">Khách hay nhân viên.</param>
+    /// <param name="email">Email (bỏ khoảng trắng hai đầu, chữ thường); rỗng coi như không có.</param>
+    /// <param name="username">Username 3–50 ký tự <c>a-z 0-9 . _ -</c> (không phân biệt hoa thường); rỗng coi như không có.</param>
+    /// <param name="passwordHash">Bản băm do <c>IPasswordHasher</c> sinh (mật khẩu đã qua <see cref="PasswordPolicy"/>), hoặc <c>null</c>.</param>
+    /// <returns>Tài khoản; lỗi <see cref="LoginRequiredCode"/>, <see cref="InvalidEmailCode"/> hoặc <see cref="InvalidUsernameCode"/>.</returns>
+    /// <remarks>Trùng email/username do ràng buộc UNIQUE của DB chặn.</remarks>
+    public static Result<Account> Register(AccountKind kind, string? email, string? username, string? passwordHash)
+    {
+        email = Normalize(email);
+        username = Normalize(username);
+        if (email is null && username is null)
+            return Error.Validation(LoginRequiredCode, "Cần email hoặc username.");
+        if (email is not null && !(MailAddress.TryCreate(email, out var mail) && mail.Address == email))
+            return Error.Validation(InvalidEmailCode, "Email không hợp lệ.");
+        if (username is not null && !UsernamePattern().IsMatch(username))
+            return Error.Validation(InvalidUsernameCode, "Username gồm 3–50 ký tự chữ, số, dấu chấm, gạch dưới, gạch ngang.");
+        return new Account(Guid.CreateVersion7(), kind, email, username, passwordHash, 0);
+    }
+
+    /// <summary>Mô tả an toàn để log: không chứa bản băm mật khẩu.</summary>
+    /// <returns>Loại và Id tài khoản.</returns>
+    public override string ToString() => $"Account {Kind} {Id}";
+
+    static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+
+    [GeneratedRegex("^[a-z0-9._-]{3,50}$")]
+    private static partial Regex UsernamePattern();
+}
