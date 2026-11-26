@@ -157,7 +157,7 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 - Tên `snake_case`; khóa chính UUIDv7 (`Guid.CreateVersion7()`); mã cho người đọc (SKU, số đơn, số phiếu) là cột riêng có unique, không dùng làm bằng chứng quyền truy cập.
 - Tiền `bigint` (đồng); thời gian `timestamptz`; bảng sửa được có cột `version` (optimistic concurrency).
 - Không xóa mềm chung; đối tượng nghiệp vụ kết thúc bằng trạng thái (`archived`, `cancelled`…).
-- **Bảng chỉ ghi thêm** (audit, sổ tiền, sổ xu, lịch sử trạng thái, kết quả QC): `REVOKE UPDATE, DELETE` khỏi role app trong migration.
+- **Bảng chỉ ghi thêm** (audit, sổ tiền, sổ xu, lịch sử trạng thái, kết quả QC): `REVOKE UPDATE, DELETE` khỏi role app trong migration. Mẫu: `database/templates/append-only-table.sql`.
 - **Lịch sử trạng thái**: mỗi đối tượng có trạng thái có bảng lịch sử ghi người/hệ thống, thời điểm, lý do, phiên bản (BRD §6.3).
 - **CFG có lịch hiệu lực**: bảng `cfg_parameter(key, value jsonb, effective_from, approved_by)` mỗi service; giao dịch lưu snapshot giá trị đã áp dụng, không hồi tố (BRD §14).
 

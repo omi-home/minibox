@@ -3,7 +3,8 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { bootstrap, ROLES, SERVICES } from "../bootstrap/run.mjs";
 import { startPostgres } from "./pg.mjs";
 
@@ -66,4 +67,19 @@ test("ac184_4 không role ứng dụng nào là superuser hoặc có quyền CRE
            OR has_database_privilege(rolname, 'minibox', 'TEMP'))`).out;
   assert.equal(bad, "");
   assert.equal(pg.sql(`SELECT count(*) FROM pg_roles WHERE rolname = ANY ('{${ROLES}}')`).out, "22");
+});
+
+test("ac184_3 bảng append-only theo mẫu từ chối UPDATE/DELETE bằng role app, kể cả sau khi bootstrap lại", () => {
+  const tpl = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "templates", "append-only-table.sql"), "utf8");
+  for (const svc of ["order", "finance"]) {
+    const m = `${svc}_migrator`, a = `${svc}_app`;
+    assert.ok(pg.sql(tpl.replaceAll("{{svc}}", svc).replaceAll("{{table}}", "audit_log"), m, pw(m)).ok);
+    const insert = `INSERT INTO audit_log (id, actor, payload) VALUES (gen_random_uuid(), 'test', '{}')`;
+    assert.ok(pg.sql(insert, a, pw(a)).ok, `${a} phải ghi thêm được`);
+    assert.ok(pg.sql("SELECT count(*) FROM audit_log", a, pw(a)).ok, `${a} phải đọc được`);
+    const forbidden = ["UPDATE audit_log SET actor = 'x';", "DELETE FROM audit_log;", "TRUNCATE audit_log;"];
+    assert.equal(denied(a, forbidden), forbidden.length);
+    assert.equal(bootstrap(pg.psql, secrets), 0);
+    assert.equal(denied(a, forbidden), forbidden.length, "bootstrap lại đã trả quyền UPDATE/DELETE");
+  }
 });
