@@ -30,8 +30,8 @@ public sealed class JwksTests
         .UseSetting("Jwt:Issuer", Authority)
         .ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FakeTime(now)))));
 
-    static string Issue(WebApplicationFactory<Program> identity) => identity.Services.GetRequiredService<IAccessTokenIssuer>()
-        .Issue(new AccessTokenRequest("acc-1", "staff", new Dictionary<string, IReadOnlyCollection<string>>(), DateTimeOffset.UtcNow, ["pwd"]))
+    static string Issue(WebApplicationFactory<Program> identity, string[]? amr = null) => identity.Services.GetRequiredService<IAccessTokenIssuer>()
+        .Issue(new AccessTokenRequest("acc-1", "staff", new Dictionary<string, IReadOnlyCollection<string>>(), DateTimeOffset.UtcNow, amr ?? ["pwd", "mfa"]))
         .Token;
 
     /// <summary>Service "khác": chỉ dùng AddMiniboxWeb + AddMiniboxJwtAuthentication, lấy JWKS từ identity qua HTTP.</summary>
@@ -66,6 +66,17 @@ public sealed class JwksTests
         var response = await CallMe(other, Issue(identity));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("acc-1", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact(DisplayName = "ac200_1 Access token staff chỉ có amr pwd (JWT thật) bị 403 mfa_required")]
+    public async Task ac200_1_staff_token_without_mfa_forbidden()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow);
+        await using var other = await OtherService(identity);
+
+        var response = await CallMe(other, Issue(identity, ["pwd"]));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains(MfaPolicy.MfaRequiredCode, await response.Content.ReadAsStringAsync(Ct));
     }
 
     [Fact(DisplayName = "ac195_4 Access token quá 5 phút bị từ chối 401")]
