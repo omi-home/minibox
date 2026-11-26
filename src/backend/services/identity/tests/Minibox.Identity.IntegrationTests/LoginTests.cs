@@ -1,5 +1,6 @@
 using Minibox.Identity.Application.Accounts;
 using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Accounts;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
@@ -42,7 +43,7 @@ public sealed class LoginTests : IAsyncLifetime
             Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
         }
         await Exec($"INSERT INTO account (id, kind, email, username, password_hash) VALUES (gen_random_uuid(), 'staff', 'an@minibox.vn', 'kho.an', '{_hasher.Hash(Password)}')");
-        _login = new PostgresPasswordLogin(_db, _hasher, new PostgresRefreshTokens(_db, _time), _time);
+        _login = new PostgresPasswordLogin(IdentityDbContext.Factory(_db), _hasher, new PostgresRefreshTokens(IdentityDbContext.Factory(_db), _time), _time);
     }
 
     public async ValueTask DisposeAsync()

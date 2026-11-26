@@ -1,5 +1,6 @@
 using Minibox.Identity.Application.Tokens;
 using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -38,7 +39,7 @@ public sealed class RefreshTokenTests : IAsyncLifetime
         {
             Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
         }
-        _tokens = new PostgresRefreshTokens(_db, _time);
+        _tokens = new PostgresRefreshTokens(IdentityDbContext.Factory(_db), _time);
     }
 
     public async ValueTask DisposeAsync()

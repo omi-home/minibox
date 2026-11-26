@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Minibox.Identity.Application.Accounts;
 using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Accounts;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
@@ -43,7 +44,7 @@ public sealed class MfaTests : IAsyncLifetime
             Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
         }
         await Exec($"INSERT INTO account (id, kind, email) VALUES ('{_staff}', 'staff', 'an@minibox.vn')");
-        _mfa = new PostgresMfa(_db, RandomNumberGenerator.GetBytes(32), new PostgresRefreshTokens(_db, _time), _time);
+        _mfa = new PostgresMfa(IdentityDbContext.Factory(_db), RandomNumberGenerator.GetBytes(32), new PostgresRefreshTokens(IdentityDbContext.Factory(_db), _time), _time);
     }
 
     public async ValueTask DisposeAsync()

@@ -1,4 +1,5 @@
 using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Accounts;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
@@ -130,7 +131,7 @@ public sealed class PermissionModelTests : IAsyncLifetime
         var other = await NewStaff("khac@minibox.vn");
         await Assign(other, "finance", "*");
 
-        var perms = await new PostgresPermissions(_db).ForAccountAsync(_staff, Ct);
+        var perms = await new PostgresPermissions(IdentityDbContext.Factory(_db)).ForAccountAsync(_staff, Ct);
 
         async Task<List<string>> Of(string role) =>
             await Strings($"SELECT permission_code FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}' ORDER BY permission_code COLLATE \"C\"");
@@ -139,13 +140,13 @@ public sealed class PermissionModelTests : IAsyncLifetime
         Assert.Equal(await Of("warehouse"), perms["wh:2"]);
         Assert.Equal(await Of("production"), perms["farm:3"]);
         Assert.Equal(await Of("content"), perms["*"]);
-        Assert.Empty(await new PostgresPermissions(_db).ForAccountAsync(Guid.CreateVersion7(), Ct));
+        Assert.Empty(await new PostgresPermissions(IdentityDbContext.Factory(_db)).ForAccountAsync(Guid.CreateVersion7(), Ct));
     }
 
     [Fact(DisplayName = "ac203_4: thêm/sửa/xóa phân công hoặc đổi quyền của vai trò thu hồi refresh token của người bị ảnh hưởng")]
     public async Task ac203_4_permission_change_revokes_refresh_tokens()
     {
-        var tokens = new PostgresRefreshTokens(_db, new FixedTime());
+        var tokens = new PostgresRefreshTokens(IdentityDbContext.Factory(_db), new FixedTime());
         var bystander = await NewStaff("ngoai@minibox.vn");
         var bystanderSession = await tokens.IssueAsync(bystander, AccountKind.Staff, ["pwd", "mfa"], Ct);
 

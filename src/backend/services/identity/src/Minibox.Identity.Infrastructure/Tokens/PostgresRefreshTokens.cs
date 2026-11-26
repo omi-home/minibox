@@ -1,18 +1,18 @@
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Tokens;
 using Minibox.Identity.Domain.Accounts;
-using Npgsql;
 
 namespace Minibox.Identity.Infrastructure.Tokens;
 
 /// <summary>Refresh token trên bảng <c>identity.refresh_token</c>: token ngẫu nhiên 256 bit, chỉ lưu SHA-256.</summary>
-/// <param name="dataSource">Kết nối role <c>identity_app</c>.</param>
+/// <param name="dbs">Factory DbContext identity (role <c>identity_app</c>).</param>
 /// <param name="time">Đồng hồ.</param>
 /// <remarks>Xoay vòng khoá dòng bằng <c>FOR UPDATE</c>: hai request song song cùng token thì request sau thấy token đã dùng
 /// và thu hồi cả phiên (đúng spec, không có thời gian ân hạn).</remarks>
-public sealed class PostgresRefreshTokens(NpgsqlDataSource dataSource, TimeProvider time) : IRefreshTokens
+public sealed class PostgresRefreshTokens(IDbContextFactory<IdentityDbContext> dbs, TimeProvider time) : IRefreshTokens
 {
     static readonly Error Invalid = Error.Failure(IRefreshTokens.InvalidCode, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
 
@@ -21,55 +21,34 @@ public sealed class PostgresRefreshTokens(NpgsqlDataSource dataSource, TimeProvi
     {
         var now = time.GetUtcNow();
         var familyExpires = SessionPolicy.MaxLifetime(kind) is { } max ? now + max : (DateTimeOffset?)null;
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        return await InsertAsync(conn, null, Guid.CreateVersion7(), accountId, kind, now, authMethods, familyExpires, now, cancellationToken);
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        var session = Add(db, Guid.CreateVersion7(), accountId, kind, now, authMethods, familyExpires, now);
+        await db.SaveChangesAsync(cancellationToken);
+        return session;
     }
 
     /// <inheritdoc />
     public async Task<Result<RefreshSession>> RotateAsync(string token, CancellationToken cancellationToken = default)
     {
         var now = time.GetUtcNow();
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var tx = await conn.BeginTransactionAsync(cancellationToken);
-        await using var select = new NpgsqlCommand("""
-            SELECT r.family_id, r.account_id, a.kind, r.auth_time, r.amr, r.expires_at, r.family_expires_at, r.used_at, r.revoked_at
-            FROM refresh_token r JOIN account a ON a.id = r.account_id
-            WHERE r.token_hash = $1 FOR UPDATE OF r
-            """, conn, tx) { Parameters = { new() { Value = Hash(token) } } };
-        Guid family, accountId;
-        AccountKind kind;
-        DateTimeOffset authTime, expiresAt;
-        string[] amr;
-        DateTimeOffset? familyExpires;
-        bool used, revoked;
-        await using (var r = await select.ExecuteReaderAsync(cancellationToken))
-        {
-            if (!await r.ReadAsync(cancellationToken))
-                return Invalid;
-            family = r.GetGuid(0);
-            accountId = r.GetGuid(1);
-            kind = Enum.Parse<AccountKind>(r.GetString(2), ignoreCase: true);
-            authTime = r.GetFieldValue<DateTimeOffset>(3);
-            amr = r.GetFieldValue<string[]>(4);
-            expiresAt = r.GetFieldValue<DateTimeOffset>(5);
-            familyExpires = r.IsDBNull(6) ? null : r.GetFieldValue<DateTimeOffset>(6);
-            used = !r.IsDBNull(7);
-            revoked = !r.IsDBNull(8);
-        }
-
-        if (revoked || expiresAt <= now)
+        var hash = Hash(token);
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        var current = (await db.Set<RefreshTokenRow>()
+            .FromSql($"SELECT * FROM refresh_token WHERE token_hash = {hash} FOR UPDATE").ToListAsync(cancellationToken)).SingleOrDefault();
+        if (current is null || current.RevokedAt is not null || current.ExpiresAt <= now)
             return Invalid;
-        if (used)
+        if (current.UsedAt is not null)
         {
-            await RevokeFamilyAsync(conn, tx, family, now, cancellationToken); // token đã xoay bị đưa lại: coi như bị đánh cắp
+            await RevokeFamilyAsync(db, current.FamilyId, now, cancellationToken); // token đã xoay bị đưa lại: coi như bị đánh cắp
             await tx.CommitAsync(cancellationToken);
             return Invalid;
         }
 
-        await using (var markUsed = new NpgsqlCommand("UPDATE refresh_token SET used_at = $2 WHERE token_hash = $1", conn, tx)
-                     { Parameters = { new() { Value = Hash(token) }, new() { Value = now } } })
-            await markUsed.ExecuteNonQueryAsync(cancellationToken);
-        var next = await InsertAsync(conn, tx, family, accountId, kind, authTime, amr, familyExpires, now, cancellationToken);
+        var kind = await db.Set<Account>().Where(a => a.Id == current.AccountId).Select(a => a.Kind).SingleAsync(cancellationToken);
+        current.UsedAt = now;
+        var next = Add(db, current.FamilyId, current.AccountId, kind, current.AuthTime, current.Amr, current.FamilyExpiresAt, now);
+        await db.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
         return next;
     }
@@ -77,40 +56,30 @@ public sealed class PostgresRefreshTokens(NpgsqlDataSource dataSource, TimeProvi
     /// <inheritdoc />
     public async Task RevokeAsync(string token, CancellationToken cancellationToken = default)
     {
-        await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
-        await using var cmd = new NpgsqlCommand("""
-            UPDATE refresh_token SET revoked_at = $2
-            WHERE family_id = (SELECT family_id FROM refresh_token WHERE token_hash = $1) AND revoked_at IS NULL
-            """, conn) { Parameters = { new() { Value = Hash(token) }, new() { Value = time.GetUtcNow() } } };
-        await cmd.ExecuteNonQueryAsync(cancellationToken);
+        var hash = Hash(token);
+        var now = time.GetUtcNow();
+        await using var db = await dbs.CreateDbContextAsync(cancellationToken);
+        var tokens = db.Set<RefreshTokenRow>();
+        await tokens.Where(t => t.RevokedAt == null && tokens.Any(x => x.TokenHash == hash && x.FamilyId == t.FamilyId))
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), cancellationToken);
     }
 
-    static async Task RevokeFamilyAsync(NpgsqlConnection conn, NpgsqlTransaction tx, Guid family, DateTimeOffset now, CancellationToken ct)
-    {
-        await using var cmd = new NpgsqlCommand("UPDATE refresh_token SET revoked_at = $2 WHERE family_id = $1 AND revoked_at IS NULL", conn, tx)
-            { Parameters = { new() { Value = family }, new() { Value = now } } };
-        await cmd.ExecuteNonQueryAsync(ct);
-    }
+    static Task RevokeFamilyAsync(IdentityDbContext db, Guid family, DateTimeOffset now, CancellationToken ct) =>
+        db.Set<RefreshTokenRow>().Where(t => t.FamilyId == family && t.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
 
-    static async Task<RefreshSession> InsertAsync(NpgsqlConnection conn, NpgsqlTransaction? tx, Guid family, Guid accountId, AccountKind kind,
-        DateTimeOffset authTime, IReadOnlyList<string> amr, DateTimeOffset? familyExpires, DateTimeOffset now, CancellationToken ct)
+    static RefreshSession Add(IdentityDbContext db, Guid family, Guid accountId, AccountKind kind,
+        DateTimeOffset authTime, IReadOnlyList<string> amr, DateTimeOffset? familyExpires, DateTimeOffset now)
     {
         var token = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32));
         var expires = now + SessionPolicy.IdleTimeout(kind);
         if (familyExpires < expires)
             expires = familyExpires.Value;
-        await using var cmd = new NpgsqlCommand("""
-            INSERT INTO refresh_token (token_hash, family_id, account_id, auth_time, amr, issued_at, expires_at, family_expires_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            """, conn, tx)
+        db.Add(new RefreshTokenRow
         {
-            Parameters =
-            {
-                new() { Value = Hash(token) }, new() { Value = family }, new() { Value = accountId }, new() { Value = authTime },
-                new() { Value = amr.ToArray() }, new() { Value = now }, new() { Value = expires }, new() { Value = (object?)familyExpires ?? DBNull.Value },
-            },
-        };
-        await cmd.ExecuteNonQueryAsync(ct);
+            TokenHash = Hash(token), FamilyId = family, AccountId = accountId, AuthTime = authTime, Amr = [.. amr],
+            IssuedAt = now, ExpiresAt = expires, FamilyExpiresAt = familyExpires,
+        });
         return new RefreshSession(token, expires, accountId, authTime, [.. amr], kind);
     }
 

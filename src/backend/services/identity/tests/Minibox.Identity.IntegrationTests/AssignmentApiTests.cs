@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Minibox.Identity.Application.Tokens;
 using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Infrastructure;
 using Minibox.Identity.Infrastructure.Tokens;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -120,7 +121,7 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     [Fact(DisplayName = "ac203_4 Gán phân công qua API thu hồi refresh token của người được gán")]
     public async Task ac203_4_grant_revokes_sessions()
     {
-        var tokens = new PostgresRefreshTokens(_db, TimeProvider.System);
+        var tokens = new PostgresRefreshTokens(IdentityDbContext.Factory(_db), TimeProvider.System);
         var session = await tokens.IssueAsync(_staff, AccountKind.Staff, ["pwd", "mfa"], Ct);
         Assert.Equal(HttpStatusCode.NoContent, await Grant(await Owner(), "warehouse", "wh:1"));
         Assert.False((await tokens.RotateAsync(session.Token, Ct)).IsSuccess);
