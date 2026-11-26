@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace Minibox.Repo.Tests;
 
-/// <summary>Sinh service từ template vào services/ (để dùng Directory.Build.props và building blocks thật), build + test, rồi xoá.</summary>
+/// <summary>Sinh service từ template vào repo tạm ngoài workspace (Directory.* và building blocks chép từ repo thật), build + test, rồi xoá.</summary>
 public class ServiceTemplateTests
 {
     static readonly string Backend = RepoStructureTests.BackendDir();
@@ -24,12 +24,9 @@ public class ServiceTemplateTests
     [Fact(DisplayName = "ac174_5 ac193_3 dotnet new minibox-service -n Demo sinh 5 project + 3 project test, build và test pass")]
     public void ac174_5_ac193_3_template_generates_buildable_service()
     {
-        // IDE/MSBuild node có thể ghi lại obj/ ngay sau khi xoá → lần chạy trước để sót thư mục; dọn trước khi sinh mới.
-        foreach (var stale in Directory.GetDirectories(Path.Combine(Backend, "services"), "ac174-*"))
-            TryDelete(stale);
         var hive = Directory.CreateTempSubdirectory("minibox-hive").FullName; // không đụng danh sách template của máy
-        var outDir = Path.Combine(Backend, "services", $"ac174-{Guid.NewGuid():N}"[..14]);
-        var openApi = Path.Combine(Backend, "..", "..", "contracts", "openapi", "demo.json"); // build sinh ra; xoá để không lệch contracts
+        var repo = Directory.CreateTempSubdirectory("minibox-template").FullName;
+        var outDir = Path.Combine(MirrorBackend(repo), "services", "demo");
         try
         {
             Run(Backend, "new", "install", Path.Combine(Backend, "templates", "minibox-service"), "--debug:custom-hive", hive);
@@ -45,14 +42,34 @@ public class ServiceTemplateTests
             Run(outDir, "new", "sln", "-n", "Demo", "--format", "slnx");
             Run(outDir, ["sln", "Demo.slnx", "add", .. Directory.GetFiles(outDir, "*.csproj", SearchOption.AllDirectories)]);
             Run(outDir, "test", "--solution", "Demo.slnx");
-            Assert.True(File.Exists(openApi), "build service mới phải sinh contracts/openapi/demo.json");
+            Assert.True(File.Exists(Path.Combine(repo, "contracts", "openapi", "demo.json")), "build service mới phải sinh contracts/openapi/demo.json");
         }
         finally
         {
-            File.Delete(openApi);
-            TryDelete(outDir);
+            TryDelete(repo);
             TryDelete(hive);
         }
+    }
+
+    /// Sinh service ngoài workspace (IDE không thấy csproj mới nên không build lại obj/ sau khi xoá): dựng repo tạm có
+    /// src/backend với Directory.*, global.json và building-blocks/src thật (không bin/obj), giữ đúng đường dẫn tương đối của template.
+    static string MirrorBackend(string repo)
+    {
+        var backend = Path.Combine(repo, "src", "backend");
+        Directory.CreateDirectory(backend);
+        foreach (var file in new[] { "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "global.json" })
+            File.Copy(Path.Combine(Backend, file), Path.Combine(backend, file));
+        var source = Path.Combine(Backend, "building-blocks", "src");
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(source, file);
+            if (relative.Split(Path.DirectorySeparatorChar).Any(part => part is "bin" or "obj"))
+                continue;
+            var target = Path.Combine(backend, "building-blocks", "src", relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+        return backend;
     }
 
     // Windows: IDE/build server có thể giữ handle thư mục vừa build vài giây; dọn dẹp không được làm hỏng kết quả test.
