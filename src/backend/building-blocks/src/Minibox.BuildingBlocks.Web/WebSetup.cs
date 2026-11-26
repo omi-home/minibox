@@ -16,7 +16,7 @@ namespace Minibox.BuildingBlocks.Web;
 public static class WebSetup
 {
     /// <summary>Đăng ký ProblemDetails, authentication/authorization (scheme JWT thêm bằng
-    /// <see cref="JwtAuthenticationSetup.AddMiniboxJwtAuthentication"/>), <see cref="ICurrentUser"/> từ claim <c>sub</c> của token đã kiểm,
+    /// <see cref="JwtAuthenticationSetup.AddMiniboxJwtAuthentication"/>), <see cref="ICurrentUser"/> từ claim <c>sub</c> và <see cref="IAuthorizer"/> từ claim <c>perms</c> của token đã kiểm,
     /// health check PostgreSQL (tag <c>ready</c>).</summary>
     /// <param name="services">DI container.</param>
     /// <returns><paramref name="services"/> để gọi tiếp.</returns>
@@ -27,6 +27,8 @@ public static class WebSetup
         services.AddAuthorization();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
+        services.AddScoped<IAuthorizer, ClaimsAuthorizer>();
+        services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, PermissionHandler>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddOptions<MfaPolicyOptions>();
         services.AddHealthChecks().AddCheck<NpgsqlHealthCheck>("postgres", tags: ["ready"]);

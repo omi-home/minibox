@@ -30,8 +30,9 @@ public sealed class JwksTests
         .UseSetting("Jwt:Issuer", Authority)
         .ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FakeTime(now)))));
 
-    static string Issue(WebApplicationFactory<Program> identity, string[]? amr = null) => identity.Services.GetRequiredService<IAccessTokenIssuer>()
-        .Issue(new AccessTokenRequest("acc-1", "staff", new Dictionary<string, IReadOnlyCollection<string>>(), DateTimeOffset.UtcNow, amr ?? ["pwd", "mfa"]))
+    static string Issue(WebApplicationFactory<Program> identity, string[]? amr = null, Dictionary<string, IReadOnlyCollection<string>>? perms = null) =>
+        identity.Services.GetRequiredService<IAccessTokenIssuer>()
+        .Issue(new AccessTokenRequest("acc-1", "staff", perms ?? [], DateTimeOffset.UtcNow, amr ?? ["pwd", "mfa"]))
         .Token;
 
     /// <summary>Service "khác": chỉ dùng AddMiniboxWeb + AddMiniboxJwtAuthentication, lấy JWKS từ identity qua HTTP.</summary>
@@ -45,6 +46,8 @@ public sealed class JwksTests
         var app = builder.Build();
         app.UseMiniboxWeb();
         app.MapGet("/me", (ICurrentUser user) => user.UserId).RequireAuthorization();
+        app.MapGet("/wh/{id:int}", [RequirePermission("inventory.adjustment.approve")] async (int id, IAuthorizer authz, CancellationToken ct) =>
+            (await authz.EnsureAsync("inventory.adjustment.approve", $"wh:{id}", ct)).ToHttpResult());
         await app.StartAsync(Ct);
         return app;
     }
@@ -77,6 +80,25 @@ public sealed class JwksTests
         var response = await CallMe(other, Issue(identity, ["pwd"]));
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Contains(MfaPolicy.MfaRequiredCode, await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact(DisplayName = "ac203_2 ac203_3 Claim perms của access token thật: thiếu quyền hoặc sai kho → 403, đúng kho → 204")]
+    public async Task ac203_3_real_token_perms_checked()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow);
+        await using var other = await OtherService(identity);
+        var token = Issue(identity, perms: new() { ["wh:2"] = ["inventory.adjustment.approve"] });
+
+        async Task<HttpStatusCode> Call(string path, string t)
+        {
+            var client = other.GetTestClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", t);
+            return (await client.GetAsync(path, Ct)).StatusCode;
+        }
+
+        Assert.Equal(HttpStatusCode.NoContent, await Call("/wh/2", token));
+        Assert.Equal(HttpStatusCode.Forbidden, await Call("/wh/1", token));
+        Assert.Equal(HttpStatusCode.Forbidden, await Call("/wh/2", Issue(identity)));
     }
 
     [Fact(DisplayName = "ac195_4 Access token quá 5 phút bị từ chối 401")]
