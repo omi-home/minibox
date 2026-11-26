@@ -21,8 +21,8 @@ public class ServiceTemplateTests
         Assert.True(p.ExitCode == 0, $"dotnet {string.Join(' ', args)} → {p.ExitCode}\n{stdout.Result}\n{stderr.Result}");
     }
 
-    [Fact(DisplayName = "ac174_5 dotnet new minibox-service -n Demo sinh 5 project + 3 project test, build và test pass")]
-    public void ac174_5_template_generates_buildable_service()
+    [Fact(DisplayName = "ac174_5 ac193_3 dotnet new minibox-service -n Demo sinh 5 project + 3 project test, build và test pass")]
+    public void ac174_5_ac193_3_template_generates_buildable_service()
     {
         var hive = Directory.CreateTempSubdirectory("minibox-hive").FullName; // không đụng danh sách template của máy
         var outDir = Path.Combine(Backend, "services", $"ac174-{Guid.NewGuid():N}"[..14]);
