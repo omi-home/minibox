@@ -163,7 +163,7 @@ BFF chạy OAuth2 authorization code + PKCE với Google/Facebook rồi chuyển
 
 ### 4.6 Seed
 
-Dữ liệu tham chiếu (vai trò mẫu, mã quyền) đi bằng migration. Dữ liệu demo ở `database/seed/demo/`, chỉ chạy khi `ENVIRONMENT` là `dev` hoặc `staging`; production từ chối (BRD §18).
+Dữ liệu tham chiếu (vai trò mẫu, mã quyền) đi bằng migration. Dữ liệu demo ở `database/seed/demo/`, chỉ chạy khi `ENVIRONMENT` là `dev` hoặc `staging`; production từ chối (BRD §18). Lệnh: `ENVIRONMENT=<env> node database/seed/run.mjs [env]` — nạp `database/seed/demo/*.sql` theo tên trong một transaction; `ENVIRONMENT` thiếu/lạ hoặc khác tham số cũng bị từ chối.
 
 ## 5. Kiến trúc mã (Clean Architecture)
 
