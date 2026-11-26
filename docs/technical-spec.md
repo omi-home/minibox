@@ -328,7 +328,7 @@ minibox/                             # root sạch: không package.json, không 
 │     └─ tests/                      # test cấp repo
 ├─ database/                         # toàn bộ SQL, nguồn sự thật của schema
 │  ├─ bootstrap/
-│  ├─ Schemas/<svc>/                 # một schema = một service, kiểu SQL Server Database Project (§4.4)
+│  ├─ schemas/<svc>/                 # một schema = một service, kiểu SQL Server Database Project (§4.4)
 │  │  ├─ tables/ views/ functions/ stored-procedures/ security/
 │  │  └─ scripts/{pre-deployment,migrations,post-deployment}/
 │  ├─ templates/
