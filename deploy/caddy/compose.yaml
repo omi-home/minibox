@@ -1,0 +1,36 @@
+# Caddy chung trên homeserver (spec §8.2): dịch vụ duy nhất mở cổng ra ngoài. Chạy: docker compose -f deploy/caddy/compose.yaml --env-file deploy/caddy/.env up -d
+# Tạo mạng minibox-<env>-edge; frontend của staging/production nối vào dạng external → chạy Caddy trước môi trường.
+name: minibox-edge
+
+services:
+  infra-caddy:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    container_name: minibox-edge-infra-caddy
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?}
+      SHOP_HOST: ${SHOP_HOST:?}
+      ADMIN_HOST: ${ADMIN_HOST:?}
+      STAGING_SHOP_HOST: ${STAGING_SHOP_HOST:?}
+      STAGING_ADMIN_HOST: ${STAGING_ADMIN_HOST:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # chứng chỉ TLS
+      - caddy-config:/config
+    networks: [staging, production]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  staging:
+    name: minibox-staging-edge
+  production:
+    name: minibox-production-edge
+
+volumes:
+  caddy-data:
+  caddy-config:

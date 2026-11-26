@@ -1,13 +1,13 @@
 # Hạ tầng chung mọi môi trường (spec §8.2). Mỗi môi trường một thư mục deploy/<env>/ (compose.yaml đặt tên cụm, container_name, cổng; .env.example).
 # Dịch vụ đặt tên `<layer>-<tên>` (frontend|backend|database|infra|observability); container `minibox-<env>-<layer>-<tên>`.
-# Giá trị mặc định chỉ dành cho dev; staging/production lấy từ file secret ngoài repo (spec §8.4). Mẫu: deploy/<env>/.env.example.
+# Không có mật khẩu ở đây: dev đặt trong deploy/dev/compose.yaml; staging/production mount Docker secret từ /srv/minibox/<env>/secrets/ (spec §8.4).
+# Image ghim theo digest (tag để đọc); nâng cấp: docker buildx imagetools inspect <image:tag> rồi thay digest.
 
 services:
   database-postgres:
-    image: postgres:18-alpine
+    image: postgres:18-alpine@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-db_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibox}
+      POSTGRES_USER: db_admin
       POSTGRES_DB: minibox
     volumes:
       - postgres-data:/var/lib/postgresql # PostgreSQL 18: PGDATA nằm dưới /var/lib/postgresql/18/
@@ -19,10 +19,7 @@ services:
     restart: unless-stopped
 
   infra-rabbitmq:
-    image: rabbitmq:4-management-alpine
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-minibox}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-minibox}
+    image: rabbitmq:4-management-alpine@sha256:675e71f68c51d4b6c6f43272a0eb102202af3d80d0e8feb0589cdbe1a13178b9
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -34,7 +31,7 @@ services:
     restart: unless-stopped
 
   infra-seaweedfs:
-    image: chrislusf/seaweedfs:4.55
+    image: chrislusf/seaweedfs:4.55@sha256:7ca46aeae2f223b37e5d91593c17ab37738eec6df6ab69b48a0487f7643342b9
     command: ["server", "-dir=/data", "-s3", "-s3.port=8333"]
     volumes:
       - seaweedfs-data:/data
@@ -47,7 +44,7 @@ services:
     restart: unless-stopped
 
   infra-clamav:
-    image: clamav/clamav:1.5
+    image: clamav/clamav:1.5@sha256:64e30c0bf976198024deb3dc6d5cfe2485fb969c0f73549ba0fdb364b9469614
     volumes:
       - clamav-data:/var/lib/clamav # giữ CSDL chữ ký, khởi động lại không tải lại
     healthcheck:
@@ -59,7 +56,7 @@ services:
     restart: unless-stopped
 
   infra-mailpit:
-    image: axllent/mailpit:v1.34
+    image: axllent/mailpit:v1.34@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
     volumes:
       - mailpit-data:/data
     environment:
