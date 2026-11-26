@@ -7,7 +7,7 @@ body:
     id: s1
     attributes:
       label: "Nhóm"
-      options: ["Performance", "Security", "Reliability", "Usability", "Maintainability", "Compliance"]
+      options: ["Performance", "Security", "Reliability", "Usability", "Maintainability", "Compliance", "Observability", "Accessibility", "Capacity"]
     validations:
       required: true
   - type: textarea
