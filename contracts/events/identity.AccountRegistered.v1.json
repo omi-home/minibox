@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minibox.vn/contracts/events/identity.AccountRegistered.v1.json",
+  "title": "identity.AccountRegistered.v1",
+  "description": "Tài khoản khách hoặc nhân viên vừa được tạo. Không mang PII (email/username): service khác cần thì gọi API identity.",
+  "type": "object",
+  "required": ["accountId", "kind"],
+  "additionalProperties": false,
+  "properties": {
+    "accountId": { "type": "string", "format": "uuid", "description": "Id tài khoản (UUIDv7)." },
+    "kind": { "enum": ["customer", "staff"], "description": "Loại tài khoản." }
+  }
+}

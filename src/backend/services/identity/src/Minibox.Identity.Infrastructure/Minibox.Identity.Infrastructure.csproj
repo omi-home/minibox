@@ -5,6 +5,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
+    <ProjectReference Include="../Minibox.Identity.Contracts/Minibox.Identity.Contracts.csproj" />
     <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

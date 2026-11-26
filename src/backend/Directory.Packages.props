@@ -23,6 +23,7 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
   </ItemGroup>
   <ItemGroup Label="Messaging">
+    <PackageVersion Include="JsonSchema.Net" Version="9.7.0" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RabbitMQ" Version="6.65.1" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.65.1" />
