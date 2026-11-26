@@ -317,9 +317,10 @@ minibox/                             # root sạch: không package.json, không 
 
 ### 8.2 Môi trường
 
-- **dev**: máy lập trình viên, `deploy/compose.yaml` + `compose.dev.yaml` (PostgreSQL, RabbitMQ, SeaweedFS, ClamAV, Mailpit, service với adapter fake, 2 app).
+- **dev**: máy lập trình viên, `deploy/compose.yaml` + `deploy/dev/compose.yaml` (PostgreSQL, RabbitMQ, SeaweedFS, ClamAV, Mailpit, service với adapter fake, 2 app).
 - **staging** và **production**: homeserver, mỗi môi trường một Compose project riêng (network, volume, DB, vhost RabbitMQ, thư mục secret riêng). Một Caddy chung route theo hostname. Staging chỉ vào qua Tailscale, không khách thật, không bị index.
 - Ingress production: mở cổng hoặc Cloudflare Tunnel nếu CGNAT (chờ OPEN-02); thiết kế hỗ trợ cả hai.
+- Compose: `deploy/compose.yaml` chứa phần chung (image, volume, health check); mỗi môi trường một thư mục `deploy/<env>/` (`compose.yaml` đặt tên cụm, `container_name`, cổng; `.env.example`). Cấu hình dùng chung giữa môi trường (Caddy, OTel/Grafana, backup) để ở thư mục riêng dưới `deploy/` khi tới task đó. Đặt tên: cụm (Compose project) `minibox-<env>`; dịch vụ `<layer>-<tên>` với layer ∈ `frontend|backend|database|infra|observability` (vd. `database-postgres`, `infra-rabbitmq`, `backend-identity`); container `minibox-<env>-<layer>-<tên>`. Dev mở cổng trên `127.0.0.1`, giá trị mặc định ghi đè được bằng `deploy/dev/.env` (mẫu `deploy/dev/.env.example`).
 
 ### 8.3 Deploy
 
