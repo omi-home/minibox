@@ -14,25 +14,31 @@ namespace Minibox.BuildingBlocks.Web;
 /// <summary>Đăng ký và pipeline HTTP dùng chung cho Api của mọi service.</summary>
 public static class WebSetup
 {
-    /// <summary>Đăng ký ProblemDetails, <see cref="ICurrentUser"/> từ claim <c>sub</c>, health check PostgreSQL (tag <c>ready</c>).</summary>
+    /// <summary>Đăng ký ProblemDetails, authentication/authorization (scheme JWT thêm bằng
+    /// <see cref="JwtAuthenticationSetup.AddMiniboxJwtAuthentication"/>), <see cref="ICurrentUser"/> từ claim <c>sub</c> của token đã kiểm,
+    /// health check PostgreSQL (tag <c>ready</c>).</summary>
     /// <param name="services">DI container.</param>
     /// <returns><paramref name="services"/> để gọi tiếp.</returns>
     public static IServiceCollection AddMiniboxWeb(this IServiceCollection services)
     {
         services.AddProblemDetails();
+        services.AddAuthentication();
+        services.AddAuthorization();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
         services.AddHealthChecks().AddCheck<NpgsqlHealthCheck>("postgres", tags: ["ready"]);
         return services;
     }
 
-    /// <summary>Exception → ProblemDetails 500 (không lộ chi tiết); bắt buộc <c>Idempotency-Key</c> hợp lệ cho mọi request ghi.</summary>
+    /// <summary>Exception → ProblemDetails 500 (không lộ chi tiết); xác thực bearer token; bắt buộc <c>Idempotency-Key</c> hợp lệ cho mọi request ghi.</summary>
     /// <param name="app">Ứng dụng.</param>
     /// <returns><paramref name="app"/> để gọi tiếp.</returns>
     public static IApplicationBuilder UseMiniboxWeb(this IApplicationBuilder app)
     {
         app.UseExceptionHandler();
         app.UseStatusCodePages();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.Use(RequireIdempotencyKey);
         return app;
     }

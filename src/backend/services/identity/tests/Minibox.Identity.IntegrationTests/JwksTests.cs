@@ -1,0 +1,104 @@
+using System.Net;
+using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Minibox.BuildingBlocks.Application;
+using Minibox.BuildingBlocks.Web;
+using Minibox.Identity.Application.Tokens;
+
+namespace Minibox.Identity.IntegrationTests;
+
+/// <summary>Service khác kiểm access token của identity qua discovery + JWKS bằng thư viện dùng chung.</summary>
+public sealed class JwksTests
+{
+    const string Authority = "http://localhost"; // địa chỉ gốc của TestServer
+
+    sealed class FakeTime(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    static WebApplicationFactory<Program> Identity(DateTimeOffset now) => new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
+        .UseSetting("Jwt:Issuer", Authority)
+        .ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FakeTime(now)))));
+
+    static string Issue(WebApplicationFactory<Program> identity) => identity.Services.GetRequiredService<IAccessTokenIssuer>()
+        .Issue(new AccessTokenRequest("acc-1", "staff", new Dictionary<string, IReadOnlyCollection<string>>(), DateTimeOffset.UtcNow, ["pwd"]))
+        .Token;
+
+    /// <summary>Service "khác": chỉ dùng AddMiniboxWeb + AddMiniboxJwtAuthentication, lấy JWKS từ identity qua HTTP.</summary>
+    static async Task<WebApplication> OtherService(WebApplicationFactory<Program> identity)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMiniboxWeb().AddMiniboxJwtAuthentication(Authority);
+        builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme,
+            o => o.BackchannelHttpHandler = identity.Server.CreateHandler());
+        var app = builder.Build();
+        app.UseMiniboxWeb();
+        app.MapGet("/me", (ICurrentUser user) => user.UserId).RequireAuthorization();
+        await app.StartAsync(Ct);
+        return app;
+    }
+
+    static async Task<HttpResponseMessage> CallMe(WebApplication app, string? token)
+    {
+        var client = app.GetTestClient();
+        if (token is not null)
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await client.GetAsync("/me", Ct);
+    }
+
+    [Fact(DisplayName = "ac195_4 Service khác kiểm được chữ ký access token qua JWKS và đọc sub")]
+    public async Task ac195_4_other_service_validates_via_jwks()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow);
+        await using var other = await OtherService(identity);
+
+        var response = await CallMe(other, Issue(identity));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("acc-1", await response.Content.ReadAsStringAsync(Ct));
+    }
+
+    [Fact(DisplayName = "ac195_4 Access token quá 5 phút bị từ chối 401")]
+    public async Task ac195_4_expired_token_rejected()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow.AddMinutes(-6));
+        await using var other = await OtherService(identity);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await CallMe(other, Issue(identity))).StatusCode);
+    }
+
+    [Fact(DisplayName = "Token sửa payload hoặc ký bởi khóa khác bị từ chối 401; thiếu token bị 401")]
+    public async Task tampered_or_foreign_token_rejected()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow);
+        await using var foreign = Identity(DateTimeOffset.UtcNow); // key ring khác, cùng issuer
+        await using var other = await OtherService(identity);
+
+        var parts = Issue(identity).Split('.');
+        var tampered = $"{parts[0]}.{parts[1][..^2]}{(parts[1][^2] == 'A' ? 'B' : 'A')}{parts[1][^1]}.{parts[2]}";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await CallMe(other, tampered)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await CallMe(other, Issue(foreign))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await CallMe(other, null)).StatusCode);
+    }
+
+    [Fact(DisplayName = "Discovery trỏ jwks_uri; JWKS chỉ có khóa công khai EC P-256")]
+    public async Task discovery_and_jwks_published()
+    {
+        await using var identity = Identity(DateTimeOffset.UtcNow);
+        var client = identity.CreateClient();
+        var discovery = await client.GetStringAsync("/.well-known/openid-configuration", Ct);
+        Assert.Contains("\"jwks_uri\":\"http://localhost/.well-known/jwks.json\"", discovery);
+        var jwks = await client.GetStringAsync("/.well-known/jwks.json", Ct);
+        Assert.Contains("\"crv\":\"P-256\"", jwks);
+        Assert.DoesNotContain("\"d\"", jwks);
+    }
+}
