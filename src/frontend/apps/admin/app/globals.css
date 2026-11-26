@@ -1,0 +1,3 @@
+/* Tailwind v4 + token khối hộp dùng chung (packages/ui/src/theme.css). */
+@import "tailwindcss";
+@import "@minibox/ui/theme.css";
