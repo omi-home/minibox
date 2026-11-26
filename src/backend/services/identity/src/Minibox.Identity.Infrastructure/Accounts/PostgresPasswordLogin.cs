@@ -33,10 +33,8 @@ public sealed class PostgresPasswordLogin(NpgsqlDataSource dataSource, IPassword
         var ipKey = "ip:" + ip;
         await using var conn = await dataSource.OpenConnectionAsync(cancellationToken);
 
-        await using (var locked = new NpgsqlCommand("SELECT 1 FROM login_throttle WHERE key = ANY($1) AND locked_until > $2", conn)
-                     { Parameters = { new() { Value = new[] { accountKey, ipKey } }, new() { Value = now } } })
-            if (await locked.ExecuteScalarAsync(cancellationToken) is not null)
-                return Throttled;
+        if (await IsLockedAsync(conn, [accountKey, ipKey], now, cancellationToken))
+            return Throttled;
 
         Guid? id = null;
         AccountKind kind = default;
@@ -77,7 +75,14 @@ public sealed class PostgresPasswordLogin(NpgsqlDataSource dataSource, IPassword
         return new LoginSuccess(id.Value, kind, session);
     }
 
-    static async Task RecordFailureAsync(NpgsqlConnection conn, string key, int threshold, DateTimeOffset now, CancellationToken ct)
+    internal static async Task<bool> IsLockedAsync(NpgsqlConnection conn, string[] keys, DateTimeOffset now, CancellationToken ct)
+    {
+        await using var locked = new NpgsqlCommand("SELECT 1 FROM login_throttle WHERE key = ANY($1) AND locked_until > $2", conn)
+            { Parameters = { new() { Value = keys }, new() { Value = now } } };
+        return await locked.ExecuteScalarAsync(ct) is not null;
+    }
+
+    internal static async Task RecordFailureAsync(NpgsqlConnection conn, string key, int threshold, DateTimeOffset now, CancellationToken ct)
     {
         await using var count = new NpgsqlCommand("""
             INSERT INTO login_throttle (key, failures, last_failure_at) VALUES ($1, 1, $2)
