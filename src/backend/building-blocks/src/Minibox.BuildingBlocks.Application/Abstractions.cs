@@ -71,21 +71,31 @@ public interface IAuthorizer
     ValueTask<bool> HasPermissionAsync(string permission, string scope, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Lưu kết quả thành công theo khoá idempotency.</summary>
+/// <summary>Bản ghi idempotency đã hoàn tất của lần gửi đầu.</summary>
+/// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
+/// <param name="RequestHash">Hash nội dung lệnh lần đầu.</param>
+/// <param name="Response">Kết quả thành công lần đầu.</param>
+public sealed record IdempotencyRecord<TResponse>(string RequestHash, TResponse Response) where TResponse : Result;
+
+/// <summary>Giữ chỗ và lưu kết quả theo khoá idempotency, trong transaction của <see cref="IUnitOfWork"/>.</summary>
+/// <remarks>Giữ chỗ và lưu cùng transaction với dữ liệu nghiệp vụ: lệnh thất bại/rollback thì khoá cũng mất (client retry được);
+/// hai request trùng khoá chạy song song thì request sau chờ request trước commit rồi nhận bản ghi của nó.</remarks>
 public interface IIdempotencyStore
 {
-    /// <summary>Lấy kết quả đã lưu.</summary>
+    /// <summary>Giữ chỗ khoá cho lần gửi này.</summary>
     /// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
     /// <param name="key">Khoá đã gắn người gọi + loại lệnh.</param>
+    /// <param name="requestHash">Hash nội dung lệnh.</param>
     /// <param name="cancellationToken">Huỷ thao tác.</param>
-    /// <returns>Kết quả lần đầu, hoặc <c>null</c> nếu chưa có.</returns>
-    ValueTask<TResponse?> GetAsync<TResponse>(string key, CancellationToken cancellationToken = default) where TResponse : Result;
+    /// <returns><c>null</c> nếu giữ chỗ được (lần đầu); ngược lại bản ghi lần đầu.</returns>
+    ValueTask<IdempotencyRecord<TResponse>?> ReserveAsync<TResponse>(string key, string requestHash, CancellationToken cancellationToken = default)
+        where TResponse : Result;
 
-    /// <summary>Lưu kết quả thành công.</summary>
+    /// <summary>Lưu kết quả thành công vào khoá đã giữ chỗ.</summary>
     /// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
-    /// <param name="key">Khoá đã gắn người gọi + loại lệnh.</param>
-    /// <param name="response">Kết quả.</param>
+    /// <param name="key">Khoá đã giữ chỗ.</param>
+    /// <param name="response">Kết quả thành công.</param>
     /// <param name="cancellationToken">Huỷ thao tác.</param>
-    /// <returns>Task hoàn tất khi đã lưu.</returns>
-    ValueTask SaveAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result;
+    /// <returns>Task hoàn tất khi đã ghi (chưa commit).</returns>
+    ValueTask CompleteAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result;
 }

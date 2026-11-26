@@ -205,7 +205,7 @@ Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (Ne
 | Pattern | Cách dùng |
 |---|---|
 | CQRS | Command đi qua aggregate + repository + UoW. Query không qua repository: read service Dapper trả DTO trực tiếp. Hai phía cùng DB; chỉ dữ liệu liên service mới có read model riêng |
-| Mediator + pipeline | `Mediator` (martinothamar, MIT, source-generated); không dùng MediatR (giấy phép thương mại từ v13). Thứ tự behavior: logging/trace → validation (FluentValidation) → authorization → idempotency → transaction (chỉ command) |
+| Mediator + pipeline | `Mediator` (martinothamar, MIT, source-generated); không dùng MediatR (giấy phép thương mại từ v13). Thứ tự behavior: logging/trace → validation (FluentValidation) → authorization → transaction (chỉ command) → idempotency (giữ chỗ `Idempotency-Key` trong cùng transaction với dữ liệu: rollback thì khoá mất, request trùng song song chờ rồi nhận kết quả lần đầu; cùng khoá khác nội dung → 409) |
 | Generic Repository | `IRepository<TAggregate,TId>`: `GetAsync`, `GetForUpdateAsync` (`SELECT … FOR UPDATE`), `AddAsync`, `UpdateAsync` (kiểm `version`). Chỉ cho aggregate root; không có `IQueryable`/`Find(predicate)`. Truy vấn đặc thù đặt trong repository riêng kế thừa bản generic (ví dụ `IStockRepository.ReserveAsync`) |
 | Generic Unit of Work | `IUnitOfWork` giữ một `NpgsqlConnection` + transaction dùng chung cho mọi repository trong một command. `CommitAsync`: lưu thay đổi → domain event thành integration event vào outbox → ghi audit → commit, trong một transaction |
 | Domain event / integration event | Domain event xử lý nội bộ trong transaction; integration event (trong `*.Contracts`) đi qua outbox ra RabbitMQ |

@@ -5,7 +5,7 @@ using Minibox.BuildingBlocks.Domain;
 namespace Minibox.BuildingBlocks.Application.Behaviors;
 
 /// <summary>Chạy mọi <see cref="IValidator{T}"/> của message; lỗi → <see cref="ErrorType.Validation"/>, không gọi tầng trong
-/// (chưa mở transaction nên không ghi gì).</summary>
+/// (chưa mở transaction nên không ghi gì). <see cref="IIdempotentCommand"/> có khoá sai dạng → <see cref="IdempotencyKey.InvalidError"/>.</summary>
 /// <typeparam name="TMessage">Kiểu message.</typeparam>
 /// <typeparam name="TResponse">Kiểu kết quả.</typeparam>
 /// <param name="validators">Validator đăng ký cho <typeparamref name="TMessage"/>.</param>
@@ -18,6 +18,9 @@ public sealed class ValidationBehavior<TMessage, TResponse>(IEnumerable<IValidat
     /// <inheritdoc/>
     public async ValueTask<TResponse> Handle(TMessage message, MessageHandlerDelegate<TMessage, TResponse> next, CancellationToken cancellationToken)
     {
+        if (message is IIdempotentCommand { IdempotencyKey: var key } && !IdempotencyKey.IsValid(key))
+            return FailureOf<TResponse>.From(IdempotencyKey.InvalidError);
+
         var failures = new List<string>();
         foreach (var validator in validators)
         {
