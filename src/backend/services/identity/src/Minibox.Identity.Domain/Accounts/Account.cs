@@ -77,6 +77,17 @@ public sealed partial class Account : AggregateRoot<Guid>
         return account;
     }
 
+    /// <summary>Dựng lại tài khoản đã lưu (dùng trong repository); không phát domain event.</summary>
+    /// <param name="id">Id tài khoản.</param>
+    /// <param name="kind">Loại tài khoản.</param>
+    /// <param name="email">Email đã chuẩn hoá, hoặc <c>null</c>.</param>
+    /// <param name="username">Username đã chuẩn hoá, hoặc <c>null</c>.</param>
+    /// <param name="passwordHash">Chuỗi PHC Argon2id, hoặc <c>null</c>.</param>
+    /// <param name="version">Phiên bản đang lưu.</param>
+    /// <returns>Tài khoản.</returns>
+    public static Account Load(Guid id, AccountKind kind, string? email, string? username, string? passwordHash, long version) =>
+        new(id, kind, email, username, passwordHash, version);
+
     /// <summary>Mô tả an toàn để log: không chứa bản băm mật khẩu.</summary>
     /// <returns>Loại và Id tài khoản.</returns>
     public override string ToString() => $"Account {Kind} {Id}";

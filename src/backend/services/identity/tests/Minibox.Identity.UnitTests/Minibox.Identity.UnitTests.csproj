@@ -5,13 +5,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
-    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Minibox.Identity.Domain/Minibox.Identity.Domain.csproj" />
     <ProjectReference Include="../../src/Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
     <ProjectReference Include="../../src/Minibox.Identity.Infrastructure/Minibox.Identity.Infrastructure.csproj" />
-    <ProjectReference Include="../../src/Minibox.Identity.Contracts/Minibox.Identity.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

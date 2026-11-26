@@ -11,7 +11,7 @@ public sealed class IdentityIntegrationEvents : IIntegrationEventMapper
     /// <inheritdoc/>
     public object? Map(IDomainEvent domainEvent) => domainEvent switch
     {
-        AccountRegistered e => new AccountRegisteredV1(e.AccountId, e.Kind.ToString().ToLowerInvariant()),
+        AccountRegistered e => new AccountRegisteredV1(e.AccountId, AccountRepository.KindText(e.Kind)),
         _ => null,
     };
 }
