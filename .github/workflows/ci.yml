@@ -1,0 +1,39 @@
+# Build + toàn bộ test (backend, frontend, script, hợp đồng) và e2e smoke trên mọi PR (spec §9.3, NFR #217: ≤ 15 phút).
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  test:
+    # ubuntu-latest có sẵn Docker cho Testcontainers (PostgreSQL/RabbitMQ) và docker compose.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: src/backend/global.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('src/backend/**/*.csproj', 'src/backend/**/*.props', 'src/backend/**/*.targets') }}
+          restore-keys: nuget-${{ runner.os }}-
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.23.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - run: node scripts/test.mjs
+      - run: node scripts/e2e.mjs
