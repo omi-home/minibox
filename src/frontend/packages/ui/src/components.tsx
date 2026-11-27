@@ -98,7 +98,7 @@ export const Box = ({ depth = 1, chamfer = true, interactive, asChild, className
   );
 };
 
-/** Nền mờ dưới sheet/hộp thoại: pha sắc nền của phương án (không đen thuần). */
+/** Nền mờ dưới sheet/hộp thoại: pha sắc nền (không đen thuần). */
 export const overlay =
   "fixed inset-0 z-overlay bg-[color-mix(in_oklab,var(--shade)_45%,transparent)] backdrop-blur-[2px] data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in";
 

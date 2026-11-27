@@ -1,6 +1,6 @@
 /*
- * Nhận diện Minibox: khối lập phương isometric 30° (spec #448 §5). Ba mặt của khối vẽ bằng currentColor với độ đậm khác nhau,
- * nên khối luôn theo màu chữ của nơi đặt (nút, trang).
+ * Nhận diện Minibox (spec #448 §5): logo là khối lập phương chữ M tự xoay; biểu tượng tải là khối isometric 30° vẽ bằng currentColor
+ * (ba mặt độ đậm khác nhau) nên theo màu chữ của nơi đặt (nút, trang).
  */
 import { type ComponentProps } from "react";
 import { cx } from "./field";
@@ -12,50 +12,93 @@ const faces = {
   right: "28,11 16,18 16,30 28,23",
 };
 
+/** Sáu mặt của khối chữ M (theme.css `.logo-cube [data-face]`). */
+const cubeFaces = ["front", "right", "back", "left", "top", "bottom"];
+
 /** Thuộc tính của {@link Logo}. */
 export type LogoProps = {
-  /** Kèm chữ "minibox" bên phải mark; mặc định có. */
+  /** Kèm chữ "inibox.vn" nối sau khối chữ M (bản đầy đủ đọc "Minibox.vn"); mặc định có. Tắt để còn bản rút gọn: chỉ khối M. */
   withWordmark?: boolean;
   /** Tên đọc cho trình đọc màn hình; mặc định "Minibox" (đổi khi logo là link, vd. "Về trang chủ Minibox"). */
   title?: string;
-  /** Class cho khung ngoài (cỡ chữ quyết định cỡ logo: mark cao 1.75em). */
+  /** Class cho khung ngoài (cỡ chữ quyết định cỡ logo: khối cạnh 1.15em). Đổi màu khối bằng biến `--cube-face`, `--cube-ink`. */
   className?: string;
 };
 
 /**
- * Logo Minibox: mark khối lập phương isometric + chữ thương hiệu bằng font tiêu đề của phương án.
- * Mặt trên của khối rơi xuống lắp vào khi tải trang (một lần). PHA 1 #448: vẽ cả 3 biến thể mark, theme.css chỉ hiện biến thể
- * của `data-brand` đang chọn (A khối đặc 3 sắc độ, B hộp mở nắp nét đều, C khung cạnh có mặt trên sáng).
+ * Logo Minibox: khối lập phương 3D có chữ M trên bốn mặt bên, vân lớp in và mặt trên lưới infill như vật vừa in 3D xong.
+ * Khi tải, khối được in dựng từ dưới lên theo từng lớp, rồi tự xoay từng nấc 90° như tay xoay hộp (theme.css `.logo-cube`).
+ * Bản đầy đủ nối chữ "inibox.vn" ngay sau khối để đọc thành "Minibox.vn". Đứng yên ở mặt trước khi người dùng bật giảm chuyển động.
  *
  * @param props - {@link LogoProps}.
- * @returns Khung logo gồm SVG có tên và chữ thương hiệu (ẩn với trình đọc màn hình vì SVG đã có tên).
+ * @returns Khung logo có vai trò ảnh và tên đọc; khối và chữ bên trong ẩn với trình đọc màn hình.
  */
 export const Logo = ({ withWordmark = true, title = "Minibox", className }: LogoProps) => {
   return (
-    <span className={cx("inline-flex items-center gap-[0.4em] text-foreground", className)}>
-      <svg role="img" viewBox="0 -3 32 37" className="h-[1.75em] w-auto shrink-0 overflow-visible">
-        <title>{title}</title>
-        <g className="logo-a">
-          <polygon points={faces.left} className="fill-primary-hover" />
-          <polygon points={faces.right} className="fill-primary" />
-          <polygon points={faces.top} className="animate-assemble fill-[color-mix(in_oklab,var(--color-primary)_55%,var(--color-white))]" />
-        </g>
-        <g className="logo-b fill-none stroke-current" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round">
-          <path d="M4 13 16 20 28 13 28 25 16 32 4 25Z M16 20V32" className="fill-accent" />
-          <path d="M4 13 1 6 13 -1 16 6 M28 13 31 6 19 -1 16 6" className="animate-assemble stroke-primary" />
-        </g>
-        <g className="logo-c fill-none stroke-current" strokeWidth={1.75} strokeLinejoin="round">
-          <polygon points={faces.top} className="animate-assemble fill-primary stroke-primary" />
-          <path d="M4 11V23L16 30 28 23V11 M16 18V30" />
-        </g>
-      </svg>
+    <span role="img" aria-label={title} className={cx("inline-flex items-center gap-[0.08em] text-foreground", className)}>
+      <span aria-hidden className="logo-cube">
+        <span>
+          {cubeFaces.map((f) => (
+            <i key={f} data-face={f} />
+          ))}
+        </span>
+      </span>
       {withWordmark && (
         <span aria-hidden className="font-display text-[1.125em] font-bold leading-none tracking-tight">
-          minibox
+          inibox<span className="text-primary">.vn</span>
         </span>
       )}
     </span>
   );
+};
+
+/**
+ * Hiệu ứng thêm vào giỏ: một hộp Minibox (khối chữ M) bật lên từ `source`, bay theo đường vòng vào phần tử `[data-cart-target]`
+ * (nút giỏ trên header, {@link ShopShell} đã gắn sẵn), rồi giỏ nảy nhẹ. Chỉ để trang trí: không chặn thao tác, bỏ qua khi người dùng
+ * bật giảm chuyển động hoặc trang không có giỏ. Gọi sau khi thêm giỏ thành công; cập nhật số trong giỏ khi promise xong.
+ *
+ * @param source - Phần tử hộp bay ra (nút "Thêm vào giỏ" hoặc ảnh sản phẩm).
+ * @returns Promise xong khi hộp đã vào giỏ, hoặc ngay lập tức nếu bỏ qua hiệu ứng.
+ */
+export const flyToCart = async (source: Element) => {
+  const target = document.querySelector("[data-cart-target]");
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!target || reduced || typeof source.animate !== "function") return;
+
+  const size = 32;
+  const from = source.getBoundingClientRect();
+  const to = target.getBoundingClientRect();
+  const x0 = from.left + from.width / 2 - size / 2;
+  const y0 = from.top + from.height / 2 - size / 2;
+  const dx = to.left + to.width / 2 - size / 2 - x0;
+  const dy = to.top + to.height / 2 - size / 2 - y0;
+  // Đỉnh vòng bay cao hơn điểm cao nhất 110px nhưng không vượt mép trên màn hình (giỏ thường nằm sát đỉnh trên header).
+  const peak = Math.max(Math.min(y0, y0 + dy) - 110, 12) - y0;
+
+  // Lớp ngoài chạy ngang đều, lớp giữa lên rồi rơi: hai chuyển động ghép thành đường parabol.
+  const outer = document.createElement("span");
+  outer.className = "cart-fly";
+  outer.setAttribute("aria-hidden", "true");
+  Object.assign(outer.style, { left: `${x0}px`, top: `${y0}px`, fontSize: `${size / 1.15}px` });
+  outer.innerHTML = `<span><span class="logo-cube"><span>${cubeFaces.map((f) => `<i data-face="${f}"></i>`).join("")}</span></span></span>`;
+  document.body.append(outer);
+
+  const duration = 800;
+  outer.animate([{ transform: "translateX(0)" }, { transform: `translateX(${dx}px)` }], { duration, easing: "cubic-bezier(0.3, 0, 0.6, 1)" });
+  const arc = (outer.firstElementChild as HTMLElement).animate(
+    [
+      { transform: "translateY(0) scale(0.5)", opacity: 0, easing: "cubic-bezier(0.2, 0.7, 0.4, 1)" },
+      { transform: `translateY(${peak}px) scale(1.15)`, opacity: 1, offset: 0.42, easing: "cubic-bezier(0.6, 0, 0.8, 0.4)" },
+      { transform: `translateY(${dy}px) scale(0.3)`, opacity: 0.85 },
+    ],
+    { duration },
+  );
+  await arc.finished.catch(() => undefined);
+  outer.remove();
+  target.animate([{ transform: "scale(1)" }, { transform: "scale(1.22) rotate(-6deg)" }, { transform: "scale(0.96)" }, { transform: "scale(1)" }], {
+    duration: 420,
+    easing: "cubic-bezier(0.32, 0.72, 0, 1)",
+  });
 };
 
 const sizes = { sm: "size-4", md: "size-8", lg: "size-14" };

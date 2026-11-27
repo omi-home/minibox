@@ -95,3 +95,12 @@ Chưa làm (YAGNI): Avatar, Accordion, Slider, Carousel.
 3. **Pha 2:** gộp về phương án đã chọn (xoá token/font/logo còn lại và bộ chuyển), bỏ ghi chú "tạm, OPEN-08", viết `docs/design-system.md`, test tương phản + screenshot, cập nhật spec §6.4 và bảng OPEN-08 (BRD), dừng cho người dùng duyệt UI trước `qa`.
 
 Rủi ro: diff lớn (cả `packages/ui`); giảm bằng commit theo nhóm component và chạy `check` sau mỗi nhóm. `corner-shape` mới có ở Chromium: trình duyệt khác thấy góc bo, chấp nhận được. Nạp 3 bộ font ở pha 1 làm trang nặng: chấp nhận vì chỉ tạm, pha 2 xoá.
+
+## 10. Kết quả sau khi PO duyệt (2026-11-27)
+
+- PO chọn **B · Rừng sâu**. Đã gộp: token B thành mặc định, chỉ nạp Space Grotesk (`--font-heading`), bỏ khối `data-brand`, bộ chuyển phương án và test theo 3 phương án.
+- Logo đổi theo góp ý PO (thay cho bảng §3): khối lập phương 3D chữ M (CSS 3D), vân lớp in + mặt trên lưới infill để gợi in 3D; khi tải được "in" dựng từ dưới lên theo lớp rồi xoay từng nấc 90°. Bản đầy đủ "M" + "inibox.vn" = Minibox.vn; bản rút gọn chỉ khối M.
+- Thêm cảnh nền `BrandScene` (rừng thông: sáng = buổi sáng, tối = đêm trăng có đom đóm), màu `--scene-*` trong `theme.css`, tương phản chữ trên cảnh khoá trong `contrast.test.ts`.
+- Hiệu ứng thêm vào giỏ (thay cho "hộp đóng nắp" ở §5.4): `flyToCart(nút)` thả hộp chữ M bay theo đường parabol vào `[data-cart-target]`, giỏ nảy nhẹ; Web Animations API, không thêm thư viện.
+- Ảnh chuẩn `toHaveScreenshot` cho `/design` 4 breakpoint × 2 app, chụp trên Linux (container Playwright) cho khớp CI.
+- Hướng dẫn: `docs/design-system.md`.

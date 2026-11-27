@@ -344,7 +344,7 @@ M4 là đề xuất mốc mở bán giới hạn: chỉ mở sản phẩm/kênh 
 | OPEN-05 | Tài khoản/API GHN, GHTK, SPX | Đặc biệt SPX chưa xác minh quyền tài khoản Minibox |
 | OPEN-06 | Chính sách thuế, hóa đơn, dữ liệu cá nhân, tiêu dùng, Minixu, bản quyền | Rà soát chuyên môn trước phát hành, không tự suy luận từ chức năng phần mềm |
 | OPEN-07 | Xác minh số điện thoại cho đăng nhập khi chưa dùng SMS | Chọn provider/kênh xác minh hợp lệ hoặc để phương thức này tắt có công bố đến khi đủ điều kiện |
-| OPEN-08 | Logo, bảng màu, font, asset 3D mẫu | Người triển khai đề xuất theo bản sắc khối lập phương; PO duyệt thiết kế mẫu |
+| OPEN-08 | Logo, bảng màu, font, asset 3D mẫu | Logo, bảng màu, font: PO chốt bộ "Rừng sâu" ngày 2026-11-27 (#448, `docs/design-system.md`). Còn mở: asset 3D mẫu (M6) |
 | OPEN-09 | Hạn/điều kiện bảo hành cụ thể theo nhóm | PO và người có chuyên môn sản phẩm duyệt |
 
 Không cần tiếp tục hỏi từng thư viện hoặc từng trường dữ liệu: người triển khai được chủ động theo đặc tả kỹ thuật. Điểm mở ảnh hưởng tiền, pháp lý, quyền hoặc cam kết khách phải giữ trạng thái chờ, không đoán để mở production.

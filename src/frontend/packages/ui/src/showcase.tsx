@@ -39,6 +39,7 @@ import {
   DropdownMenu,
   EmptyState,
   Input,
+  flyToCart,
   Logo,
   MultiCombobox,
   PageHeader,
@@ -66,13 +67,9 @@ import {
   toast,
   type Tone,
 } from ".";
+import { BrandScene } from "./scene";
 import { featured, jobs, products, provinces, swatches } from "./showcase-data";
 
-const brands = [
-  ["a", "Đá & Cobalt"],
-  ["b", "Rừng sâu"],
-  ["c", "Tủ kính đêm"],
-] as const;
 const themes = [
   ["system", "Theo hệ thống"],
   ["light", "Sáng"],
@@ -93,7 +90,7 @@ const sections = [
 ] as const;
 
 const KEY = "minibox-design";
-const fallback = '{"brand":"a","theme":"system"}';
+const fallback = '{"theme":"system"}';
 const listeners = new Set<() => void>();
 
 /** Lựa chọn đã nhớ dạng chuỗi JSON (bộ nhớ trình duyệt có thể bị chặn thì dùng mặc định). */
@@ -108,7 +105,7 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
-const save = (prefs: { brand: string; theme: string }) => {
+const save = (prefs: { theme: string }) => {
   try {
     localStorage.setItem(KEY, JSON.stringify(prefs));
   } catch {
@@ -120,7 +117,7 @@ const save = (prefs: { brand: string; theme: string }) => {
 let memory: string | null = null;
 
 /**
- * Nhóm nút chọn một (radio native) dạng thanh phân đoạn, dùng cho bộ chuyển phương án/chế độ.
+ * Nhóm nút chọn một (radio native) dạng thanh phân đoạn, dùng cho bộ chuyển chế độ sáng/tối.
  *
  * @param props - `legend` là tên nhóm; `name` là tên radio; `options` là [giá trị, nhãn]; `value`/`onChange` điều khiển lựa chọn.
  * @returns Nhóm radio.
@@ -191,35 +188,46 @@ const tone = (t: string) => t as Tone;
 
 /**
  * Trang xem trước design system Minibox (token, nhận diện, component, mẫu bố cục), dùng chung cho shop và admin.
- * Pha 1 #448 có bộ chuyển 3 phương án nhận diện và chế độ sáng/tối để PO so sánh.
+ * Có bộ chuyển sáng/tối/hệ thống (nhớ lựa chọn) và nút giỏ trên thanh đầu làm đích cho hiệu ứng hộp bay vào giỏ.
  *
  * @returns Nội dung trang `/design`.
  */
 export const DesignShowcase = () => {
   const prefs = useSyncExternalStore(subscribe, () => memory ?? read(), () => fallback);
-  const { brand, theme } = { brand: "a", theme: "system", ...(JSON.parse(prefs) as { brand?: string; theme?: string }) };
-  const setBrand = (b: string) => save({ brand: b, theme });
-  const setTheme = (t: string) => save({ brand, theme: t });
+  const { theme } = { theme: "system", ...(JSON.parse(prefs) as { theme?: string }) };
+  const setTheme = (t: string) => save({ theme: t });
+  const [cart, setCart] = useState(0);
+  const addToCart = (source: Element, name: string) => {
+    toast({ title: "Đã thêm vào giỏ", description: name });
+    void flyToCart(source).then(() => setCart((c) => c + 1));
+  };
   const [qty, setQty] = useState(2);
   const [page, setPage] = useState(3);
   const [replay, setReplay] = useState(0);
 
-  // Đồng bộ lựa chọn lên <html> (theme.css đọc data-brand/data-theme).
+  // Đồng bộ lựa chọn lên <html> (theme.css đọc data-theme).
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.brand = brand;
     if (theme === "system") delete root.dataset.theme;
     else root.dataset.theme = theme;
-  }, [brand, theme]);
+  }, [theme]);
 
   return (
     <>
+      <BrandScene />
       <div className="sticky top-0 z-sticky border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5 sm:px-6 lg:px-8">
           <Logo className="text-base" title="Minibox" />
           <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Segmented legend="Phương án" name="brand" options={brands} value={brand} onChange={setBrand} />
             <Segmented legend="Chế độ" name="theme" options={themes} value={theme} onChange={setTheme} />
+            <span data-cart-target role="status" aria-label={`Giỏ hàng mẫu, ${cart} sản phẩm`} className="relative flex size-11 items-center justify-center rounded-box text-foreground">
+              <ShoppingBagIcon aria-hidden className="size-6" />
+              {cart > 0 && (
+                <span aria-hidden className="absolute top-1 right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 font-mono text-[0.6875rem] font-semibold text-primary-foreground">
+                  {cart}
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -238,10 +246,10 @@ export const DesignShowcase = () => {
         <main className="flex min-w-0 flex-col gap-20">
           <header className="flex animate-rise flex-col gap-4">
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-balance sm:text-5xl">Design system Minibox</h1>
-            <p className="max-w-prose text-lg text-muted">Một bộ token và component cho cửa hàng và trang quản trị. Đổi phương án ở thanh trên cùng để so sánh.</p>
+            <p className="max-w-prose text-lg text-muted">Một bộ token và component cho cửa hàng và trang quản trị. Bộ nhận diện Rừng sâu, đổi sáng/tối ở thanh trên cùng.</p>
           </header>
 
-          <Section id="nhan-dien" title="Nhận diện" desc="Khối lập phương nhìn theo góc isometric 30 độ. Mỗi phương án có màu, font tiêu đề và mark riêng.">
+          <Section id="nhan-dien" title="Nhận diện" desc="Khối lập phương chữ M tự xoay như tay xoay hộp; bản đầy đủ nối thành Minibox.vn. Vân lớp in và mặt trên lưới infill gợi vật vừa in 3D xong. Nền là rừng thông buổi sáng (sáng) và dưới trăng (tối).">
             <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
               <Box className="flex min-h-56 flex-col justify-between gap-8 bg-surface-raised p-6">
                 <div key={replay}>
@@ -259,7 +267,7 @@ export const DesignShowcase = () => {
                 </div>
               </Box>
               <div className="chamfer flex flex-col justify-between gap-6 rounded-lg bg-primary p-6 text-primary-foreground shadow-box-2">
-                <Logo withWordmark={false} className="text-5xl text-primary-foreground [&_.fill-primary]:fill-primary-foreground [&_.fill-primary-hover]:fill-primary-foreground/70" title="Mark trên nền màu chính" />
+                <Logo withWordmark={false} className="text-5xl [&_.logo-cube]:[--cube-face:var(--color-primary-foreground)] [&_.logo-cube]:[--cube-ink:var(--color-primary)]" title="Mark trên nền màu chính" />
                 <p className="font-display text-2xl leading-tight font-semibold text-balance">Đồ in 3D tinh tế, đựng trong những chiếc hộp nhỏ.</p>
               </div>
             </div>
@@ -311,7 +319,7 @@ export const DesignShowcase = () => {
           <Section id="nut" title="Nút" desc="Cao 44 điểm cho ngón tay, nhấn thì thu nhỏ một chút. Mỗi màn hình chỉ một nút chính.">
             <Box className="flex flex-col gap-5">
               <div className="flex flex-wrap items-center gap-3">
-                <Button>
+                <Button onClick={(e) => addToCart(e.currentTarget, "Đèn ngủ khối lập phương")}>
                   Thêm vào giỏ
                   <ArrowRightIcon aria-hidden />
                 </Button>
@@ -600,7 +608,7 @@ export const DesignShowcase = () => {
                   ]}
                 />
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={() => toast({ title: "Đã thêm vào giỏ", description: featured.name })}>
+                  <Button onClick={(e) => addToCart(e.currentTarget, featured.name)}>
                     <ShoppingBagIcon aria-hidden />
                     Đặt cọc và in
                   </Button>

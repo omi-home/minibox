@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  */
 const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
-    // data-brand/data-theme do trang /design đặt phía client (pha 1 #448), nên bỏ cảnh báo lệch thuộc tính khi hydrate.
+    // data-theme do trang /design đặt phía client (bộ chuyển sáng/tối), nên bỏ cảnh báo lệch thuộc tính khi hydrate.
     <html lang="vi" className={fontVariables} suppressHydrationWarning>
       <body>{children}</body>
     </html>

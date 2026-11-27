@@ -31,6 +31,7 @@ export type ShopShellProps = {
 
 /**
  * Khung trang shop: link bỏ qua, header dính một dòng (logo, điều hướng, tìm kiếm, giỏ), nội dung, footer gọn, điều hướng dưới trên mobile.
+ * Nút giỏ là đích của {@link flyToCart}.
  *
  * @param props - {@link ShopShellProps}.
  * @returns Khung trang.
@@ -60,6 +61,7 @@ export const ShopShell = ({ nav, cartCount = 0, search, children, link: Link = "
           <div className="ml-auto hidden max-w-sm flex-1 lg:block">{search}</div>
           <Link
             href="/gio-hang"
+            data-cart-target
             aria-label={`Giỏ hàng, ${cartCount} sản phẩm`}
             className="relative ml-auto flex size-11 items-center justify-center rounded-box text-foreground transition-colors hover:bg-surface-sunken lg:ml-0"
           >

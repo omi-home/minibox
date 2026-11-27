@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Tương phản WCAG AA của token màu cho từng phương án nhận diện (a, b, c) × chế độ (sáng, tối), tính từ giá trị oklch trong theme.css.
+// Tương phản WCAG AA của token màu (bộ Rừng sâu) × chế độ (sáng, tối), tính từ giá trị oklch trong theme.css; gồm chữ trên cảnh nền.
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 
@@ -25,12 +25,12 @@ const parse = (s: string): Lch => {
 /** Bảng token → [sáng, tối] của một khối CSS. */
 const tokens = (src: string) => {
   const out = new Map<string, [Lch, Lch]>();
-  for (const m of src.matchAll(/--color-([\w-]+):\s*light-dark\((oklch\([^)]*\)),\s*(oklch\([^)]*\))\)/g)) out.set(m[1]!, [parse(m[2]!), parse(m[3]!)]);
+  for (const m of src.matchAll(/--(?:color-)?((?:scene-)?[\w-]+):\s*light-dark\((oklch\([^)]*\)),\s*(oklch\([^)]*\))\)/g)) out.set(m[1]!, [parse(m[2]!), parse(m[3]!)]);
   return out;
 };
 
-const base = tokens(block("@theme static"));
-const brands = { a: base, b: new Map([...base, ...tokens(block('[data-brand="b"]'))]), c: new Map([...base, ...tokens(block('[data-brand="c"]'))]) };
+// Token màu ở @theme; màu cảnh nền (--scene-*) ở :root của @layer base.
+const map = new Map([...tokens(block("@theme static")), ...tokens(block(":root {"))]);
 
 const lum = ([l, c, h]: Lch) => {
   const a = c * Math.cos((h * Math.PI) / 180);
@@ -69,15 +69,17 @@ const pairs: [string, string, number][] = [
   ["danger", "danger-soft", 4.5],
   ["info", "info-soft", 4.5],
   ["danger", "surface", 4.5],
+  // Chữ đặt thẳng trên nền khi cuộn qua lớp rừng gần nhất (đậm nhất) của cảnh nền.
+  ["foreground", "scene-near", 7],
+  ["muted", "scene-near", 4.5],
 ];
 
-for (const [brand, map] of Object.entries(brands))
-  for (const [mode, i] of [["sáng", 0], ["tối", 1]] as const)
-    for (const [fg, bg, min] of pairs)
-      test(`ac231_1 tương phản ${brand}/${mode}: ${fg} trên ${bg} ≥ ${min}`, () => {
-        const f = map.get(fg);
-        const b = map.get(bg);
-        expect(f, `thiếu --color-${fg}`).toBeDefined();
-        expect(b, `thiếu --color-${bg}`).toBeDefined();
-        expect(ratio(f![i], b![i])).toBeGreaterThanOrEqual(min);
-      });
+for (const [mode, i] of [["sáng", 0], ["tối", 1]] as const)
+  for (const [fg, bg, min] of pairs)
+    test(`ac231_1 tương phản ${mode}: ${fg} trên ${bg} ≥ ${min}`, () => {
+      const f = map.get(fg);
+      const b = map.get(bg);
+      expect(f, `thiếu --${fg}`).toBeDefined();
+      expect(b, `thiếu --${bg}`).toBeDefined();
+      expect(ratio(f![i], b![i])).toBeGreaterThanOrEqual(min);
+    });

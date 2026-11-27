@@ -3,8 +3,7 @@
  * Tailwind v4 sinh utility từ các biến @theme (bg-surface, text-muted, rounded-box, shadow-box-2, chamfer, sm:/lg:/2xl:…);
  * `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
  * Mỗi màu khai light-dark(sáng, tối): chế độ theo hệ điều hành, hoặc ép bằng data-theme="light|dark" trên <html>.
- * PHA 1 #448: ba phương án nhận diện để PO so sánh. A (Đá & Cobalt) là mặc định; B (Rừng sâu), C (Tủ kính đêm) ghi đè bằng
- * data-brand="b|c" trên <html>. Sau khi PO chọn, gộp về một bộ và xoá khối data-brand.
+ * Bộ nhận diện "Rừng sâu" (PO chốt OPEN-08): xanh rừng đậm làm mảng thương hiệu + xương lạnh, điểm hổ phách (highlight) rất ít.
  * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`, <html className={fontVariables}>.
  */
 
@@ -20,21 +19,21 @@
   --color-*: initial;
   --color-white: oklch(0.995 0 0);
   --color-black: oklch(0.15 0.005 260);
-  --color-background: light-dark(oklch(0.975 0.004 255), oklch(0.16 0.01 262));
-  --color-surface: light-dark(oklch(0.995 0.002 255), oklch(0.2 0.012 262));
-  --color-surface-sunken: light-dark(oklch(0.95 0.005 255), oklch(0.135 0.01 262));
-  --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.24 0.013 262));
-  --color-foreground: light-dark(oklch(0.21 0.015 262), oklch(0.95 0.005 255));
-  --color-muted: light-dark(oklch(0.48 0.015 262), oklch(0.72 0.012 262));
-  --color-border: light-dark(oklch(0.9 0.006 255), oklch(0.3 0.012 262));
-  --color-border-strong: light-dark(oklch(0.8 0.01 255), oklch(0.42 0.014 262));
-  --color-primary: light-dark(oklch(0.5 0.2 264), oklch(0.7 0.15 264));
-  --color-primary-hover: light-dark(oklch(0.44 0.19 264), oklch(0.76 0.13 264));
-  --color-primary-foreground: light-dark(oklch(0.985 0.01 264), oklch(0.18 0.05 264));
-  --color-accent: light-dark(oklch(0.94 0.04 264), oklch(0.3 0.07 264));
-  --color-accent-foreground: light-dark(oklch(0.42 0.17 264), oklch(0.86 0.08 264));
-  --color-highlight: light-dark(oklch(0.5 0.2 264), oklch(0.7 0.15 264));
-  --color-focus: light-dark(oklch(0.58 0.2 264), oklch(0.74 0.15 264));
+  --color-background: light-dark(oklch(0.97 0.006 160), oklch(0.165 0.015 165));
+  --color-surface: light-dark(oklch(0.993 0.003 160), oklch(0.205 0.018 165));
+  --color-surface-sunken: light-dark(oklch(0.945 0.008 160), oklch(0.14 0.014 165));
+  --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.245 0.02 165));
+  --color-foreground: light-dark(oklch(0.22 0.02 165), oklch(0.95 0.008 160));
+  --color-muted: light-dark(oklch(0.47 0.02 165), oklch(0.73 0.02 160));
+  --color-border: light-dark(oklch(0.89 0.01 160), oklch(0.31 0.02 165));
+  --color-border-strong: light-dark(oklch(0.79 0.014 160), oklch(0.43 0.024 165));
+  --color-primary: light-dark(oklch(0.38 0.08 165), oklch(0.72 0.1 160));
+  --color-primary-hover: light-dark(oklch(0.33 0.075 165), oklch(0.78 0.09 160));
+  --color-primary-foreground: light-dark(oklch(0.97 0.015 160), oklch(0.18 0.04 165));
+  --color-accent: light-dark(oklch(0.93 0.03 165), oklch(0.3 0.05 165));
+  --color-accent-foreground: light-dark(oklch(0.36 0.07 165), oklch(0.86 0.07 160));
+  --color-highlight: light-dark(oklch(0.78 0.14 75), oklch(0.8 0.13 75));
+  --color-focus: light-dark(oklch(0.55 0.1 165), oklch(0.75 0.1 160));
   --color-success: light-dark(oklch(0.5 0.12 150), oklch(0.76 0.13 150));
   --color-success-soft: light-dark(oklch(0.95 0.03 150), oklch(0.27 0.05 150));
   --color-warning: light-dark(oklch(0.52 0.11 60), oklch(0.8 0.13 75));
@@ -47,8 +46,8 @@
   --color-info-soft: light-dark(oklch(0.95 0.03 245), oklch(0.27 0.05 245));
 
 
-  /* Chữ: tiêu đề theo phương án (font-display), chữ thường Be Vietnam Pro, mono cho SKU/kích thước/giá. Biến font do next/font gắn trên <html>. */
-  --font-display: var(--font-brand-a, var(--font-body)), system-ui, sans-serif;
+  /* Chữ: tiêu đề Space Grotesk (font-display), chữ thường Be Vietnam Pro, mono cho SKU/kích thước/giá. Biến font do next/font gắn trên <html>. */
+  --font-display: var(--font-heading, var(--font-body)), system-ui, sans-serif;
   --font-sans: var(--font-body, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: var(--font-code, ui-monospace), SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -112,7 +111,6 @@
   --animate-slot-out: slot 160ms var(--ease-in-box) reverse;
   --animate-cube-spin: cube 1.6s var(--ease-out-box) infinite;
   --animate-shimmer: shimmer 1.4s linear infinite;
-  --animate-assemble: assemble 900ms var(--ease-out-box) both;
 
   @keyframes sheet-up {
     from { transform: translateY(100%); }
@@ -141,9 +139,6 @@
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
   }
-  @keyframes assemble {
-    from { opacity: 0; transform: translateY(-40%); }
-  }
 }
 
 /* Góc vát nắp hộp: viền, bóng và focus đi theo góc vát; trình duyệt chưa hỗ trợ corner-shape thì thành góc bo. */
@@ -161,10 +156,25 @@
     color-scheme: light dark;
     /* Viền sáng phía trên khối (nắp hộp). */
     --rim: light-dark(oklch(1 0 0 / 0.8), oklch(1 0 0 / 0.06));
-    /* Màu pha vào bóng (không đen thuần), theo sắc nền của phương án; ngoài @theme để Tailwind không chép cứng vào utility. */
-    --shade: light-dark(oklch(0.3 0.04 262), oklch(0 0 0));
+    /* Màu pha vào bóng (không đen thuần), theo sắc nền; ngoài @theme để Tailwind không chép cứng vào utility. */
+    --shade: light-dark(oklch(0.3 0.04 165), oklch(0 0 0));
     /* Chiều cao control: 44px cho ngón tay; admin bật data-density="compact". */
     --control-h: 2.75rem;
+
+    /*
+     * Cảnh nền (scene.tsx): sáng = buổi sáng, tối = ban đêm. Lớp xa/giữa/gần cùng tông sáng với nền để chữ trên nền vẫn đọc được.
+     * Cảnh rừng thông trong sương sớm / dưới trăng, đom đóm hổ phách.
+     */
+    --scene-sun: light-dark(oklch(0.96 0.09 92), transparent);
+    --scene-moon: light-dark(transparent, oklch(0.93 0.03 95));
+    --scene-halo: light-dark(oklch(0.98 0.06 92 / 0.7), oklch(0.9 0.03 95 / 0.18));
+    --scene-star: light-dark(transparent, oklch(0.95 0.02 95));
+    --scene-cloud: light-dark(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.04));
+    --scene-sky: light-dark(oklch(0.93 0.04 115), oklch(0.24 0.035 200));
+    --scene-far: light-dark(oklch(0.935 0.02 160), oklch(0.215 0.03 170));
+    --scene-mid: light-dark(oklch(0.905 0.035 160), oklch(0.19 0.028 170));
+    --scene-near: light-dark(oklch(0.875 0.05 162), oklch(0.165 0.022 170));
+    --scene-glow: light-dark(transparent, oklch(0.88 0.16 95));
   }
   [data-theme="light"] {
     color-scheme: light;
@@ -174,48 +184,6 @@
   }
   [data-density="compact"] {
     --control-h: 2.25rem;
-  }
-
-  /* Phương án B · Rừng sâu: xanh rừng đậm + xương lạnh, điểm hổ phách (highlight) rất ít. */
-  [data-brand="b"] {
-    --font-display: var(--font-brand-b, var(--font-body)), system-ui, sans-serif;
-    --color-background: light-dark(oklch(0.97 0.006 160), oklch(0.165 0.015 165));
-    --color-surface: light-dark(oklch(0.993 0.003 160), oklch(0.205 0.018 165));
-    --color-surface-sunken: light-dark(oklch(0.945 0.008 160), oklch(0.14 0.014 165));
-    --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.245 0.02 165));
-    --color-foreground: light-dark(oklch(0.22 0.02 165), oklch(0.95 0.008 160));
-    --color-muted: light-dark(oklch(0.47 0.02 165), oklch(0.73 0.02 160));
-    --color-border: light-dark(oklch(0.89 0.01 160), oklch(0.31 0.02 165));
-    --color-border-strong: light-dark(oklch(0.79 0.014 160), oklch(0.43 0.024 165));
-    --color-primary: light-dark(oklch(0.38 0.08 165), oklch(0.72 0.1 160));
-    --color-primary-hover: light-dark(oklch(0.33 0.075 165), oklch(0.78 0.09 160));
-    --color-primary-foreground: light-dark(oklch(0.97 0.015 160), oklch(0.18 0.04 165));
-    --color-accent: light-dark(oklch(0.93 0.03 165), oklch(0.3 0.05 165));
-    --color-accent-foreground: light-dark(oklch(0.36 0.07 165), oklch(0.86 0.07 160));
-    --color-highlight: light-dark(oklch(0.78 0.14 75), oklch(0.8 0.13 75));
-    --color-focus: light-dark(oklch(0.55 0.1 165), oklch(0.75 0.1 160));
-    --shade: light-dark(oklch(0.3 0.04 165), oklch(0 0 0));
-  }
-
-  /* Phương án C · Tủ kính đêm: đen than + nâu da sáng; đẹp nhất ở chế độ tối. */
-  [data-brand="c"] {
-    --font-display: var(--font-brand-c, var(--font-body)), system-ui, sans-serif;
-    --color-background: light-dark(oklch(0.97 0.003 60), oklch(0.145 0.006 50));
-    --color-surface: light-dark(oklch(0.993 0.002 60), oklch(0.185 0.007 50));
-    --color-surface-sunken: light-dark(oklch(0.94 0.004 60), oklch(0.12 0.005 50));
-    --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.225 0.008 50));
-    --color-foreground: light-dark(oklch(0.2 0.008 50), oklch(0.94 0.008 70));
-    --color-muted: light-dark(oklch(0.47 0.01 50), oklch(0.72 0.012 65));
-    --color-border: light-dark(oklch(0.88 0.005 60), oklch(0.29 0.008 50));
-    --color-border-strong: light-dark(oklch(0.78 0.008 60), oklch(0.41 0.01 50));
-    --color-primary: light-dark(oklch(0.55 0.085 58), oklch(0.78 0.085 68));
-    --color-primary-hover: light-dark(oklch(0.49 0.08 56), oklch(0.83 0.075 68));
-    --color-primary-foreground: light-dark(oklch(0.985 0.006 60), oklch(0.18 0.02 50));
-    --color-accent: light-dark(oklch(0.93 0.025 65), oklch(0.28 0.03 60));
-    --color-accent-foreground: light-dark(oklch(0.43 0.07 60), oklch(0.85 0.06 68));
-    --color-highlight: light-dark(oklch(0.55 0.085 58), oklch(0.78 0.085 68));
-    --color-focus: light-dark(oklch(0.55 0.09 60), oklch(0.8 0.08 68));
-    --shade: light-dark(oklch(0.25 0.02 50), oklch(0 0 0));
   }
 
   body {
@@ -255,16 +223,130 @@
   }
 }
 
-/* PHA 1 #448: Logo vẽ cả 3 biến thể mark; chỉ hiện biến thể của phương án đang chọn. Gộp phương án thì xoá khối này. */
 @layer components {
-  .logo-b,
-  .logo-c,
-  [data-brand="b"] .logo-a,
-  [data-brand="c"] .logo-a {
-    display: none;
+  /*
+   * Logo: khối lập phương 3D cạnh 1.15em, chữ M trên bốn mặt bên, xoay từng nấc 90° rồi dừng đọc (như tay xoay hộp).
+   * Màu theo --cube-face (mặt) và --cube-ink (chữ); trên nền màu chính thì đảo hai biến này.
+   */
+  .logo-cube {
+    --cube-face: var(--color-primary);
+    --cube-ink: var(--color-primary-foreground);
+    --cube-layer: color-mix(in oklab, var(--cube-ink) 16%, transparent);
+    width: 1.15em;
+    height: 1.15em;
+    flex-shrink: 0;
+    /* Khối xoay chìa ra ngoài hộp của nó: chừa lề để không đè chữ bên cạnh. */
+    margin-inline: 0.18em 0.22em;
+    perspective: 9em;
   }
-  [data-brand="b"] .logo-b,
-  [data-brand="c"] .logo-c {
-    display: inline;
+  /* Xoay bắt đầu sau khi khối in xong. */
+  .logo-cube > span {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateX(-16deg) rotateY(-28deg);
+    animation: logo-turn 9s var(--ease-out-box) 1.7s infinite;
+  }
+  /*
+   * Liên tưởng in 3D: mặt bên có vân lớp in ngang (FDM), mặt trên là lưới infill chéo. Khi tải, bốn mặt bên được "in" dựng từ
+   * dưới lên theo từng lớp (steps), rồi mặt trên đậy lại như lớp cuối cùng.
+   */
+  .logo-cube i {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background-color: var(--cube-face);
+    background-image: repeating-linear-gradient(to bottom, transparent 0 0.075em, var(--cube-layer) 0.075em 0.1em);
+    color: var(--cube-ink);
+    box-shadow: inset 0 0 0 0.04em color-mix(in oklab, var(--cube-face) 60%, var(--color-white));
+    font: normal 700 1em/1 var(--font-display);
+    animation: logo-print 1.3s steps(11, end) both;
+  }
+  .logo-cube i::before {
+    content: "M";
+    font-size: 0.82em;
+    letter-spacing: -0.04em;
+  }
+  .logo-cube [data-face="front"] { transform: translateZ(0.575em); }
+  .logo-cube [data-face="right"] { transform: rotateY(90deg) translateZ(0.575em); background-color: color-mix(in oklab, var(--cube-face) 80%, var(--color-black)); }
+  .logo-cube [data-face="back"] { transform: rotateY(180deg) translateZ(0.575em); }
+  .logo-cube [data-face="left"] { transform: rotateY(-90deg) translateZ(0.575em); background-color: color-mix(in oklab, var(--cube-face) 80%, var(--color-black)); }
+  .logo-cube [data-face="top"] {
+    transform: rotateX(90deg) translateZ(0.575em);
+    background-color: color-mix(in oklab, var(--cube-face) 55%, var(--color-white));
+    background-image:
+      repeating-linear-gradient(45deg, transparent 0 0.16em, var(--cube-layer) 0.16em 0.2em),
+      repeating-linear-gradient(-45deg, transparent 0 0.16em, var(--cube-layer) 0.16em 0.2em);
+    animation: logo-cap 0.25s ease-out 1.3s both;
+  }
+  .logo-cube [data-face="bottom"] { transform: rotateX(-90deg) translateZ(0.575em); animation: none; }
+  .logo-cube [data-face="top"]::before,
+  .logo-cube [data-face="bottom"]::before {
+    content: none;
+  }
+  @keyframes logo-print {
+    from { clip-path: inset(100% 0 0 0); }
+    to { clip-path: inset(0); }
+  }
+  @keyframes logo-cap {
+    from { opacity: 0; }
+  }
+  @keyframes logo-turn {
+    0%, 19% { transform: rotateX(-16deg) rotateY(-28deg); }
+    25%, 44% { transform: rotateX(-16deg) rotateY(-118deg); }
+    50%, 69% { transform: rotateX(-16deg) rotateY(-208deg); }
+    75%, 94% { transform: rotateX(-16deg) rotateY(-298deg); }
+    100% { transform: rotateX(-16deg) rotateY(-388deg); }
+  }
+
+  /* Hộp bay vào giỏ (flyToCart trong brand.tsx): khối chữ M xoay nhanh trong lúc bay, không chạy hiệu ứng in. */
+  .cart-fly {
+    position: fixed;
+    z-index: var(--z-index-toast);
+    pointer-events: none;
+  }
+  .cart-fly > span {
+    display: block;
+  }
+  .cart-fly .logo-cube {
+    display: block;
+    margin: 0;
+  }
+  .cart-fly .logo-cube i {
+    animation: none;
+  }
+  .cart-fly .logo-cube > span {
+    animation: cart-spin 0.8s linear;
+  }
+  @keyframes cart-spin {
+    from { transform: rotateX(-16deg) rotateY(-28deg); }
+    to { transform: rotateX(-30deg) rotateY(-388deg); }
+  }
+
+  /* Cảnh nền (scene.tsx): chuyển động nhẹ, tắt theo prefers-reduced-motion ở trên. */
+  .scene-drift {
+    animation: scene-drift 70s ease-in-out infinite alternate;
+  }
+  .scene-twinkle {
+    animation: scene-twinkle 3.5s ease-in-out infinite alternate;
+  }
+  .scene-float {
+    transform-box: fill-box;
+    animation: scene-float 5s ease-in-out infinite alternate;
+  }
+  @keyframes scene-drift {
+    from { transform: translateX(-80px); }
+    to { transform: translateX(120px); }
+  }
+  @keyframes scene-twinkle {
+    to { opacity: 0.25; }
+  }
+  @keyframes scene-float {
+    0% { transform: translate(0, 0); opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { transform: translate(14px, -26px); opacity: 0.35; }
   }
 }

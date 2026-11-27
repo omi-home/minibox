@@ -13,15 +13,11 @@ const breakpoints = [
 // Nhóm mục bắt buộc trên /design (spec #448 §7).
 const sections = ["Nhận diện", "Nút", "Ô nhập", "Chọn và đánh dấu", "Phản hồi", "Lớp phủ", "Điều hướng", "Thương mại", "Bảng và thẻ", "Bố cục"];
 
-/** Đặt phương án/chế độ như bộ chuyển trên trang, chờ hiệu ứng hiện dần xong (bỏ qua hiệu ứng lặp vô hạn). */
-const settle = async (page: Page, brand?: string, theme?: string) => {
-  await page.evaluate(
-    ([b, t]) => {
-      if (b) document.documentElement.dataset.brand = b;
-      if (t) document.documentElement.dataset.theme = t;
-    },
-    [brand, theme],
-  );
+/** Đặt chế độ sáng/tối như bộ chuyển trên trang, chờ hiệu ứng hiện dần xong (bỏ qua hiệu ứng lặp vô hạn). */
+const settle = async (page: Page, theme?: string) => {
+  await page.evaluate((t) => {
+    if (t) document.documentElement.dataset.theme = t;
+  }, theme);
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity));
 };
 
@@ -32,7 +28,7 @@ for (const [app, base] of Object.entries(APPS)) {
   });
 
   for (const bp of breakpoints) {
-    test(`ac231_3 ${app} /design ${bp.name} ${bp.width}px: chụp ảnh, mobile có điều hướng dưới và bảng thành thẻ`, async ({ page }, info) => {
+    test(`ac231_3 ${app} /design ${bp.name} ${bp.width}px: khớp ảnh chuẩn, mobile có điều hướng dưới và bảng thành thẻ`, async ({ page }) => {
       await page.setViewportSize(bp);
       await page.goto(`${base}/design`);
       const mobile = bp.width < 640;
@@ -44,26 +40,25 @@ for (const [app, base] of Object.entries(APPS)) {
       await expect(table).toBeVisible({ visible: !mobile });
       if (mobile) await expect(cards.getByRole("listitem")).toHaveCount(4);
       await settle(page);
-      // Ảnh chụp làm bằng chứng nghiệm thu (test-results/, CI tải lên artifact).
-      const shot = await page.screenshot({ path: info.outputPath(`${app}-${bp.name}.png`), fullPage: true, animations: "disabled" });
-      await info.attach(`${app}-${bp.name}`, { body: shot, contentType: "image/png" });
+      // Ảnh chuẩn (e2e/design.spec.ts-snapshots, chụp trên Linux như CI). Che ảnh sản phẩm mẫu vì tải từ Unsplash.
+      // Đổi giao diện có chủ đích: `pnpm exec playwright test --update-snapshots` trong container Playwright rồi commit ảnh mới.
+      await expect(page).toHaveScreenshot(`${app}-${bp.name}.png`, { fullPage: true, animations: "disabled", mask: [page.locator("img")], maxDiffPixelRatio: 0.01 });
     });
   }
 
-  test(`ac231_4 ${app} /design: axe không có lỗi critical/serious ở 4 breakpoint × sáng/tối × 3 phương án`, async ({ page }) => {
+  test(`ac231_4 ${app} /design: axe không có lỗi critical/serious ở 4 breakpoint × sáng/tối`, async ({ page }) => {
     test.setTimeout(180_000);
     const severe: string[] = [];
     for (const bp of breakpoints) {
       await page.setViewportSize(bp);
       await page.goto(`${base}/design`);
       await page.getByRole("heading", { level: 1 }).waitFor();
-      for (const brand of ["a", "b", "c"])
-        for (const theme of ["light", "dark"]) {
-          await settle(page, brand, theme);
-          const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
-          for (const v of violations.filter((x) => x.impact === "critical" || x.impact === "serious"))
-            severe.push(`${bp.name}/${brand}/${theme} ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
-        }
+      for (const theme of ["light", "dark"]) {
+        await settle(page, theme);
+        const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+        for (const v of violations.filter((x) => x.impact === "critical" || x.impact === "serious"))
+          severe.push(`${bp.name}/${theme} ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+      }
     }
     expect(severe).toEqual([]);
   });
