@@ -37,3 +37,10 @@ jobs:
           cache-dependency-path: src/frontend/pnpm-lock.yaml
       - run: node scripts/test.mjs
       - run: node scripts/e2e.mjs
+      # Ảnh chụp /design 4 breakpoint (bằng chứng nghiệm thu #231) và trace khi lỗi.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: src/frontend/test-results/
+          if-no-files-found: ignore
