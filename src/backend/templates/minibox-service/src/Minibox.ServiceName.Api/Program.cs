@@ -1,7 +1,13 @@
+using Minibox.BuildingBlocks.Application.Behaviors;
+using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
+using Minibox.ServiceName.Api.Endpoints.Samples;
+using Minibox.ServiceName.Application;
 using Minibox.ServiceName.Infrastructure;
+using Minibox.ServiceName.Infrastructure.Persistence;
 using Npgsql;
+using Wolverine;
 
 // --migrate: áp migration bằng role servicename_migrator rồi thoát (spec §4.4). Chuỗi kết nối migrator chỉ lấy từ biến môi trường
 // do job deploy cấp từ secret; không đặt trong appsettings, không dùng cho runtime.
@@ -10,18 +16,45 @@ if (DbMigrator.RunIfRequested(args, "servicename", typeof(Program).Assembly,
               ?? throw new InvalidOperationException($"Thiếu biến môi trường {Program.MigratorConnectionVariable}")) is int code)
     return code;
 
+// Composition root (spec §5.2): chỉ đăng ký và map; endpoint nằm ở Endpoints/, xử lý ở Application/Features (StructureRules kiểm).
 var builder = WebApplication.CreateBuilder(args);
+// Runtime dùng role servicename_app (chỉ DML): ConnectionStrings__App; RabbitMQ: ConnectionStrings__RabbitMq (amqp://…).
+// Lúc build sinh OpenAPI (contracts/openapi) host không có cấu hình: dùng giá trị giữ chỗ, không kết nối.
+var appConnection = builder.Configuration.RequiredConnectionString("App", "Host=openapi-build");
+var rabbitMq = builder.Configuration.RequiredConnectionString("RabbitMq", "amqp://openapi-build");
+
 builder.AddMiniboxObservability("servicename");
+// Wolverine kết nối PostgreSQL/RabbitMQ ngay khi dựng host; bước sinh OpenAPI lúc build chỉ cần metadata endpoint nên bỏ qua.
+if (!MiniboxConfiguration.IsGeneratingOpenApi)
+    builder.Host.UseWolverine(o =>
+    {
+        o.UseMiniboxMessaging(appConnection, ServiceNameDbContext.Schema, new Uri(rabbitMq));
+        // Handler nghiệp vụ đi qua Mediator; tắt quét quy ước để Wolverine không nhận nhầm *Handler. Consumer khai báo tường minh khi có.
+        o.Discovery.DisableConventionalDiscovery();
+    });
 builder.Services
     .AddMiniboxWeb()
-    // Runtime dùng role servicename_app (chỉ DML): ConnectionStrings__App.
-    .AddSingleton(sp => NpgsqlDataSource.Create(sp.GetRequiredService<IConfiguration>().GetConnectionString("App")
-        ?? throw new InvalidOperationException("Thiếu ConnectionStrings:App")))
-    .AddServiceNameInfrastructure();
+    .AddSingleton(_ => NpgsqlDataSource.Create(appConnection))
+    .AddServiceNameApplication()
+    .AddServiceNameInfrastructure(appConnection)
+    .AddMediator(options =>
+    {
+        options.ServiceLifetime = ServiceLifetime.Scoped;
+        // Thứ tự spec §5.4: logging → validation → authorization → transaction (chỉ command) → idempotency (trong transaction).
+        options.PipelineBehaviors =
+        [
+            typeof(LoggingBehavior<,>),
+            typeof(ValidationBehavior<,>),
+            typeof(AuthorizationBehavior<,>),
+            typeof(TransactionBehavior<,>),
+            typeof(IdempotencyBehavior<,>),
+        ];
+    });
 
 var app = builder.Build();
 app.UseMiniboxWeb();
 app.MapMiniboxHealthChecks();
+app.MapSampleEndpoints();
 app.Run();
 return 0;
 

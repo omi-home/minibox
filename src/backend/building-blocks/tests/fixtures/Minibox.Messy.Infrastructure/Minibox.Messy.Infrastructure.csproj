@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.Messy.Application/Minibox.Messy.Application.csproj" />
+  </ItemGroup>
+</Project>

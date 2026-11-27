@@ -8,6 +8,15 @@ Nguồn sự thật: `docs/technical-spec.md` (kỹ thuật), `docs/business-req
 - **Frontend** (`src/frontend`): TSDoc cho mọi export — câu tóm tắt, `@param name - mô tả`, `@returns`, `@throws`, `@remarks`/`@example`. `pnpm lint` chặn thiếu comment và sai cú pháp TSDoc.
 - Viết tiếng Việt, nói ý nghĩa/hợp đồng chứ không lặp tên hay kiểu. Không bắt buộc với test và file cấu hình.
 
+## Kiến trúc backend (spec §5.1–§5.4, §4.5)
+
+- Khung chuẩn = template `src/backend/templates/minibox-service` (`dotnet new minibox-service -n <Tên> -o services/<tên>`); đặt code theo bảng §5.2.
+- `Program.cs` chỉ đăng ký + map: endpoint ở `Api/Endpoints/<Tên>/` (request → command/query → `ISender.Send` → `.ToHttpResult()`), không dùng Infrastructure/Domain.
+- Handler chỉ ở `Application/Features/<Tên>/{Commands,Queries}/…`; port ở `Application/Abstractions/`; Infrastructure chỉ cài port, `DbContext`, `Configurations/`, setup.
+- Command qua aggregate + repository, pipeline Mediator lo validation → quyền → transaction/outbox/audit → idempotency (không `SaveChanges`/transaction tay); query qua read service `AsNoTracking` + `Select` ra DTO.
+- SQL thô chỉ qua `FromSql`/`ExecuteSql` có tham số; cấm `FromSqlRaw`/`ExecuteSqlRaw`.
+- `ArchitectureTests` (`DependencyRules` + `StructureRules`) và test repo chặn vi phạm.
+
 ## Component React
 
 - Mọi component (kể cả page/layout/route của Next.js) viết dạng **arrow function**: `export const Button = (props: ButtonProps) => …`;
