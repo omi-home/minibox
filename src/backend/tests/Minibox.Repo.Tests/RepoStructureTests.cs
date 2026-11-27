@@ -39,8 +39,8 @@ public class RepoStructureTests
     public void ac174_1_root_clean(string path) =>
         Assert.False(Exists(Path.Combine(RepoDir(), path)), $"Root không được có {path}");
 
-    [Fact(DisplayName = "Spec §4.5: mã backend không dùng FromSqlRaw/ExecuteSqlRaw (SQL thô chỉ qua FromSql/ExecuteSql có tham số)")]
-    public void no_raw_sql_api()
+    [Fact(DisplayName = "ac455_4 Spec §4.5: mã backend không dùng FromSqlRaw/ExecuteSqlRaw (SQL thô chỉ qua FromSql/ExecuteSql có tham số)")]
+    public void ac455_4_no_raw_sql_api()
     {
         var sep = Path.DirectorySeparatorChar;
         var hits = Directory.EnumerateFiles(BackendDir(), "*.cs", SearchOption.AllDirectories)
