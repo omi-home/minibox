@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Minibox.Localization.Application.Abstractions;
+using Minibox.Localization.Application.Features.Locales.Queries.ListAllLocales;
 using Minibox.Localization.Application.Features.Locales.Queries.ListLocales;
 using Minibox.Localization.Domain.Aggregates.Locales;
 
@@ -13,4 +14,9 @@ public sealed class LocaleReadService(LocalizationDbContext db) : ILocaleReadSer
     public async Task<LocaleDto[]> ListEnabledAsync(CancellationToken cancellationToken = default) =>
         await db.Set<Locale>().AsNoTracking().Where(l => l.Enabled).OrderBy(l => l.SortOrder).ThenBy(l => l.Id)
             .Select(l => new LocaleDto(l.Id, l.Name, l.FallbackCode)).ToArrayAsync(cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<LocaleAdminDto[]> ListAllAsync(CancellationToken cancellationToken = default) =>
+        await db.Set<Locale>().AsNoTracking().OrderBy(l => l.SortOrder).ThenBy(l => l.Id)
+            .Select(l => new LocaleAdminDto(l.Id, l.Name, l.Enabled, l.SortOrder, l.FallbackCode, l.Version)).ToArrayAsync(cancellationToken);
 }

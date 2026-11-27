@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minibox.vn/contracts/events/localization.LocaleChanged.v1.json",
+  "title": "localization.LocaleChanged.v1",
+  "description": "Locale vừa được tạo hoặc sửa. Mang trạng thái đầy đủ để service có bảng *_translation giữ bản sao danh sách locale (ghi đè theo code).",
+  "type": "object",
+  "required": ["code", "name", "enabled", "sortOrder"],
+  "additionalProperties": false,
+  "properties": {
+    "code": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", "description": "Mã BCP 47." },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Tên tự gọi." },
+    "enabled": { "type": "boolean", "description": "Đang bật cho người dùng chọn." },
+    "sortOrder": { "type": "integer", "description": "Thứ tự hiển thị." },
+    "fallbackCode": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "Locale rơi về; null hoặc vắng = vi."
+    }
+  }
+}
