@@ -28,6 +28,19 @@
     <Project Path="services/identity/tests/Minibox.Identity.IntegrationTests/Minibox.Identity.IntegrationTests.csproj" />
     <Project Path="services/identity/tests/Minibox.Identity.UnitTests/Minibox.Identity.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/services/localization/" />
+  <Folder Name="/services/localization/src/">
+    <Project Path="services/localization/src/Minibox.Localization.Api/Minibox.Localization.Api.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Application/Minibox.Localization.Application.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Contracts/Minibox.Localization.Contracts.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Domain/Minibox.Localization.Domain.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Infrastructure/Minibox.Localization.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/localization/tests/">
+    <Project Path="services/localization/tests/Minibox.Localization.ArchitectureTests/Minibox.Localization.ArchitectureTests.csproj" />
+    <Project Path="services/localization/tests/Minibox.Localization.IntegrationTests/Minibox.Localization.IntegrationTests.csproj" />
+    <Project Path="services/localization/tests/Minibox.Localization.UnitTests/Minibox.Localization.UnitTests.csproj" />
+  </Folder>
   <!-- Mã nguồn template dotnet new minibox-service: chỉ hiển thị để sửa, không build/test cùng solution (ac174_5 sinh service rồi mới build). -->
   <Folder Name="/templates/" />
   <Folder Name="/templates/minibox-service/">
