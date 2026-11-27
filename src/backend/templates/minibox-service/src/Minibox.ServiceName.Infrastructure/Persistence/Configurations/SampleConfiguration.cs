@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Minibox.BuildingBlocks.Infrastructure.Persistence;
-using Minibox.ServiceName.Domain.Samples;
+using Minibox.ServiceName.Domain.Aggregates.Samples;
 
 namespace Minibox.ServiceName.Infrastructure.Persistence.Configurations;
 
