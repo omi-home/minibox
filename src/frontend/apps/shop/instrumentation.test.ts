@@ -14,3 +14,32 @@ describe("instrumentation shop", () => {
     expect(urls.some((r) => r.test("https://api.bank.example/pay"))).toBe(false);
   });
 });
+
+const consumeMessagesPublished = vi.fn(async () => async () => {});
+const onMessagesPublished = vi.fn();
+vi.mock("@minibox/api-clients/events", () => ({ consumeMessagesPublished }));
+vi.mock("./lib/i18n", () => ({ localization: () => ({ onMessagesPublished }) }));
+
+describe("instrumentation: sự kiện localization", () => {
+  it("Có RABBITMQ_URL (runtime nodejs) thì nghe MessagesPublished và làm mới cache chuỗi", async () => {
+    vi.stubEnv("NEXT_RUNTIME", "nodejs");
+    vi.stubEnv("RABBITMQ_URL", "amqp://mq");
+    const { register } = await import("./instrumentation");
+    await register();
+    expect(consumeMessagesPublished).toHaveBeenCalledWith("amqp://mq", expect.any(Function));
+    const event = { locale: "en", namespace: "x", keys: ["a"] };
+    (consumeMessagesPublished.mock.calls[0] as unknown as [string, (e: typeof event) => void])[1](event);
+    expect(onMessagesPublished).toHaveBeenCalledWith(event);
+    vi.unstubAllEnvs();
+  });
+
+  it("Không có RABBITMQ_URL thì không kết nối (chỉ TTL)", async () => {
+    consumeMessagesPublished.mockClear();
+    vi.stubEnv("NEXT_RUNTIME", "nodejs");
+    vi.stubEnv("RABBITMQ_URL", "");
+    const { register } = await import("./instrumentation");
+    await register();
+    expect(consumeMessagesPublished).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+});

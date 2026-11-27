@@ -6,6 +6,7 @@ using Minibox.Localization.Api.Endpoints.Locales;
 using Minibox.Localization.Api.Endpoints.Messages;
 using Minibox.Localization.Application;
 using Minibox.Localization.Infrastructure;
+using Minibox.Localization.Infrastructure.Messaging;
 using Minibox.Localization.Infrastructure.Persistence;
 using Npgsql;
 using Wolverine;
@@ -33,6 +34,7 @@ if (!MiniboxConfiguration.IsGeneratingOpenApi)
     builder.Host.UseWolverine(o =>
     {
         o.UseMiniboxMessaging(appConnection, LocalizationDbContext.Schema, new Uri(rabbitMq));
+        o.PublishLocalizationEvents();
         // Handler nghiệp vụ đi qua Mediator; tắt quét quy ước để Wolverine không nhận nhầm *Handler. Consumer khai báo tường minh khi có.
         o.Discovery.DisableConventionalDiscovery();
     });

@@ -11,6 +11,7 @@ using Minibox.Localization.Contracts.Events;
 using Minibox.Localization.Domain.Aggregates.Locales;
 using Minibox.Localization.Domain.Aggregates.Messages;
 using Minibox.Localization.Infrastructure;
+using Minibox.Localization.Infrastructure.Messaging;
 using Npgsql;
 using RabbitMQ.Client;
 using Testcontainers.PostgreSql;
@@ -75,8 +76,10 @@ public sealed class EventContractTests : IAsyncLifetime
             .UseEnvironment("Development")
             .UseWolverine(o =>
             {
-                o.UseMiniboxMessaging(_cs, "localization", new Uri(_mq.GetConnectionString()));
-                o.PublishMessage<MessagesPublishedV1>().ToRabbitQueue(PublishedQueue);
+                // Định tuyến thật của Program; queue capture bind vào exchange fanout như queue tạm của BFF.
+                o.UseMiniboxMessaging(_cs, "localization", new Uri(_mq.GetConnectionString()))
+                    .BindExchange(LocalizationMessaging.MessagesPublishedExchange).ToQueue(PublishedQueue);
+                o.PublishLocalizationEvents();
                 o.PublishMessage<LocaleChangedV1>().ToRabbitQueue(LocaleQueue);
                 o.Discovery.DisableConventionalDiscovery();
             })
@@ -115,7 +118,7 @@ public sealed class EventContractTests : IAsyncLifetime
         return null;
     }
 
-    [Fact(DisplayName = "Xuất bản chuỗi phát MessagesPublished qua outbox; message trên RabbitMQ khớp JSON Schema v1, không mang nội dung chuỗi")]
+    [Fact(DisplayName = "Xuất bản chuỗi phát MessagesPublished qua outbox tới exchange fanout cho BFF; message trên RabbitMQ khớp JSON Schema v1, không mang nội dung chuỗi")]
     public async Task messages_published_matches_schema()
     {
         var message = UiMessage.Create("shop", "cart.title", "en", "Secret cart text", DateTimeOffset.UtcNow).Value;

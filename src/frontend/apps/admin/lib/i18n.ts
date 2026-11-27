@@ -2,7 +2,8 @@ import { createLocalizationClient, createMessagesCache, type MessagesCache, reso
 import { cookies, headers } from "next/headers";
 import { LOCALE_COOKIE } from "./menu";
 
-let cache: MessagesCache | undefined;
+// Gắn vào globalThis: instrumentation.ts (consumer sự kiện) và route được bundle riêng nên biến module không dùng chung.
+const shared = globalThis as { miniboxMessages?: MessagesCache };
 
 /**
  * Cache chuỗi giao diện dùng chung trong tiến trình BFF, nạp từ `LOCALIZATION_URL` (mạng nội bộ).
@@ -11,10 +12,10 @@ let cache: MessagesCache | undefined;
  * @throws Error khi thiếu `LOCALIZATION_URL`.
  */
 export function localization(): MessagesCache {
-  if (cache) return cache;
+  if (shared.miniboxMessages) return shared.miniboxMessages;
   const base = process.env.LOCALIZATION_URL;
   if (!base) throw new Error("Thiếu LOCALIZATION_URL");
-  return (cache = createMessagesCache(createLocalizationClient(base)));
+  return (shared.miniboxMessages = createMessagesCache(createLocalizationClient(base)));
 }
 
 /**
