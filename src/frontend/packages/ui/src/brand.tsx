@@ -3,7 +3,7 @@
  * (ba mặt độ đậm khác nhau) nên theo màu chữ của nơi đặt (nút, trang).
  */
 import { type ComponentProps } from "react";
-import { cx } from "./field";
+import { cx } from "./cx";
 
 /** Ba mặt (trên, trái, phải) của khối isometric trên lưới 32×32, tâm (16, 17). */
 const faces = {
@@ -23,6 +23,8 @@ export type LogoProps = {
   title?: string;
   /** Class cho khung ngoài (cỡ chữ quyết định cỡ logo: khối cạnh 1.15em). Đổi màu khối bằng biến `--cube-face`, `--cube-ink`. */
   className?: string;
+  /** `inverse` khi đặt trên mảng thương hiệu xanh rừng (`bg-brand`): chữ sáng, khối đảo màu, ".vn" hổ phách. */
+  tone?: "default" | "inverse";
 };
 
 /**
@@ -33,9 +35,18 @@ export type LogoProps = {
  * @param props - {@link LogoProps}.
  * @returns Khung logo có vai trò ảnh và tên đọc; khối và chữ bên trong ẩn với trình đọc màn hình.
  */
-export const Logo = ({ withWordmark = true, title = "Minibox", className }: LogoProps) => {
+export const Logo = ({ withWordmark = true, title = "Minibox", className, tone = "default" }: LogoProps) => {
+  const inverse = tone === "inverse";
   return (
-    <span role="img" aria-label={title} className={cx("inline-flex items-center gap-[0.08em] text-foreground", className)}>
+    <span
+      role="img"
+      aria-label={title}
+      className={cx(
+        "inline-flex items-center gap-[0.08em]",
+        inverse ? "text-brand-foreground [&_.logo-cube]:[--cube-face:var(--color-brand-foreground)] [&_.logo-cube]:[--cube-ink:var(--color-brand)]" : "text-foreground",
+        className,
+      )}
+    >
       <span aria-hidden className="logo-cube">
         <span>
           {cubeFaces.map((f) => (
@@ -44,8 +55,14 @@ export const Logo = ({ withWordmark = true, title = "Minibox", className }: Logo
         </span>
       </span>
       {withWordmark && (
-        <span aria-hidden className="font-display text-[1.125em] font-bold leading-none tracking-tight">
-          inibox<span className="text-[0.72em] text-primary">.vn</span>
+        <span aria-hidden className="logo-word font-display text-[1.125em] font-bold leading-none tracking-tight">
+          <span className="logo-word-ink">
+            inibox<span className={cx("text-[0.72em]", inverse ? "text-highlight" : "text-primary")}>.vn</span>
+          </span>
+          {/* Đầu phun máy in 3D: nâng theo lớp đang in (logo-nozzle), chạy qua lại mỗi lớp (span con). */}
+          <span className="logo-nozzle">
+            <span />
+          </span>
         </span>
       )}
     </span>

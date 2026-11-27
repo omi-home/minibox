@@ -21,14 +21,14 @@
     "react-day-picker": "10.0.2"
   },
   "peerDependencies": {
-    "react": "^19.3.1",
-    "next": "^16.4.6"
+    "next": "^16.4.6",
+    "react": "^19.3.1"
   },
   "devDependencies": {
     "@minibox/config": "workspace:*",
+    "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "tailwindcss": "catalog:",
-    "next": "16.4.6"
+    "tailwindcss": "catalog:"
   }
 }

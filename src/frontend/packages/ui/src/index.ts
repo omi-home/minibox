@@ -8,3 +8,4 @@ export * from "./overlay";
 export * from "./navigation";
 export * from "./commerce";
 export * from "./layout";
+export * from "./admin-shell";

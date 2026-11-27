@@ -179,9 +179,9 @@ const shopNav = [
   { href: "#toi", label: "Tài khoản", icon: <UserIcon /> },
 ];
 const adminNav = [
-  { href: "#don", label: "Đơn hàng", icon: <ShoppingBagIcon />, current: true },
-  { href: "#san-xuat", label: "Sản xuất", icon: <PrinterIcon /> },
-  { href: "#kho", label: "Kho", icon: <PackageIcon /> },
+  { href: "#don", label: "Đơn hàng", icon: <ShoppingBagIcon />, current: true, group: "Nghiệp vụ" },
+  { href: "#san-xuat", label: "Sản xuất", icon: <PrinterIcon />, group: "Nghiệp vụ" },
+  { href: "#kho", label: "Kho", icon: <PackageIcon />, group: "Nghiệp vụ" },
 ];
 
 const tone = (t: string) => t as Tone;
@@ -649,7 +649,7 @@ export const DesignShowcase = () => {
                   ],
                   [
                     "Khung admin",
-                    <AdminShell key="admin" nav={adminNav} user={<span className="text-muted">Mai · Kho Thủ Đức</span>}>
+                    <AdminShell key="admin" nav={adminNav} user={{ name: "Mai Anh", detail: "Kho Thủ Đức" }} notifications={{ count: 3 }}>
                       <div className="flex flex-col gap-4 p-4 sm:p-6">
                         <PageHeader title="Đơn sản xuất" description="Đơn in theo mẫu đã nhận cọc." action={<Button>Tạo đơn</Button>} />
                         <div className="flex items-center gap-2 text-sm text-muted">

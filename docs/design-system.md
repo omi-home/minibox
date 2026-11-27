@@ -19,6 +19,7 @@ Chỉ dùng utility sinh từ token (`bg-surface`, `text-muted`, `border-border`
 | Chữ | `foreground`, `muted` | chữ chính (≥ 7:1), chữ phụ (≥ 4.5:1) |
 | Viền | `border`, `border-strong` | phân cách, viền control |
 | Nhấn | `primary`(+`-hover`, `-foreground`), `accent`(+`-foreground`) | nút chính, link; nền mục đang chọn |
+| Mảng thương hiệu | `brand`, `brand-foreground`, `brand-muted`, `brand-active`, `brand-border` | mảng xanh rừng đậm ở cả hai chế độ: sidebar và ngăn kéo menu admin, thanh app admin trên mobile |
 | Điểm nhấn hiếm | `highlight` (hổ phách) | rất ít, tối đa một chỗ mỗi màn hình; không dùng cho chữ nhỏ trên nền sáng |
 | Trạng thái | `success`, `warning`, `danger`, `info` + `-soft` | chỉ cho trạng thái, luôn kèm icon hoặc chữ |
 | Focus | `focus` | vòng focus (đã đặt sẵn trong `:focus-visible`) |
@@ -33,14 +34,14 @@ Tương phản khoá bằng `contrast.test.ts`, gồm cả chữ đặt trên c�
 
 ## 3. Hình khối và độ sâu
 
-- Control (nút, ô nhập): `rounded-box`. Khối chứa (thẻ, bảng, sheet): `rounded-lg` + `chamfer` (vát góc trên phải như nắp hộp). Nhãn nhỏ, tem: `rounded-sm` + `chamfer-sm`.
+- Control (nút, ô nhập): `rounded-box`. Riêng ô tìm kiếm toàn cục trên thanh đầu bo tròn hẳn (`rounded-full`) để tách khỏi ô nhập trong form. Khối chứa (thẻ, bảng, sheet): `rounded-lg` + `chamfer` (vát góc trên phải như nắp hộp). Nhãn nhỏ, tem: `rounded-sm` + `chamfer-sm`.
 - Độ sâu 3 tầng: `shadow-box-1` thẻ nằm, `shadow-box-2` thẻ nổi/hover, `shadow-box-3` lớp phủ. Ô nhập `shadow-inset`. Ảnh sản phẩm trên bục: `shadow-plinth` (đã có trong `ProductMedia`).
 - Không bóng đen thuần, không gradient tím/xanh phát sáng, không lồng thẻ trong thẻ trong thẻ.
 
 ## 4. Nhận diện
 
-- **Logo** (`<Logo />`): khối lập phương chữ M có vân lớp in và mặt trên lưới infill. Khi tải, khối được in dựng từ dưới lên theo từng lớp, rồi xoay từng nấc 90°. Bản đầy đủ nối chữ "inibox.vn" thành **Minibox.vn**; bản rút gọn `withWordmark={false}` dùng cho favicon, chỗ hẹp. Cỡ theo `font-size` của khung. Trên nền màu chính, đảo màu bằng `[--cube-face:var(--color-primary-foreground)] [--cube-ink:var(--color-primary)]` trên `.logo-cube`.
-- **Cảnh nền** (`<BrandScene />`): rừng thông, buổi sáng ở chế độ sáng, đêm trăng có đom đóm ở chế độ tối. Đặt một lần ở trang shop có nền trống (trang chủ, trang giới thiệu, `/design`). Không dùng trong admin hoặc trang nhiều bảng.
+- **Logo** (`<Logo />`): khối lập phương chữ M có vân lớp in và mặt trên lưới infill. Khi tải, khối được in dựng từ dưới lên theo từng lớp, rồi xoay từng nấc 90°. Bản đầy đủ nối chữ "inibox.vn" thành **Minibox.vn**; bản rút gọn `withWordmark={false}` dùng cho favicon, chỗ hẹp. Cỡ theo `font-size` của khung. Trên mảng `bg-brand` dùng `tone="inverse"` (chữ sáng, khối đảo màu, ".vn" hổ phách). Trên nền màu chính, đảo màu bằng `[--cube-face:var(--color-primary-foreground)] [--cube-ink:var(--color-primary)]` trên `.logo-cube`.
+- **Cảnh nền** (`<BrandScene />`): rừng thông, buổi sáng ở chế độ sáng, đêm trăng có đom đóm ở chế độ tối. Đặt một lần ở trang shop có nền trống (trang chủ, trang giới thiệu, `/design`) và làm nền chung của khung admin (`AdminShell` tự gắn); trang nhiều bảng đặt bảng trên thẻ bề mặt (`Box`, `DataTable`) để chữ không nằm trực tiếp trên cảnh.
 - **Tải:** `CubeLoader` (khối isometric lật 120°) thay cho vòng quay tròn; `Skeleton` cho nội dung đang tải.
 
 ## 5. Chọn component
@@ -66,7 +67,7 @@ Tương phản khoá bằng `contrast.test.ts`, gồm cả chữ đặt trên c�
 | Giá | `Price` | VND, giá gạch, tiền cọc |
 | Ảnh sản phẩm | `ProductMedia` (`fit="plinth"` ảnh tách nền, `fit="cover"` ảnh có nền) | |
 | Thông số | `SpecLabel` | SKU, vật liệu, kích thước (dùng `×`), lớp in |
-| Khung trang | `ShopShell`, `AdminShell`, `PageHeader` | |
+| Khung trang | `ShopShell`, `AdminShell`, `PageHeader` | `AdminShell`: sidebar xanh rừng thu gọn được (Ctrl+B), thanh đầu ghim có tìm trang (Ctrl+K), thông báo, tài khoản; mobile có thanh app xanh rừng, tab dưới 4 mục + Menu |
 
 Chưa có (thêm khi có nhu cầu thật): Avatar, Accordion, Slider, Carousel.
 

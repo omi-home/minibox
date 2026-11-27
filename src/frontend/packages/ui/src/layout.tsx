@@ -1,12 +1,11 @@
 /*
- * Mẫu bố cục trang (spec #448 §6): khung shop, khung admin, đầu trang. Điều hướng theo thiết bị (BRD §5.2):
+ * Mẫu bố cục trang (spec #448 §6): khung shop, đầu trang (khung admin ở admin-shell.tsx). Điều hướng theo thiết bị (BRD §5.2):
  * mobile dùng điều hướng dưới; tablet đủ chỗ cho hàng link trên; laptop trở lên có điều hướng đầy đủ (shop: header, admin: sidebar).
  */
-import { ShoppingBagIcon } from "@phosphor-icons/react";
+import { ShoppingBagIcon } from "@phosphor-icons/react/ssr";
 import { type ElementType, type ReactNode } from "react";
 import { Logo } from "./brand";
 import { BottomNav, type BottomNavItem } from "./components";
-import { cx } from "./field";
 import { Breadcrumb, type BreadcrumbProps } from "./navigation";
 
 const skip =
@@ -84,70 +83,6 @@ export const ShopShell = ({ nav, cartCount = 0, search, children, link: Link = "
         </div>
       </footer>
       <BottomNav label="Điều hướng chính" items={nav} link={Link} />
-    </div>
-  );
-};
-
-/** Thuộc tính của {@link AdminShell}. */
-export type AdminShellProps = {
-  /** Mục điều hướng quản trị: sidebar từ laptop, hàng link trên tablet, điều hướng dưới (5 mục đầu) trên mobile. */
-  nav: BottomNavItem[];
-  /** Khu người dùng (tên, đăng xuất) ở cuối sidebar và trên thanh đầu. */
-  user?: ReactNode;
-  /** Nội dung trang. */
-  children: ReactNode;
-  /** Component link (vd. `next/link`); mặc định `<a>`. */
-  link?: ElementType;
-};
-
-/**
- * Khung trang admin cho tác nghiệp: mật độ compact, sidebar từ laptop, thanh đầu + điều hướng dưới trên mobile.
- *
- * @param props - {@link AdminShellProps}.
- * @returns Khung trang.
- */
-export const AdminShell = ({ nav, user, children, link: Link = "a" }: AdminShellProps) => {
-  const links = (vertical: boolean) => (
-    <ul className={cx("flex gap-1", vertical ? "flex-col" : "items-center")}>
-      {nav.map((i) => (
-        <li key={i.href}>
-          <Link href={i.href} aria-current={i.current ? "page" : undefined} className={cx(navLink, vertical && "aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground")}>
-            {i.icon && <span aria-hidden>{i.icon}</span>}
-            {i.label}
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-  return (
-    <div data-density="compact" className="flex min-h-dvh">
-      <a href="#noi-dung" className={skip}>
-        Bỏ qua tới nội dung
-      </a>
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-r border-border bg-surface px-3 py-4 lg:flex">
-        <Link href="/" className="px-3 text-lg">
-          <Logo title="Minibox quản trị, về bảng điều khiển" />
-        </Link>
-        <nav aria-label="Điều hướng quản trị" className="flex-1">
-          {links(true)}
-        </nav>
-        {user && <div className="border-t border-border px-3 pt-4 text-sm">{user}</div>}
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-sticky flex h-14 items-center gap-4 border-b border-border bg-background/85 px-4 backdrop-blur-md sm:px-6 lg:hidden">
-          <Link href="/" className="text-base">
-            <Logo title="Minibox quản trị, về bảng điều khiển" />
-          </Link>
-          <nav aria-label="Điều hướng quản trị" className="hidden overflow-x-auto sm:block">
-            {links(false)}
-          </nav>
-          {user && <div className="ml-auto text-sm">{user}</div>}
-        </header>
-        <main id="noi-dung" tabIndex={-1} className="flex-1 outline-none">
-          {children}
-        </main>
-      </div>
-      <BottomNav label="Điều hướng quản trị" items={nav.slice(0, 5)} link={Link} />
     </div>
   );
 };

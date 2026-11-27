@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/** Khóa phiên admin chỉ dùng cho e2e (base64 32 byte), để test tự niêm phong cookie phiên; không dùng ở môi trường thật. */
+export const E2E_ADMIN_SESSION_KEY = Buffer.alloc(32, 7).toString("base64");
+
 /** Cổng next dev của từng app khi chạy e2e. */
 export const APPS = { shop: "http://localhost:3100", admin: "http://localhost:3101" } as const;
 
@@ -17,5 +20,6 @@ export default defineConfig({
     url: `${url}/design`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
+    env: app === "admin" ? { ADMIN_SESSION_KEY: E2E_ADMIN_SESSION_KEY } : {},
   })),
 });

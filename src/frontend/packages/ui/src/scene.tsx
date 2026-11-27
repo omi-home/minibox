@@ -67,7 +67,7 @@ const PineRow = ({ base, min, max, gap, fill, seed }: { base: number; min: numbe
   for (let x = -gap / 2; x < W + gap; x += gap * (0.7 + r() * 0.6)) trees.push(pine(x, base, min + r() * (max - min)));
   return (
     <g fill={fill}>
-      <rect x="0" y={base - 4} width={W} height={H - base + 4} />
+      {base - 4 < H && <rect x="0" y={base - 4} width={W} height={H - base + 4} />}
       {trees.map((t, i) => (
         <polygon key={i} points={t} />
       ))}

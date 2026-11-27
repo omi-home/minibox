@@ -6,7 +6,7 @@ import { XIcon } from "@phosphor-icons/react";
 import { AlertDialog, Dialog as RDialog, DropdownMenu as RMenu, Tooltip as RTooltip } from "radix-ui";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { Button, overlay } from "./components";
-import { cx } from "./field";
+import { cx } from "./cx";
 
 const panel =
   "chamfer fixed top-1/2 left-1/2 z-modal flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg border border-border bg-surface-raised shadow-box-3 outline-none data-[state=closed]:animate-lid-close data-[state=open]:animate-lid-open";

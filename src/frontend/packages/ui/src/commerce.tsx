@@ -1,7 +1,7 @@
 /*
  * Thành phần thương mại (spec #448 §5, §6): giá VND, khung ảnh sản phẩm trên bục trưng bày, tem hộp thông số in 3D.
  */
-import { cx } from "./field";
+import { cx } from "./cx";
 
 const vnd = new Intl.NumberFormat("vi-VN");
 
