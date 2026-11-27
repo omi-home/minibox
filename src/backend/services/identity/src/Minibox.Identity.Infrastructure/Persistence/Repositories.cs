@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Minibox.BuildingBlocks.Infrastructure.Persistence;
 using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Application.Features.Accounts.Queries.GetMyPreferences;
 using Minibox.Identity.Domain.Aggregates.Accounts;
 using Minibox.Identity.Domain.Aggregates.LoginThrottles;
 using Minibox.Identity.Domain.Aggregates.RefreshTokens;
@@ -71,4 +72,14 @@ public sealed class PermissionReadService(IdentityDbContext db) : IPermissionRea
             g => g.Key,
             g => (IReadOnlyCollection<string>)g.Select(r => r.Code).Distinct().Order(StringComparer.Ordinal).ToArray());
     }
+}
+
+/// <summary>Đọc tùy chọn hiển thị bằng LINQ <c>AsNoTracking</c> + <c>Select</c> ra DTO.</summary>
+/// <param name="db">DbContext của request.</param>
+public sealed class AccountPreferencesReadService(IdentityDbContext db) : IAccountPreferencesReadService
+{
+    /// <inheritdoc/>
+    public Task<PreferencesDto?> GetAsync(Guid accountId, CancellationToken cancellationToken = default) =>
+        db.Set<Account>().AsNoTracking().Where(a => a.Id == accountId)
+            .Select(a => new PreferencesDto(a.Locale, a.TimeZone)).FirstOrDefaultAsync(cancellationToken);
 }

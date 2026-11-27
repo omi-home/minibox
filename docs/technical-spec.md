@@ -293,7 +293,7 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
   - `hreflang` cho mọi locale đã xuất bản + `x-default` (trỏ bản `vi`); `canonical` tự trỏ chính nó theo locale. Chỉ locale có bản dịch đã xuất bản vào `hreflang`/sitemap; trang đang hiển thị fallback đặt `noindex`.
   - Sitemap theo locale kèm `xhtml:link` alternate; `og:locale`/`og:locale:alternate`; JSON-LD (Product, Article, BreadcrumbList) dịch theo locale, `priceCurrency` VND.
   - Test tự động: hreflang hai chiều, canonical, sitemap hợp lệ, `noindex` trang fallback; ngưỡng LCP/INP/CLS của shop (§10) giữ nguyên.
-- **Mốc**: M0 hạ tầng locale/timezone/currency + chuỗi UI từ DB cho shop/admin; M1 dịch nội dung `catalog`; M6 bài viết/banner/menu (`content`).
+- **Mốc**: M0 hạ tầng locale/timezone/currency + chuỗi UI từ DB cho shop/admin + tùy chọn locale/múi giờ của tài khoản (`identity`, `GET|PUT /me/preferences`) và `GET /currencies` (tỷ giá hiện hành); M1 dịch nội dung `catalog`; M6 bài viết/banner/menu (`content`).
 
 ## 7. File, tìm kiếm, tích hợp ngoài
 

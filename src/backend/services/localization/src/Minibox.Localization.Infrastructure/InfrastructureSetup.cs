@@ -21,5 +21,6 @@ public static class InfrastructureSetup
         .AddScoped<ILocaleRepository, LocaleRepository>()
         .AddScoped<IUiMessageRepository, UiMessageRepository>()
         .AddScoped<ILocaleReadService, LocaleReadService>()
+        .AddScoped<ICurrencyReadService, CurrencyReadService>()
         .AddScoped<IUiMessageReadService, UiMessageReadService>();
 }

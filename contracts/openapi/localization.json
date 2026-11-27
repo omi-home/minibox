@@ -141,6 +141,28 @@
         }
       }
     },
+    "/currencies": {
+      "get": {
+        "tags": [
+          "Currencies"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CurrencyDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/messages": {
       "get": {
         "tags": [
@@ -296,6 +318,52 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "CurrencyDto": {
+        "required": [
+          "code",
+          "name",
+          "symbol",
+          "minorUnit",
+          "vndPerUnit",
+          "rateEffectiveAt"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "minorUnit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "vndPerUnit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "rateEffectiveAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -529,6 +597,9 @@
     },
     {
       "name": "Locales"
+    },
+    {
+      "name": "Currencies"
     }
   ]
 }

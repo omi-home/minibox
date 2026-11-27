@@ -175,6 +175,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/currencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CurrencyDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/messages": {
         parameters: {
             query?: never;
@@ -302,6 +337,17 @@ export interface components {
             /** Format: int32 */
             sortOrder: number | string;
             fallbackCode: null | string;
+        };
+        CurrencyDto: {
+            code: string;
+            name: string;
+            symbol: string;
+            /** Format: int32 */
+            minorUnit: number | string;
+            /** Format: double */
+            vndPerUnit: null | number | string;
+            /** Format: date-time */
+            rateEffectiveAt: null | string;
         };
         LocaleAdminDto: {
             code: string;

@@ -33,6 +33,15 @@ public sealed partial class Account : AggregateRoot<Guid>
     /// <summary>Chuỗi PHC Argon2id; <c>null</c> khi tài khoản chỉ đăng nhập xã hội.</summary>
     public string? PasswordHash { get; private set; }
 
+    /// <summary>Múi giờ mặc định của tài khoản mới (spec §6.6).</summary>
+    public const string DefaultTimeZone = "Asia/Ho_Chi_Minh";
+
+    /// <summary>Locale BCP 47 người dùng chọn (chữ thường phần ngôn ngữ), hoặc <c>null</c> khi chưa chọn.</summary>
+    public string? Locale { get; private set; }
+
+    /// <summary>Múi giờ IANA để hiển thị giờ.</summary>
+    public string TimeZone { get; private set; } = DefaultTimeZone;
+
     /// <summary>Phiên bản lúc nạp (optimistic concurrency).</summary>
     public long Version { get; private set; }
 
@@ -85,6 +94,28 @@ public sealed partial class Account : AggregateRoot<Guid>
     /// <summary>Thay bản băm mật khẩu bằng bản băm tham số mới (băm lại khi đăng nhập đúng).</summary>
     /// <param name="passwordHash">Bản băm mới của cùng mật khẩu.</param>
     public void Rehash(string passwordHash) => PasswordHash = passwordHash;
+
+    /// <summary>Đổi locale và múi giờ hiển thị.</summary>
+    /// <param name="locale">Locale BCP 47 (phần ngôn ngữ không phân biệt hoa thường); rỗng = bỏ chọn.</param>
+    /// <param name="timeZone">Mã múi giờ IANA có thật, ví dụ <c>Europe/Berlin</c> (không nhận mã Windows hay <c>GMT+7</c>).</param>
+    /// <returns>Thành công (kèm <see cref="AccountPreferencesChanged"/> khi có thay đổi); lỗi <see cref="IdentityErrors.InvalidLocale"/>
+    /// hoặc <see cref="IdentityErrors.InvalidTimeZone"/>.</returns>
+    /// <remarks>Không kiểm locale có đang bật ở localization: BFF chỉ áp locale đang bật, locale tắt thì rơi về mặc định.</remarks>
+    public Result ChangePreferences(string? locale, string? timeZone)
+    {
+        locale = string.IsNullOrWhiteSpace(locale) ? null : NormalizeLocale(locale.Trim());
+        if (locale is not null && !LocalePattern().IsMatch(locale))
+            return IdentityErrors.InvalidLocale;
+        if (string.IsNullOrEmpty(timeZone) || timeZone.Length > 64
+            || !TimeZoneInfo.TryFindSystemTimeZoneById(timeZone, out var zone) || !zone.HasIanaId || zone.Id != timeZone)
+            return IdentityErrors.InvalidTimeZone;
+        if (locale == Locale && timeZone == TimeZone)
+            return Result.Success();
+        Locale = locale;
+        TimeZone = timeZone;
+        Raise(new AccountPreferencesChanged(Id, locale, timeZone));
+        return Result.Success();
+    }
 
     /// <summary>Ghi nhận một lần đăng nhập sai mật khẩu (audit, spec BRD).</summary>
     public void RecordLoginFailure() => Raise(new LoginFailed(Id));
@@ -199,6 +230,14 @@ public sealed partial class Account : AggregateRoot<Guid>
     ];
 
     static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+
+    // Phần ngôn ngữ chữ thường (EN → en), phần sau giữ nguyên (zh-Hant).
+    static string NormalizeLocale(string locale) => locale.IndexOf('-') is var i and > 0
+        ? locale[..i].ToLowerInvariant() + locale[i..]
+        : locale.ToLowerInvariant();
+
+    [GeneratedRegex("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")]
+    private static partial Regex LocalePattern();
 
     [GeneratedRegex("^[a-z0-9._-]{3,50}$")]
     private static partial Regex UsernamePattern();
