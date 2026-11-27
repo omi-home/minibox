@@ -4,6 +4,15 @@
     <MiniboxService>identity</MiniboxService>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Mediator sinh mã đăng ký handler/pipeline tại composition root (spec §5.4). -->
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <!-- Wolverine Development sinh code lúc chạy (cần Roslyn); Release/production nạp code sinh sẵn (TypeLoadMode.Static, MessagingSetup). -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
     <ProjectReference Include="../Minibox.Identity.Infrastructure/Minibox.Identity.Infrastructure.csproj" />
     <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Web/Minibox.BuildingBlocks.Web.csproj" />

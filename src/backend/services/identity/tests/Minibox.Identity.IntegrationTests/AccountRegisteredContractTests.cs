@@ -7,9 +7,10 @@ using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Persistence;
 using Minibox.Identity.Contracts.Events;
-using Minibox.Identity.Domain.Accounts;
+using Minibox.BuildingBlocks.Infrastructure.Migrations;
+using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Domain.Aggregates.Accounts;
 using Minibox.Identity.Infrastructure;
-using Minibox.Identity.Infrastructure.Accounts;
 using Npgsql;
 using RabbitMQ.Client;
 using Testcontainers.PostgreSql;
@@ -21,7 +22,6 @@ using Wolverine.RabbitMQ;
 namespace Minibox.Identity.IntegrationTests;
 
 /// <summary>Tạo tài khoản qua Unit of Work: message <c>identity.AccountRegistered.v1</c> đi qua outbox ra RabbitMQ thật và khớp JSON Schema v1 (spec §6.3).</summary>
-[Collection(MigrateCollection.Name)]
 public sealed class AccountRegisteredContractTests : IAsyncLifetime
 {
     const string CaptureQueue = "identity-account-registered-capture"; // không ai nghe: đọc message thô
@@ -55,15 +55,7 @@ public sealed class AccountRegisteredContractTests : IAsyncLifetime
         // Superuser của container tạm chỉ dùng trong test; môi trường thật dùng role identity_app.
         _cs = _pg.GetConnectionString() + ";Search Path=identity";
         await Exec("CREATE SCHEMA identity; CREATE ROLE identity_app");
-        Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, _cs);
-        try
-        {
-            Assert.Equal(0, (int)typeof(Program).Assembly.EntryPoint!.Invoke(null, [new[] { "--migrate" }])!);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
-        }
+        Assert.Equal(0, DbMigrator.RunIfRequested(["--migrate"], "identity", typeof(Program).Assembly, () => _cs));
 
         _app = Host.CreateDefaultBuilder()
             .UseEnvironment("Development")
@@ -77,10 +69,8 @@ public sealed class AccountRegisteredContractTests : IAsyncLifetime
                 .AddSingleton(NpgsqlDataSource.Create(_cs))
                 .AddSingleton<ICurrentUser, SystemUser>()
                 .AddSingleton(TimeProvider.System)
-                .AddIdentityOutbox(_cs))
+                .AddIdentityInfrastructure(_cs))
             .Build();
-        // ponytail: bảng Wolverine tạo từ DDL của message store; khi host identity bật Wolverine thì chuyển thành migration.
-        await Exec(((Weasel.Core.Migrations.IDatabase)_app.Services.GetRequiredService<IMessageStore>()).ToDatabaseScript());
         await _app.StartAsync(Ct);
     }
 
@@ -127,7 +117,7 @@ public sealed class AccountRegisteredContractTests : IAsyncLifetime
         {
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await uow.BeginAsync(Ct);
-            await scope.ServiceProvider.GetRequiredService<AccountRepository>().AddAsync(account, Ct);
+            await scope.ServiceProvider.GetRequiredService<IAccountRepository>().AddAsync(account, Ct);
             await uow.CommitAsync(Ct);
         }
 
