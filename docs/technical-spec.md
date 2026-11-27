@@ -208,7 +208,7 @@ src/backend/services/<svc>/
   tests/{UnitTests, IntegrationTests, ArchitectureTests}/
 ```
 
-Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới: 5 project + 3 project test, `DbContext`/`Configurations/`/repository EF/read service LINQ mẫu (`Sample`), và `database/schemas/<svc>/` kiểu SSDT với migration mẫu.
+Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới theo §5.2: 5 project + 3 project test, mẫu `Sample` đi trọn đường (endpoint ở `Api/Endpoints/` → command/query qua pipeline Mediator đủ behavior §5.4 → handler ở `Application/Features/` → repository EF/read service LINQ ở `Infrastructure/Persistence/`), Wolverine outbox, và `database/schemas/<svc>/` kiểu SSDT với migration mẫu + bảng `audit_log`, `idempotency_key`, outbox Wolverine. `ArchitectureTests` gọi `DependencyRules` (phụ thuộc giữa layer/service) và `StructureRules` (cấu trúc trong layer §5.2).
 
 ### 5.2 Bên trong layer
 

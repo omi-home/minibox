@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
@@ -30,12 +31,12 @@ public abstract class EfRepository<TAggregate, TId>(DbContext db) : IRepository<
     /// <inheritdoc/>
     public Task<TAggregate?> GetForUpdateAsync(TId id, CancellationToken cancellationToken = default)
     {
-        // Tên bảng/cột lấy từ model EF (hằng số của mapping), giá trị id là tham số.
+        // Tên bảng/cột lấy từ model EF (hằng số của mapping) ghép vào format; id đi qua FromSql thành tham số (spec §4.5).
         var entity = db.Model.FindEntityType(typeof(TAggregate))!;
         var key = entity.FindPrimaryKey()!.Properties.Single().GetColumnName();
         var table = entity.GetSchema() is { } schema ? $"\"{schema}\".\"{entity.GetTableName()}\"" : $"\"{entity.GetTableName()}\"";
-        var sql = $"SELECT * FROM {table} WHERE \"{key}\" = {{0}} FOR UPDATE";
-        return Set.FromSqlRaw(sql, id).SingleOrDefaultAsync(cancellationToken);
+        var sql = FormattableStringFactory.Create($"SELECT * FROM {table} WHERE \"{key}\" = {{0}} FOR UPDATE", id);
+        return Set.FromSql(sql).SingleOrDefaultAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
