@@ -32,6 +32,12 @@
   --color-primary-foreground: light-dark(oklch(0.97 0.015 160), oklch(0.18 0.04 165));
   --color-accent: light-dark(oklch(0.93 0.03 165), oklch(0.3 0.05 165));
   --color-accent-foreground: light-dark(oklch(0.36 0.07 165), oklch(0.86 0.07 160));
+  /* Mảng thương hiệu xanh rừng (sidebar admin, thanh app mobile): đậm ở cả hai chế độ; muted cho nhãn nhóm, active cho mục đang chọn. */
+  --color-brand: light-dark(oklch(0.3 0.06 165), oklch(0.22 0.045 165));
+  --color-brand-foreground: light-dark(oklch(0.97 0.012 160), oklch(0.94 0.012 160));
+  --color-brand-muted: light-dark(oklch(0.8 0.035 160), oklch(0.74 0.03 160));
+  --color-brand-active: light-dark(oklch(0.38 0.07 165), oklch(0.3 0.055 165));
+  --color-brand-border: light-dark(oklch(0.37 0.06 165), oklch(0.29 0.045 165));
   --color-highlight: light-dark(oklch(0.78 0.14 75), oklch(0.8 0.13 75));
   --color-focus: light-dark(oklch(0.55 0.1 165), oklch(0.75 0.1 160));
   --color-success: light-dark(oklch(0.5 0.12 150), oklch(0.76 0.13 150));
@@ -102,6 +108,8 @@
   --animate-sheet-down: sheet-up 200ms var(--ease-in-box) reverse;
   --animate-sheet-left: sheet-left 320ms var(--ease-out-box);
   --animate-sheet-right: sheet-left 200ms var(--ease-in-box) reverse;
+  --animate-drawer-in: drawer 320ms var(--ease-out-box);
+  --animate-drawer-out: drawer 200ms var(--ease-in-box) reverse;
   --animate-fade-in: fade 200ms ease-out;
   --animate-fade-out: fade 150ms ease-in reverse;
   --animate-rise: rise 600ms var(--ease-out-box) both;
@@ -117,6 +125,9 @@
   }
   @keyframes sheet-left {
     from { transform: translateX(100%); }
+  }
+  @keyframes drawer {
+    from { transform: translateX(-100%); }
   }
   @keyframes fade {
     from { opacity: 0; }
@@ -308,6 +319,68 @@
     50%, 65% { transform: rotateX(-16deg) rotateY(-208deg); }
     75%, 90% { transform: rotateX(-16deg) rotateY(-298deg); }
     100% { transform: rotateX(-16deg) rotateY(-388deg); }
+  }
+
+  /*
+   * Chữ "inibox.vn" được in như vật in 3D: hiện dần từ dưới lên theo 8 lớp, đầu phun chạy qua lại mỗi lớp một lượt và nâng lên
+   * theo lớp đang in. Lặp theo chu kỳ --cycle (in trong 20% đầu, giữ chữ phần còn lại) như khối M xoay theo chu kỳ; đầu phun chỉ
+   * hiện lúc đang in. Giảm chuyển động: chữ hiện ngay, không có đầu phun.
+   */
+  .logo-word {
+    --cycle: 12s;
+    position: relative;
+    display: inline-block;
+  }
+  .logo-word-ink {
+    display: inline-block;
+    animation: logo-word-print var(--cycle) steps(8, end) 0.2s infinite both;
+  }
+  /* Khung trùng vùng chữ; dịch từ đáy lên đỉnh theo từng lớp, cùng nhịp với chữ. */
+  .logo-nozzle {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation:
+      logo-nozzle-rise var(--cycle) steps(8, end) 0.2s infinite both,
+      logo-nozzle-show var(--cycle) linear 0.2s infinite both;
+  }
+  /* Rãnh rộng bằng chữ; dịch -100% → 0 nên đầu phun (mép phải rãnh) đi từ trái sang phải rồi quay lại, mỗi lượt một lớp. */
+  .logo-nozzle > span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    animation: logo-nozzle-pass calc(var(--cycle) * 0.2 / 8) linear 0.2s infinite alternate both;
+  }
+  /* Thân đầu phun (hình thang, màu chữ) + chấm nóng hổ phách ở đầu, đặt ngay trên lớp đang in. */
+  .logo-nozzle > span::after {
+    content: "";
+    position: absolute;
+    right: -0.17em;
+    bottom: 0;
+    width: 0.34em;
+    height: 0.42em;
+    background: linear-gradient(to bottom, currentColor 0 78%, var(--color-highlight) 78%);
+    clip-path: polygon(0 0, 100% 0, 100% 45%, 62% 78%, 58% 100%, 42% 100%, 38% 78%, 0 45%);
+  }
+  @keyframes logo-word-print {
+    0% { clip-path: inset(100% 0 0 0); }
+    20%, 100% { clip-path: inset(0); }
+  }
+  @keyframes logo-nozzle-rise {
+    0% { transform: translateY(100%); }
+    20%, 100% { transform: translateY(0); }
+  }
+  @keyframes logo-nozzle-pass {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+  @keyframes logo-nozzle-show {
+    0%, 20% { opacity: 1; }
+    22%, 100% { opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .logo-nozzle { display: none; }
   }
 
   /* Hộp bay vào giỏ (flyToCart trong brand.tsx): khối chữ M xoay nhanh trong lúc bay, không chạy hiệu ứng in. */

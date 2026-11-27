@@ -8,7 +8,8 @@ import { CaretUpDownIcon, CheckIcon, MagnifyingGlassIcon, MinusIcon, PlusIcon, X
 import { Command } from "cmdk";
 import { Checkbox as RCheckbox, Popover, RadioGroup as RRadioGroup, Switch as RSwitch } from "radix-ui";
 import { useId, useState, type ComponentProps, type ReactNode } from "react";
-import { cx, Field, Messages, Panel, surface, Trigger, useControllable, type FieldBase } from "./field";
+import { cx } from "./cx";
+import { Field, Messages, Panel, surface, Trigger, useControllable, type FieldBase } from "./field";
 
 /** Thuộc tính của {@link Input}. */
 export type InputProps = ComponentProps<"input"> & FieldBase;
@@ -323,8 +324,15 @@ export function foldVietnamese(s: string) {
   return s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").replace(/Đ/g, "d").toLowerCase();
 }
 
-// Khớp khi mọi từ gõ vào đều xuất hiện (không dấu, không phân biệt thứ tự): "noi ha" khớp "Hà Nội".
-const vnFilter = (value: string, search: string, keywords?: string[]) => {
+/**
+ * Bộ lọc cmdk tiếng Việt: khớp khi mọi từ gõ vào đều xuất hiện (không dấu, không phân biệt thứ tự), vd "noi ha" khớp "Hà Nội".
+ *
+ * @param value - Giá trị của mục.
+ * @param search - Chuỗi người dùng gõ.
+ * @param keywords - Từ khoá thêm của mục.
+ * @returns 1 nếu khớp, 0 nếu không.
+ */
+export const vnFilter = (value: string, search: string, keywords?: string[]) => {
   const hay = foldVietnamese([value, ...(keywords ?? [])].join(" "));
   return foldVietnamese(search).split(/\s+/).filter(Boolean).every((w) => hay.includes(w)) ? 1 : 0;
 };

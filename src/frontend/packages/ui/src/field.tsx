@@ -1,3 +1,4 @@
+"use client";
 /*
  * Khung field dùng chung nội bộ cho form.tsx và date.tsx (không export ra index): nhãn, gợi ý, lỗi, bề mặt ô nhập, trigger + popover.
  */
@@ -5,8 +6,7 @@ import { WarningCircleIcon } from "@phosphor-icons/react";
 import { Popover } from "radix-ui";
 import { useId, useState, type ReactNode } from "react";
 
-/** Ghép class, bỏ giá trị rỗng. */
-export const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
+import { cx } from "./cx";
 
 /** Phần chung của mọi control có nhãn. */
 export type FieldBase = {

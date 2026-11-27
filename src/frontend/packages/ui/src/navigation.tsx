@@ -5,7 +5,7 @@
 import { CaretLeftIcon, CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 import { Tabs as RTabs } from "radix-ui";
 import { Fragment, type ElementType, type ReactNode } from "react";
-import { cx } from "./field";
+import { cx } from "./cx";
 
 /** Một tab của {@link Tabs}. */
 export type TabItem = {
