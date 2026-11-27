@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { StepUpProvider } from "./step-up";
 
 /** Metadata mặc định của app quản trị cho nhân viên; chặn bot index. */
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export const metadata: Metadata = {
 const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        <StepUpProvider>{children}</StepUpProvider>
+      </body>
     </html>
   );
 };

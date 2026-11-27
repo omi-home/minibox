@@ -89,6 +89,25 @@ auth.MapPost("mfa/verify", [AllowWithoutMfa] async (Program.MfaVerifyRequest bod
         await refresh.RevokeAsync(body.RefreshToken, ct);
     return Results.Ok(await Program.TokensAsync(verified.Value, perms, issuer, ct));
 }).RequireAuthorization().Produces<Program.TokenResponse>();
+// Đăng ký MFA ngay sau bước mật khẩu (phiên pwd): tài khoản lấy từ sub. Secret chỉ trả một lần cho người dùng quét vào authenticator.
+auth.MapPost("mfa/enroll", [AllowWithoutMfa] async (ICurrentUser user, IMfa mfa, CancellationToken ct) =>
+{
+    if (!Guid.TryParse(user.UserId, out var accountId))
+        return Results.Unauthorized();
+    var begun = await mfa.BeginEnrollmentAsync(accountId, ct);
+    return begun.IsSuccess
+        ? Results.Ok(new Program.MfaEnrollmentResponse(begun.Value.Secret, begun.Value.OtpauthUri))
+        : ResultHttpExtensions.Problem(begun.Error);
+}).RequireAuthorization().Produces<Program.MfaEnrollmentResponse>();
+auth.MapPost("mfa/enroll/confirm", [AllowWithoutMfa] async (Program.MfaCodeRequest body, ICurrentUser user, IMfa mfa, CancellationToken ct) =>
+{
+    if (!Guid.TryParse(user.UserId, out var accountId))
+        return Results.Unauthorized();
+    var confirmed = await mfa.ConfirmEnrollmentAsync(accountId, body.Code ?? "", ct);
+    return confirmed.IsSuccess
+        ? Results.Ok(new Program.RecoveryCodesResponse(confirmed.Value))
+        : ResultHttpExtensions.Problem(confirmed.Error);
+}).RequireAuthorization().Produces<Program.RecoveryCodesResponse>();
 auth.MapPost("refresh", async (Program.RefreshRequest body, IRefreshTokens refresh, IPermissions perms, IAccessTokenIssuer issuer, CancellationToken ct) =>
 {
     var rotated = await refresh.RotateAsync(body.RefreshToken ?? "", ct);
@@ -134,6 +153,19 @@ public partial class Program
     /// <param name="Code">Mã TOTP 6 chữ số hoặc mã khôi phục.</param>
     /// <param name="RefreshToken">Refresh token của phiên hiện tại (không bắt buộc), bị thu hồi khi xác minh thành công.</param>
     public sealed record MfaVerifyRequest(string Code, string? RefreshToken = null);
+
+    /// <summary>Thân request xác nhận đăng ký MFA.</summary>
+    /// <param name="Code">Mã TOTP 6 chữ số từ secret vừa nhận.</param>
+    public sealed record MfaCodeRequest(string Code);
+
+    /// <summary>Secret TOTP chờ xác nhận, trả cho người dùng thêm vào ứng dụng xác thực.</summary>
+    /// <param name="Secret">Secret Base32 để nhập tay.</param>
+    /// <param name="OtpauthUri">URI <c>otpauth://totp/...</c> để hiển thị dạng QR.</param>
+    public sealed record MfaEnrollmentResponse(string Secret, string OtpauthUri);
+
+    /// <summary>Bộ mã khôi phục vừa cấp khi bật MFA; chỉ trả một lần.</summary>
+    /// <param name="RecoveryCodes">Các mã dùng một lần thay mã TOTP khi mất thiết bị.</param>
+    public sealed record RecoveryCodesResponse(IReadOnlyList<string> RecoveryCodes);
 
     /// <summary>Thân request làm mới hoặc đăng xuất.</summary>
     /// <param name="RefreshToken">Refresh token hiện tại.</param>

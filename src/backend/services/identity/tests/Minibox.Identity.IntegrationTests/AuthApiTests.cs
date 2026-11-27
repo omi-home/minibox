@@ -112,6 +112,28 @@ public sealed class AuthApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/auth/refresh", new Program.RefreshRequest(refreshed.RefreshToken))).StatusCode);
     }
 
+    [Fact(DisplayName = "ac208_1 Đăng ký MFA qua API: phiên pwd lấy secret → xác nhận mã → mã khôi phục; đăng ký lại bị từ chối; chưa đăng nhập 401")]
+    public async Task ac208_1_mfa_enrollment()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/auth/mfa/enroll", new { })).StatusCode);
+        var login = await Tokens(await Post("/auth/login", new Program.LoginRequest("an@minibox.vn", Password, "10.0.0.1")));
+
+        var begin = await Post("/auth/mfa/enroll", new { }, login.AccessToken);
+        Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
+        var enrollment = (await begin.Content.ReadFromJsonAsync<Program.MfaEnrollmentResponse>(Ct))!;
+        Assert.StartsWith("otpauth://totp/", enrollment.OtpauthUri);
+
+        var code = Totp.Code(Base32Decode(enrollment.Secret), Totp.StepAt(DateTimeOffset.UtcNow));
+        var confirm = await Post("/auth/mfa/enroll/confirm", new Program.MfaCodeRequest(code), login.AccessToken);
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        var codes = (await confirm.Content.ReadFromJsonAsync<Program.RecoveryCodesResponse>(Ct))!.RecoveryCodes;
+        Assert.Equal(MfaPolicy.RecoveryCodeCount, codes.Count);
+
+        Assert.NotEqual(HttpStatusCode.OK, (await Post("/auth/mfa/enroll", new { }, login.AccessToken)).StatusCode);
+        var mfa = await Tokens(await Post("/auth/mfa/verify", new Program.MfaVerifyRequest(codes[0], login.RefreshToken), login.AccessToken));
+        Assert.Equal(["pwd", "mfa"], mfa.AuthMethods);
+    }
+
     [Fact(DisplayName = "Sai mật khẩu và refresh token rỗng không trả token")]
     public async Task invalid_credentials_rejected()
     {
