@@ -11,6 +11,9 @@ public static class AssignmentAccess
     /// <summary>Mã quyền vào endpoint quản trị phân công (tầng 1, ở bất kỳ phạm vi).</summary>
     public const string ManagePermission = AssignmentPolicy.ManagePermission;
 
+    /// <summary>Độ dài tối đa của mã vai trò và phạm vi nhận từ request.</summary>
+    public const int MaxCodeLength = 64;
+
     /// <summary>Đòi người gọi có <see cref="ManagePermission"/> và mọi quyền của vai trò trong phạm vi, và không đổi phân công của chính mình.</summary>
     /// <param name="user">Người gọi.</param>
     /// <param name="authorizer">Bộ kiểm quyền theo claim <c>perms</c>.</param>

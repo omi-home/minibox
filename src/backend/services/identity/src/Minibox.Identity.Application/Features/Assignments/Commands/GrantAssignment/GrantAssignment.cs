@@ -1,3 +1,4 @@
+using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Abstractions;
@@ -11,6 +12,17 @@ namespace Minibox.Identity.Application.Features.Assignments.Commands.GrantAssign
 /// <param name="Role">Mã vai trò.</param>
 /// <param name="Scope">Phạm vi <c>*</c>, <c>wh:n</c> hoặc <c>farm:n</c>.</param>
 public sealed record GrantAssignment(Guid AccountId, string Role, string Scope) : ICommand;
+
+/// <summary>Kiểm dạng vai trò và phạm vi trước khi mở transaction; cú pháp phạm vi chi tiết do <c>AssignmentPolicy</c> kiểm trong handler.</summary>
+public sealed class GrantAssignmentValidator : AbstractValidator<GrantAssignment>
+{
+    /// <summary>Khai báo luật: <c>Role</c> và <c>Scope</c> bắt buộc, tối đa <see cref="AssignmentAccess.MaxCodeLength"/> ký tự.</summary>
+    public GrantAssignmentValidator()
+    {
+        RuleFor(x => x.Role).NotEmpty().MaximumLength(AssignmentAccess.MaxCodeLength);
+        RuleFor(x => x.Scope).NotEmpty().MaximumLength(AssignmentAccess.MaxCodeLength);
+    }
+}
 
 /// <summary>Chống leo thang đặc quyền rồi gán qua aggregate <c>Account</c> (khoá dòng); audit trước/sau đi qua Unit of Work,
 /// trigger DB thu hồi refresh token của người được gán.</summary>
