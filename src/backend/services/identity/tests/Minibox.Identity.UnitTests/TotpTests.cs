@@ -1,5 +1,7 @@
 using System.Text;
-using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Domain.Aggregates.Accounts;
+using Minibox.Identity.Domain.Aggregates.LoginThrottles;
+using Minibox.Identity.Domain.Errors;
 
 namespace Minibox.Identity.UnitTests;
 

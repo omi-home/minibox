@@ -1,4 +1,6 @@
-using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Domain.Aggregates.Accounts;
+using Minibox.Identity.Domain.Aggregates.LoginThrottles;
+using Minibox.Identity.Domain.Errors;
 
 namespace Minibox.Identity.UnitTests;
 
@@ -18,7 +20,7 @@ public class LoginThrottleTests
     [Fact(DisplayName = "Mật khẩu quá 128 ký tự hoặc null bị từ chối")]
     public void password_too_long_or_null_rejected()
     {
-        Assert.Equal(PasswordPolicy.TooLongCode, PasswordPolicy.Validate(new string('x', 129)).Error.Code);
-        Assert.Equal(PasswordPolicy.TooShortCode, PasswordPolicy.Validate(null).Error.Code);
+        Assert.Equal(IdentityErrors.PasswordTooLong.Code, PasswordPolicy.Validate(new string('x', 129)).Error.Code);
+        Assert.Equal(IdentityErrors.PasswordTooShort.Code, PasswordPolicy.Validate(null).Error.Code);
     }
 }

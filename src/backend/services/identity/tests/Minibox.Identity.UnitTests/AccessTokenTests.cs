@@ -1,6 +1,6 @@
 using Microsoft.IdentityModel.JsonWebTokens;
-using Minibox.Identity.Application.Tokens;
-using Minibox.Identity.Infrastructure.Tokens;
+using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Infrastructure.Security;
 
 namespace Minibox.Identity.UnitTests;
 

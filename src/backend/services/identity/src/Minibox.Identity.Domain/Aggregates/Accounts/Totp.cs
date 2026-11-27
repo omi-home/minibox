@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Minibox.Identity.Domain.Accounts;
+namespace Minibox.Identity.Domain.Aggregates.Accounts;
 
 /// <summary>Mã dùng một lần theo thời gian (RFC 6238): HMAC-SHA1, 6 chữ số, bước 30 giây — mặc định của mọi ứng dụng authenticator.</summary>
 public static class Totp
@@ -80,6 +80,25 @@ public static class MfaPolicy
 {
     /// <summary>Số mã khôi phục cấp mỗi lần đăng ký.</summary>
     public const int RecoveryCodeCount = 10;
+
+    /// <summary>Tên nhà phát hành hiển thị trong ứng dụng authenticator.</summary>
+    public const string Issuer = "Minibox";
+
+    /// <summary>Sinh secret TOTP mới <see cref="Totp.SecretLength"/> byte.</summary>
+    /// <returns>Secret ngẫu nhiên (mã hoá trước khi lưu).</returns>
+    public static byte[] NewSecret() => RandomNumberGenerator.GetBytes(Totp.SecretLength);
+
+    /// <summary>Dựng URI <c>otpauth://totp/...</c> để hiển thị QR.</summary>
+    /// <param name="label">Email hoặc username của tài khoản.</param>
+    /// <param name="secretBase32">Secret dạng Base32.</param>
+    /// <returns>URI theo định dạng Key Uri của Google Authenticator.</returns>
+    public static string OtpauthUri(string label, string secretBase32) =>
+        $"otpauth://totp/{Issuer}:{Uri.EscapeDataString(label)}?secret={secretBase32}&issuer={Issuer}&algorithm=SHA1&digits=6&period=30";
+
+    /// <summary>Băm mã khôi phục đã chuẩn hoá để lưu (SHA-256).</summary>
+    /// <param name="normalized">Mã từ <see cref="NormalizeRecoveryCode"/>.</param>
+    /// <returns>32 byte.</returns>
+    public static byte[] HashRecoveryCode(string normalized) => SHA256.HashData(Encoding.ASCII.GetBytes(normalized));
 
     /// <summary>Sinh một mã khôi phục 80 bit dạng <c>XXXX-XXXX-XXXX-XXXX</c> (Base32).</summary>
     /// <returns>Mã hiển thị cho người dùng, chỉ lộ một lần.</returns>

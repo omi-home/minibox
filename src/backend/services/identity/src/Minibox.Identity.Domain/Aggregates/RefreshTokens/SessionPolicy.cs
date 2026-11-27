@@ -1,4 +1,6 @@
-namespace Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Domain.Aggregates.Accounts;
+
+namespace Minibox.Identity.Domain.Aggregates.RefreshTokens;
 
 /// <summary>Thời hạn phiên theo loại tài khoản (spec §3.2): khách 30 ngày trượt; nhân viên hết hạn khi không hoạt động
 /// 30 phút và tối đa 8 giờ kể từ đăng nhập.</summary>
