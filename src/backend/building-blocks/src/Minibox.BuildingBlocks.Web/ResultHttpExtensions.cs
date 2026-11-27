@@ -19,13 +19,14 @@ public static class ResultHttpExtensions
 
     /// <summary>Mã HTTP theo loại lỗi.</summary>
     /// <param name="type">Loại lỗi.</param>
-    /// <returns>400, 404, 409, 403 hoặc 422.</returns>
+    /// <returns>400, 401, 404, 409, 403 hoặc 422.</returns>
     public static int StatusCode(ErrorType type) => type switch
     {
         ErrorType.Validation => StatusCodes.Status400BadRequest,
         ErrorType.NotFound => StatusCodes.Status404NotFound,
         ErrorType.Conflict => StatusCodes.Status409Conflict,
         ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+        ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
         _ => StatusCodes.Status422UnprocessableEntity,
     };
 

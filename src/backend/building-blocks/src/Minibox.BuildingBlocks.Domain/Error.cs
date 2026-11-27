@@ -13,6 +13,8 @@ public enum ErrorType
     Forbidden,
     /// <summary>Quy tắc nghiệp vụ không cho phép thao tác (422).</summary>
     Failure,
+    /// <summary>Thông tin xác thực thiếu, sai hoặc hết hạn (401).</summary>
+    Unauthorized,
 }
 
 /// <summary>Lỗi nghiệp vụ trả về trong <see cref="Result"/> thay vì ném exception.</summary>
@@ -58,4 +60,10 @@ public sealed record Error(string Code, string Message, ErrorType Type)
     /// <param name="message">Mô tả.</param>
     /// <returns>Lỗi loại <see cref="ErrorType.Failure"/>.</returns>
     public static Error Failure(string code, string message) => new(code, message, ErrorType.Failure);
+
+    /// <summary>Tạo lỗi xác thực (phiên/token không hợp lệ).</summary>
+    /// <param name="code">Mã lỗi.</param>
+    /// <param name="message">Mô tả.</param>
+    /// <returns>Lỗi loại <see cref="ErrorType.Unauthorized"/>.</returns>
+    public static Error Unauthorized(string code, string message) => new(code, message, ErrorType.Unauthorized);
 }

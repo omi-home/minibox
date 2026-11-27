@@ -276,5 +276,6 @@ public sealed class WebPipelineTests : IAsyncLifetime
     [InlineData(ErrorType.NotFound, 404)]
     [InlineData(ErrorType.Conflict, 409)]
     [InlineData(ErrorType.Failure, 422)]
+    [InlineData(ErrorType.Unauthorized, 401)]
     public void error_type_maps_to_status(ErrorType type, int status) => Assert.Equal(status, ResultHttpExtensions.StatusCode(type));
 }
