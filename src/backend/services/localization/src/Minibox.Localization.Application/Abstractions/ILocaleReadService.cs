@@ -1,3 +1,4 @@
+using Minibox.Localization.Application.Features.Locales.Queries.ListAllLocales;
 using Minibox.Localization.Application.Features.Locales.Queries.ListLocales;
 
 namespace Minibox.Localization.Application.Abstractions;
@@ -9,4 +10,9 @@ public interface ILocaleReadService
     /// <param name="cancellationToken">Huỷ thao tác.</param>
     /// <returns>Locale đang bật, sắp theo thứ tự hiển thị rồi theo mã.</returns>
     Task<LocaleDto[]> ListEnabledAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Liệt kê mọi locale, kể cả đang tắt.</summary>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Mọi locale, sắp theo thứ tự hiển thị rồi theo mã.</returns>
+    Task<LocaleAdminDto[]> ListAllAsync(CancellationToken cancellationToken = default);
 }

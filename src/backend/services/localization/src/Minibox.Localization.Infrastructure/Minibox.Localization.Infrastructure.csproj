@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../Minibox.Localization.Application/Minibox.Localization.Application.csproj" />
+    <ProjectReference Include="../Minibox.Localization.Contracts/Minibox.Localization.Contracts.csproj" />
     <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

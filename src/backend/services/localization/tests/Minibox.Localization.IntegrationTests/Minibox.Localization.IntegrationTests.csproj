@@ -8,6 +8,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Minibox.Localization.Api/Minibox.Localization.Api.csproj" />

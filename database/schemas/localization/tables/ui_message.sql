@@ -4,8 +4,8 @@ CREATE TABLE ui_message (
   namespace      text        NOT NULL CHECK (namespace ~ '^[a-z][a-z0-9_.-]{0,63}$'),   -- shop, admin, common, errors
   key            text        NOT NULL CHECK (key ~ '^[A-Za-z0-9_.-]{1,200}$'),
   locale_code    text        NOT NULL REFERENCES locale (code),
-  draft_text     text        NOT NULL,
-  published_text text,                                                       -- NULL = chưa xuất bản lần nào
+  draft_text     text        NOT NULL CONSTRAINT ui_message_draft_text_length CHECK (length(draft_text) BETWEEN 1 AND 10000),
+  published_text text        CONSTRAINT ui_message_published_text_length CHECK (length(published_text) <= 10000), -- NULL = chưa xuất bản lần nào
   published_at   timestamptz,
   updated_at     timestamptz NOT NULL DEFAULT now(),
   version        bigint      NOT NULL DEFAULT 0,

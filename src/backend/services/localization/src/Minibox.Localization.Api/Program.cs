@@ -3,6 +3,7 @@ using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
 using Minibox.Localization.Api.Endpoints.Locales;
+using Minibox.Localization.Api.Endpoints.Messages;
 using Minibox.Localization.Application;
 using Minibox.Localization.Infrastructure;
 using Minibox.Localization.Infrastructure.Persistence;
@@ -22,6 +23,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Lúc build sinh OpenAPI (contracts/openapi) host không có cấu hình: dùng giá trị giữ chỗ, không kết nối.
 var appConnection = builder.Configuration.RequiredConnectionString("App", "Host=openapi-build");
 var rabbitMq = builder.Configuration.RequiredConnectionString("RabbitMq", "amqp://openapi-build");
+// URL nội bộ của identity (trùng iss của access token) để lấy JWKS: Identity__Authority.
+var identityAuthority = builder.Configuration["Identity:Authority"]
+    ?? (MiniboxConfiguration.IsGeneratingOpenApi ? "http://openapi-build" : throw new InvalidOperationException("Thiếu Identity:Authority"));
 
 builder.AddMiniboxObservability("localization");
 // Wolverine kết nối PostgreSQL/RabbitMQ ngay khi dựng host; bước sinh OpenAPI lúc build chỉ cần metadata endpoint nên bỏ qua.
@@ -34,6 +38,7 @@ if (!MiniboxConfiguration.IsGeneratingOpenApi)
     });
 builder.Services
     .AddMiniboxWeb()
+    .AddMiniboxJwtAuthentication(identityAuthority)
     .AddSingleton(_ => NpgsqlDataSource.Create(appConnection))
     .AddLocalizationApplication()
     .AddLocalizationInfrastructure(appConnection)
@@ -55,6 +60,7 @@ var app = builder.Build();
 app.UseMiniboxWeb();
 app.MapMiniboxHealthChecks();
 app.MapLocaleEndpoints();
+app.MapMessageEndpoints();
 app.Run();
 return 0;
 
