@@ -4,3 +4,4 @@ export * from "./date";
 export * from "./form";
 export * from "./brand";
 export * from "./feedback";
+export * from "./overlay";
