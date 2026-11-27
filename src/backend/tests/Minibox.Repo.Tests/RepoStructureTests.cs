@@ -38,4 +38,15 @@ public class RepoStructureTests
     [InlineData("backend")]
     public void ac174_1_root_clean(string path) =>
         Assert.False(Exists(Path.Combine(RepoDir(), path)), $"Root không được có {path}");
+
+    [Fact(DisplayName = "Spec §4.5: mã backend không dùng FromSqlRaw/ExecuteSqlRaw (SQL thô chỉ qua FromSql/ExecuteSql có tham số)")]
+    public void no_raw_sql_api()
+    {
+        var sep = Path.DirectorySeparatorChar;
+        var hits = Directory.EnumerateFiles(BackendDir(), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{sep}bin{sep}") && !f.Contains($"{sep}obj{sep}") && !f.EndsWith(nameof(RepoStructureTests) + ".cs"))
+            .Where(f => File.ReadAllText(f) is var t && (t.Contains("FromSqlRaw") || t.Contains("ExecuteSqlRaw")))
+            .ToList();
+        Assert.True(hits.Count == 0, string.Join(", ", hits));
+    }
 }
