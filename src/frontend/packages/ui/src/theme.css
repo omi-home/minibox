@@ -254,3 +254,17 @@
     }
   }
 }
+
+/* PHA 1 #448: Logo vẽ cả 3 biến thể mark; chỉ hiện biến thể của phương án đang chọn. Gộp phương án thì xoá khối này. */
+@layer components {
+  .logo-b,
+  .logo-c,
+  [data-brand="b"] .logo-a,
+  [data-brand="c"] .logo-a {
+    display: none;
+  }
+  [data-brand="b"] .logo-b,
+  [data-brand="c"] .logo-c {
+    display: inline;
+  }
+}
