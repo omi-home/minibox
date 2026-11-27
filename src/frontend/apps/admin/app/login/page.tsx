@@ -6,7 +6,7 @@ import { AuthCard, LoginForm } from "../auth-forms";
  * @returns Trang đăng nhập.
  */
 const LoginPage = () => (
-  <AuthCard title="Đăng nhập Minibox Admin">
+  <AuthCard title="Đăng nhập" description="Dùng tài khoản nhân viên Minibox. Bước sau cần mã xác thực hai lớp.">
     <LoginForm />
   </AuthCard>
 );

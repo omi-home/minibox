@@ -1,5 +1,4 @@
-import { Box } from "@minibox/ui";
-import { LogoutButton } from "./auth-forms";
+import { AppHeader, EmptyState } from "./auth-forms";
 
 /**
  * Bảng điều khiển admin (chỉ vào được khi đã qua MFA, proxy chặn); chưa có nội dung, menu theo quyền ở #211.
@@ -8,16 +7,13 @@ import { LogoutButton } from "./auth-forms";
  */
 const Home = () => {
   return (
-    <main className="mx-auto max-w-5xl space-y-4 p-4">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">Minibox Admin</h1>
-        <LogoutButton />
-      </header>
-      <Box>
-        <h2 className="font-semibold">Bảng điều khiển</h2>
-        <p className="text-sm text-muted">Chưa có dữ liệu.</p>
-      </Box>
-    </main>
+    <div className="min-h-dvh bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+        <h1 className="text-2xl font-bold tracking-tight">Bảng điều khiển</h1>
+        <EmptyState title="Chưa có dữ liệu">Số liệu kho, đơn hàng và sản xuất sẽ hiện ở đây khi các phân hệ được bật.</EmptyState>
+      </main>
+    </div>
   );
 };
 

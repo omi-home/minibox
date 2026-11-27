@@ -17,15 +17,26 @@ test("ac208_1 nhân viên mới: đăng nhập → đăng ký MFA → lưu mã k
   context,
 }) => {
   await login(page, "moi@minibox.vn");
-  await expect(page.getByRole("heading", { name: "Bật xác thực hai lớp" })).toBeVisible();
-  const secret = (await page.getByLabel("Khóa thiết lập").textContent())!.trim();
+  await expect(page).toHaveURL(/\/mfa$/);
+  // Chưa bật MFA: nhập mã báo cần thiết lập; tải trang không sinh secret, chỉ sinh khi bấm nút.
+  await page.getByLabel(/Mã xác thực/).fill("123456");
+  await page.getByRole("button", { name: "Xác minh" }).click();
+  await expect(page.getByText(/chưa bật xác thực hai lớp/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Thiết lập ứng dụng xác thực" }).click();
+  await expect(page.getByRole("heading", { name: "Thiết lập ứng dụng xác thực" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Mã QR thiết lập ứng dụng xác thực" })).toBeVisible();
+  await page.getByText("Không quét được? Nhập khóa thủ công").click();
+  const secret = (await page.getByLabel("Khóa thiết lập").textContent())!.replace(/\s/g, "");
   await page.getByLabel("Mã 6 số từ ứng dụng").fill(totp(secret, step()));
   await page.getByRole("button", { name: "Bật xác thực hai lớp" }).click();
 
   const recovery = page.getByRole("list", { name: "Mã khôi phục" }).getByRole("listitem");
   await expect(recovery).toHaveCount(10);
   const code = (await recovery.first().textContent())!;
-  await page.getByRole("button", { name: "Tôi đã lưu mã khôi phục" }).click();
+  await expect(page.getByRole("button", { name: "Tiếp tục" })).toBeDisabled();
+  await page.getByLabel("Tôi đã lưu mã khôi phục ở nơi an toàn").click();
+  await page.getByRole("button", { name: "Tiếp tục" }).click();
   // Mã TOTP vừa dùng không dùng lại được; dùng mã khôi phục thay vì chờ bước 30 giây kế tiếp.
   await page.getByLabel(/Mã xác thực/).fill(code);
   await page.getByRole("button", { name: "Xác minh" }).click();
@@ -44,6 +55,8 @@ test("ac208_1 nhân viên mới: đăng nhập → đăng ký MFA → lưu mã k
 test("ac208_1 nhân viên đã bật MFA: đăng nhập → mã TOTP → bảng điều khiển; chưa qua MFA không vào được; đăng xuất về trang đăng nhập", async ({ page }) => {
   await login(page, "cu@minibox.vn");
   await expect(page.getByRole("heading", { name: "Xác thực hai lớp" })).toBeVisible();
+  await page.getByRole("button", { name: "Thiết lập ứng dụng xác thực" }).click();
+  await expect(page.getByText(/đã bật xác thực hai lớp/)).toBeVisible();
   await page.goto("/");
   await expect(page).toHaveURL(/\/mfa$/);
 
