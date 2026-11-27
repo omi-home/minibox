@@ -1,0 +1,62 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Minibox.Localization.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/locales": {
+      "get": {
+        "tags": [
+          "Locales"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocaleDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LocaleDto": {
+        "required": [
+          "code",
+          "name",
+          "fallbackCode"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fallbackCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Locales"
+    }
+  ]
+}
