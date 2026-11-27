@@ -58,7 +58,11 @@ export type ProductMediaProps = {
   alt: string;
   /** Tỉ lệ khung: `square` 1:1 (mặc định, lưới sản phẩm) hoặc `portrait` 4:5 (trang chi tiết). */
   aspect?: "square" | "portrait";
-  /** Rê chuột thì sản phẩm nhấc nhẹ khỏi bục (thẻ bấm được). */
+  /**
+   * Cách đặt ảnh: `plinth` (mặc định) cho ảnh đã tách nền, sản phẩm đứng trên bục; `cover` cho ảnh chụp có nền, phủ kín khung.
+   */
+  fit?: "plinth" | "cover";
+  /** Rê chuột thì sản phẩm nhấc nhẹ khỏi bục (ảnh `cover` thì phóng nhẹ). */
   interactive?: boolean;
   /** Class bổ sung cho khung. */
   className?: string;
@@ -71,7 +75,19 @@ export type ProductMediaProps = {
  * @param props - {@link ProductMediaProps}.
  * @returns Khung ảnh.
  */
-export const ProductMedia = ({ src, alt, aspect = "square", interactive, className }: ProductMediaProps) => {
+export const ProductMedia = ({ src, alt, aspect = "square", fit = "plinth", interactive, className }: ProductMediaProps) => {
+  if (src && fit === "cover")
+    return (
+      <div className={cx("group/media chamfer relative overflow-hidden rounded-lg border border-border bg-surface-sunken", aspect === "square" ? "aspect-square" : "aspect-[4/5]", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- package UI không phụ thuộc next/image; app bọc ảnh tối ưu khi cần. */}
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className={cx("size-full object-cover transition-transform duration-500 ease-out-box", interactive && "group-hover/media:scale-[1.04]")}
+        />
+      </div>
+    );
   return (
     <div
       className={cx(

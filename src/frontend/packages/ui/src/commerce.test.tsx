@@ -33,3 +33,8 @@ test("ac231_2 tem hộp hiện cặp thông số", () => {
   expect(screen.getByText("Vật liệu").tagName).toBe("DT");
   expect(screen.getByText("12 × 12 × 14 cm").tagName).toBe("DD");
 });
+
+test("ac231_2 ảnh có nền dùng fit=cover phủ kín khung", () => {
+  render(<ProductMedia src="/b.jpg" alt="Bình hoa tổ ong" fit="cover" />);
+  expect(screen.getByRole("img", { name: "Bình hoa tổ ong" }).className).toContain("object-cover");
+});
