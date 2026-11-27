@@ -29,7 +29,7 @@ export const Input = ({ label, hint, error, id, required, className, ...props }:
           required={required}
           className={cx(
             surface,
-            "h-11 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60",
+            "h-(--control-h) [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60",
             className,
           )}
           {...props}
@@ -78,7 +78,7 @@ export const Select = ({ label, hint, error, id, required, placeholder, classNam
             {...a}
             required={required}
             defaultValue={defaultValue ?? (placeholder && props.value === undefined ? "" : undefined)}
-            className={cx(surface, "h-11 cursor-pointer appearance-none pr-10 invalid:text-muted", className)}
+            className={cx(surface, "h-(--control-h) cursor-pointer appearance-none pr-10 invalid:text-muted", className)}
             {...props}
           >
             {placeholder && (
@@ -120,7 +120,7 @@ export type QuantityInputProps = FieldBase & {
 export const QuantityInput = ({ label, hint, error, id, value, onChange, min = 1, max, disabled }: QuantityInputProps) => {
   const [draft, setDraft] = useState<string | null>(null);
   const clamp = (n: number) => Math.min(max ?? Infinity, Math.max(min, Number.isFinite(n) ? Math.trunc(n) : min));
-  const step = "flex size-11 shrink-0 items-center justify-center text-foreground transition-colors hover:bg-surface-sunken disabled:opacity-40 [&_svg]:size-4";
+  const step = "flex h-(--control-h) w-11 shrink-0 items-center justify-center text-foreground transition-colors hover:bg-surface-sunken disabled:opacity-40 [&_svg]:size-4";
   return (
     <Field label={label} hint={hint} error={error} id={id}>
       {(a) => (
@@ -226,7 +226,7 @@ export const Switch = ({ label, hint, error, id, className, ...props }: SwitchPr
         )}
         {...props}
       >
-        <RSwitch.Thumb className="block size-5.5 rounded-full bg-white shadow-box-1 transition-transform duration-200 ease-out-box data-[state=checked]:translate-x-5" />
+        <RSwitch.Thumb className="block size-5.5 rounded-full bg-surface-raised shadow-box-1 transition-transform duration-200 ease-out-box data-[state=checked]:translate-x-5" />
       </RSwitch.Root>
     </div>
   );
