@@ -21,6 +21,14 @@ public enum ErrorType
 /// <param name="Type">Loại lỗi, quyết định mã HTTP.</param>
 public sealed record Error(string Code, string Message, ErrorType Type)
 {
+    /// <summary>Lệnh vẫn commit thay đổi đã ghi (cùng audit/outbox) dù trả lỗi này — cho thay đổi phải còn lại khi từ chối:
+    /// bộ đếm đăng nhập sai, thu hồi phiên khi refresh token bị dùng lại. Mặc định <c>false</c> (lỗi = rollback).</summary>
+    public bool CommitChanges { get; init; }
+
+    /// <summary>Bản sao của lỗi có <see cref="CommitChanges"/> = <c>true</c>.</summary>
+    /// <returns>Lỗi cùng mã, mô tả, loại; transaction của lệnh được commit.</returns>
+    public Error WithCommit() => this with { CommitChanges = true };
+
     /// <summary>Tạo lỗi dữ liệu vào không hợp lệ.</summary>
     /// <param name="code">Mã lỗi.</param>
     /// <param name="message">Mô tả.</param>
