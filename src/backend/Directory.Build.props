@@ -17,8 +17,8 @@
        <MiniboxScripts> đổi thư mục scripts (template build tại chỗ).
        Item được đánh giá sau property nên đọc được giá trị của csproj. -->
   <ItemGroup Condition="'$(MiniboxService)' != ''">
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" />
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" />
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" Link="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" Link="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" Link="scripts/post-deployment/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

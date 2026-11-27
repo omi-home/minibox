@@ -10,25 +10,30 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Web;
-using Minibox.Identity.Application.Tokens;
+using Minibox.Identity.Application.Abstractions;
 
 namespace Minibox.Identity.IntegrationTests;
 
 /// <summary>Service khác kiểm access token của identity qua discovery + JWKS bằng thư viện dùng chung.</summary>
-public sealed class JwksTests
+public sealed class JwksTests : IAsyncLifetime
 {
+    IdentityHost _host = null!;
+
+    public async ValueTask InitializeAsync() => _host = await IdentityHost.StartAsync();
+
+    public ValueTask DisposeAsync() => _host.DisposeAsync();
+
     const string Authority = "http://localhost"; // địa chỉ gốc của TestServer
 
-    sealed class FakeTime(DateTimeOffset now) : TimeProvider
+    sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
 
     static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    static WebApplicationFactory<Program> Identity(DateTimeOffset now) => new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
-        .UseSetting("Jwt:Issuer", Authority)
-        .ConfigureServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FakeTime(now)))));
+    WebApplicationFactory<Program> Identity(DateTimeOffset now) =>
+        _host.CreateApi(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FixedClock(now))));
 
     static string Issue(WebApplicationFactory<Program> identity, string[]? amr = null, Dictionary<string, IReadOnlyCollection<string>>? perms = null) =>
         identity.Services.GetRequiredService<IAccessTokenIssuer>()

@@ -1,5 +1,6 @@
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
+using Minibox.BuildingBlocks.Infrastructure.Persistence;
 using Minibox.Messy.Application.Abstractions;
 using Minibox.Messy.Application.Features.Things;
 
@@ -10,6 +11,13 @@ public sealed class ThingReader : IThingReader
 {
     /// <inheritdoc/>
     public int Count() => 1;
+}
+
+/// <summary>Đúng chỗ: cài port của BuildingBlocks.Infrastructure (ánh xạ integration event cho outbox).</summary>
+public sealed class ThingEvents : IIntegrationEventMapper
+{
+    /// <inheritdoc/>
+    public object? Map(IDomainEvent domainEvent) => null;
 }
 
 /// <summary>Vi phạm cố ý: logic nghiệp vụ (không cài port) đặt trong Infrastructure.</summary>

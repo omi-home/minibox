@@ -12,7 +12,8 @@ namespace Minibox.BuildingBlocks.Architecture;
 /// (endpoint không viết lambda trong Program); <c>{svc}.Api.Endpoints</c> không dùng <c>{svc}.Infrastructure</c>/<c>{svc}.Domain</c>;
 /// type Api khác không dùng Features/Domain/Infrastructure/<c>ISender</c>.</item>
 /// <item>Handler Mediator chỉ nằm trong <c>{svc}.Application.Features</c>.</item>
-/// <item>Infrastructure chỉ chứa class cài port (interface của <c>{svc}.Application</c> hoặc BuildingBlocks.Application), <c>DbContext</c>,
+/// <item>Infrastructure chỉ chứa class cài port (interface của <c>{svc}.Application</c>, BuildingBlocks.Application hoặc BuildingBlocks.Infrastructure
+/// như <c>IIntegrationEventMapper</c>), <c>DbContext</c>,
 /// <c>IEntityTypeConfiguration</c> và static class đăng ký; class khác bị coi là logic nghiệp vụ đặt sai chỗ.</item>
 /// </list>
 /// </remarks>
@@ -94,6 +95,7 @@ public static class StructureRules
         || type.GetInterfaces().Any(i => i.Namespace is { } ns
             && (ns.StartsWith($"{service}.Application", StringComparison.Ordinal)
                 || ns.StartsWith("Minibox.BuildingBlocks.Application", StringComparison.Ordinal)
+                || ns.StartsWith("Minibox.BuildingBlocks.Infrastructure", StringComparison.Ordinal)
                 || (ns == "Microsoft.EntityFrameworkCore" && i.Name.StartsWith("IEntityTypeConfiguration", StringComparison.Ordinal))));
 
     static IEnumerable<Type> BaseTypes(Type type)

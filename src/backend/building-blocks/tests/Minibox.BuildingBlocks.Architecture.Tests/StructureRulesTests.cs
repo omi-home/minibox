@@ -32,6 +32,7 @@ public class StructureRulesTests
     [Theory(DisplayName = "ac455_2 Chỗ đặt đúng không bị báo")]
     [InlineData("Minibox.Messy.Application.Features.Things.GetThingHandler")]
     [InlineData("Minibox.Messy.Infrastructure.ThingReader")]
+    [InlineData("Minibox.Messy.Infrastructure.ThingEvents")]
     [InlineData("Minibox.Messy.Infrastructure.InfrastructureSetup")]
     public void ac455_2_correct_placement_is_clean(string type) =>
         Assert.DoesNotContain(Violations, v => v.StartsWith(type + ":", StringComparison.Ordinal));

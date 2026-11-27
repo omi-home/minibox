@@ -10,7 +10,8 @@ CREATE TABLE refresh_token (
   expires_at        timestamptz NOT NULL,
   family_expires_at timestamptz,
   used_at           timestamptz,
-  revoked_at        timestamptz
+  revoked_at        timestamptz,
+  version           bigint      NOT NULL DEFAULT 0
 );
 
 CREATE INDEX refresh_token_family ON refresh_token (family_id);
