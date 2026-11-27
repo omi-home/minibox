@@ -1,4 +1,4 @@
-// 0 quyền chéo schema giữa 11 service (spec §4.2, NFR #184). Cần Docker.
+// 0 quyền chéo schema giữa 12 service (spec §4.2, NFR #184). Cần Docker.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -66,7 +66,7 @@ test("ac184_4 không role ứng dụng nào là superuser hoặc có quyền CRE
            OR has_database_privilege(rolname, 'minibox', 'CREATE')
            OR has_database_privilege(rolname, 'minibox', 'TEMP'))`).out;
   assert.equal(bad, "");
-  assert.equal(pg.sql(`SELECT count(*) FROM pg_roles WHERE rolname = ANY ('{${ROLES}}')`).out, "22");
+  assert.equal(pg.sql(`SELECT count(*) FROM pg_roles WHERE rolname = ANY ('{${ROLES}}')`).out, "24");
 });
 
 test("ac184_3 bảng append-only theo mẫu từ chối UPDATE/DELETE bằng role app, kể cả sau khi bootstrap lại", () => {

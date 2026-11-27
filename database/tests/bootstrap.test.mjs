@@ -1,10 +1,10 @@
 // Bootstrap trên PostgreSQL 18 tạm, spec §4.1–4.3. Cần Docker.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { bootstrap, ROLES, SERVICES } from "../bootstrap/run.mjs";
+import { bootstrap, defaultSecretsDir, ensurePasswords, ROLES, SERVICES } from "../bootstrap/run.mjs";
 import { startPostgres } from "./pg.mjs";
 
 const secrets = mkdtempSync(join(tmpdir(), "minibox-secrets-"));
@@ -31,11 +31,11 @@ after(() => {
 
 const pw = (role) => readFileSync(join(secrets, `${role}.password`), "utf8");
 
-test("ac180_1 bootstrap DB sạch: 11 schema, 22 role, extensions có unaccent và pg_trgm", () => {
+test("ac180_1 bootstrap DB sạch: 12 schema, 24 role, extensions có unaccent và pg_trgm", () => {
   assert.equal(bootstrap(psql, secrets), 0);
   const schemas = sql(`SELECT count(*) FROM pg_namespace WHERE nspname = ANY ('{${SERVICES}}')`).out;
-  assert.equal(schemas, "11");
-  assert.equal(sql(`SELECT count(*) FROM pg_roles WHERE rolname = ANY ('{${ROLES}}')`).out, "22");
+  assert.equal(schemas, "12");
+  assert.equal(sql(`SELECT count(*) FROM pg_roles WHERE rolname = ANY ('{${ROLES}}')`).out, "24");
   assert.equal(sql("SELECT string_agg(extname, ',' ORDER BY extname) FROM pg_extension WHERE extnamespace = 'extensions'::regnamespace").out,
     "pg_trgm,unaccent");
   for (const r of ROLES) assert.ok(sql("SELECT 1", r, pw(r)).ok, `${r} không đăng nhập được bằng mật khẩu trong file secret`);
@@ -57,6 +57,21 @@ test("migrator có DDL trong schema mình; app chỉ DML, không DDL, không ch�
   assert.ok(!m("CREATE TABLE public.x (id int)").ok, "không ai được ghi schema public");
   assert.ok(!a("SELECT extensions.unaccent('Ả')").ok, "service không cần tìm kiếm không thấy extensions");
   assert.equal(sql("SELECT unaccent('Rau cải')", "catalog_app", pw("catalog_app")).out, "Rau cai");
+});
+
+test("file secret rỗng bị từ chối, không tạo role không mật khẩu", () => {
+  const dir = mkdtempSync(join(tmpdir(), "minibox-empty-"));
+  try {
+    writeFileSync(join(dir, `${ROLES[0]}.password`), "  \n");
+    assert.throws(() => ensurePasswords(dir), /rỗng/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("môi trường ngoài dev|staging|production bị từ chối", () => {
+  assert.equal(defaultSecretsDir("staging"), "/srv/minibox/staging/secrets");
+  for (const env of ["../etc", "prod", ""]) assert.throws(() => defaultSecretsDir(env), /môi trường/);
 });
 
 test("role mất file secret được đặt lại mật khẩu theo file mới sinh", () => {

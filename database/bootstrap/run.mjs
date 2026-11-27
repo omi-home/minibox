@@ -2,7 +2,7 @@
 // Sinh mật khẩu cho role chưa có file secret, rồi đẩy bootstrap.sql vào psql của container database-postgres.
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { composeArgs } from "../../scripts/dev.mjs";
@@ -10,22 +10,27 @@ import { isMain, root } from "../../scripts/run.mjs";
 
 export const SERVICES = [
   "identity", "catalog", "content", "order", "payment", "minixu",
-  "inventory", "farm", "purchasing", "finance", "support",
+  "inventory", "farm", "purchasing", "finance", "support", "localization",
 ];
 export const ROLES = SERVICES.flatMap((s) => [`${s}_migrator`, `${s}_app`]);
 
 const sqlFile = join(dirname(fileURLToPath(import.meta.url)), "bootstrap.sql");
 
 /** Thư mục secret mặc định: dev trong repo (đã .gitignore), staging/production ngoài repo (spec §8.4). */
-export const defaultSecretsDir = (env) =>
-  env === "dev" ? join(root, "deploy", "dev", "secrets") : `/srv/minibox/${env}/secrets`;
+export const defaultSecretsDir = (env) => {
+  if (env === "dev") return join(root, "deploy", "dev", "secrets");
+  if (env === "staging" || env === "production") return `/srv/minibox/${env}/secrets`;
+  throw new Error(`môi trường không hợp lệ: ${JSON.stringify(env)} (chỉ dev|staging|production)`);
+};
 
 /**
  * Đọc mật khẩu từ `<dir>/<role>.password`; role chưa có file thì sinh ngẫu nhiên và ghi file (quyền 600).
+ * Windows bỏ qua mode 0o700/0o600: secret dev trên Windows không được bảo vệ bằng quyền file.
  * @returns {{ passwords: Record<string,string>, created: string[] }}
  */
 export function ensurePasswords(dir) {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700); // mkdirSync chỉ đặt mode khi tạo mới
   const passwords = {}, created = [];
   for (const role of ROLES) {
     const file = join(dir, `${role}.password`);
@@ -34,6 +39,7 @@ export function ensurePasswords(dir) {
       created.push(role);
     }
     passwords[role] = readFileSync(file, "utf8").trim();
+    if (!passwords[role]) throw new Error(`file secret rỗng: ${file}`);
   }
   return { passwords, created };
 }
@@ -49,6 +55,7 @@ const lit = (s) => `'${s.replaceAll("'", "''")}'`;
 export function bootstrap(psql, secretsDir) {
   const { passwords, created } = ensurePasswords(secretsDir);
   const input = [
+    "SET log_statement = 'none';", // set_config bên dưới chứa mật khẩu, không để lọt log Postgres
     `SELECT set_config('minibox.services', ${lit(SERVICES.join(","))}, false),`,
     `       set_config('minibox.passwords', ${lit(JSON.stringify(passwords))}, false),`,
     `       set_config('minibox.new_passwords', ${lit(created.join(","))}, false) \\g /dev/null`,
@@ -66,7 +73,8 @@ export const composePsql = (env) => ["docker", ...composeArgs(env), "exec", "-T"
 if (isMain(import.meta.url)) {
   const [env = "dev", ...rest] = process.argv.slice(2);
   const i = rest.indexOf("--secrets");
-  const dir = i >= 0 ? rest[i + 1] : defaultSecretsDir(env);
+  const fallback = defaultSecretsDir(env); // kiểm env kể cả khi có --secrets
+  const dir = i >= 0 ? rest[i + 1] : fallback;
   process.chdir(root);
   process.exit(bootstrap(composePsql(env), dir));
 }
