@@ -1,7 +1,8 @@
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
+using Minibox.Identity.Application.Abstractions;
 
-namespace Minibox.Identity.Infrastructure.Tokens;
+namespace Minibox.Identity.Infrastructure.Security;
 
 /// <summary>Khóa ký ES256 xoay vòng theo chu kỳ cố định. JWKS công bố khóa chu kỳ trước (token còn hạn),
 /// hiện tại và kế tiếp (công bố sẵn trước khi dùng nên service cache JWKS không gặp <c>kid</c> lạ lúc xoay).</summary>
@@ -9,7 +10,7 @@ namespace Minibox.Identity.Infrastructure.Tokens;
 /// (≤ 5 phút) bị từ chối và BFF refresh lại; chạy nhiều instance identity thì phải chuyển key ring sang kho dùng chung.</remarks>
 /// <param name="time">Đồng hồ.</param>
 /// <param name="period">Chu kỳ xoay khóa.</param>
-public sealed class SigningKeyRing(TimeProvider time, TimeSpan period)
+public sealed class SigningKeyRing(TimeProvider time, TimeSpan period) : ISigningKeys
 {
     /// <summary>Chu kỳ xoay mặc định.</summary>
     public static readonly TimeSpan DefaultPeriod = TimeSpan.FromHours(24);
@@ -40,8 +41,7 @@ public sealed class SigningKeyRing(TimeProvider time, TimeSpan period)
         }
     }
 
-    /// <summary>Tài liệu JWKS (RFC 7517) chỉ gồm phần công khai của các khóa đang công bố.</summary>
-    /// <returns>Đối tượng <c>{"keys":[…]}</c> để serialize JSON.</returns>
+    /// <inheritdoc/>
     public object Jwks() => new
     {
         keys = Published.Select(k =>

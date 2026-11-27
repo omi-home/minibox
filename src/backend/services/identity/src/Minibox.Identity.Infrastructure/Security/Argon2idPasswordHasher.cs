@@ -1,7 +1,7 @@
 using Isopoh.Cryptography.Argon2;
-using Minibox.Identity.Application.Accounts;
+using Minibox.Identity.Application.Abstractions;
 
-namespace Minibox.Identity.Infrastructure.Accounts;
+namespace Minibox.Identity.Infrastructure.Security;
 
 /// <summary>Băm mật khẩu Argon2id theo mức tối thiểu OWASP: 19 MiB, t=2, p=1 (spec §3.1).</summary>
 /// <remarks>Đổi tham số → bản băm cũ vẫn kiểm được (tham số nằm trong chuỗi PHC) và được báo

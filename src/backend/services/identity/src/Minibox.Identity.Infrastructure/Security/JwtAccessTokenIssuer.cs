@@ -1,11 +1,12 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Minibox.BuildingBlocks.Application.Security;
-using Minibox.Identity.Application.Tokens;
+using Minibox.Identity.Application.Abstractions;
 
-namespace Minibox.Identity.Infrastructure.Tokens;
+namespace Minibox.Identity.Infrastructure.Security;
 
 /// <summary>Cấp access token JWT ES256 hạn <see cref="AccessTokenClaims.Lifetime"/>, ký bằng khóa hiện hành của <see cref="SigningKeyRing"/>.</summary>
 /// <param name="keys">Key ring.</param>
@@ -14,6 +15,13 @@ namespace Minibox.Identity.Infrastructure.Tokens;
 public sealed class JwtAccessTokenIssuer(SigningKeyRing keys, TimeProvider time, string issuer) : IAccessTokenIssuer
 {
     static readonly JsonWebTokenHandler Handler = new() { SetDefaultTimesOnTokenCreation = false };
+
+    /// <summary>Đọc <c>Jwt:Issuer</c>: URL nội bộ của identity, dùng làm <c>iss</c> và gốc discovery/JWKS.</summary>
+    /// <param name="config">Cấu hình.</param>
+    /// <returns>URL không có dấu <c>/</c> cuối.</returns>
+    /// <exception cref="InvalidOperationException">Thiếu cấu hình.</exception>
+    public static string IssuerFrom(IConfiguration config) =>
+        (config["Jwt:Issuer"] ?? throw new InvalidOperationException("Thiếu cấu hình Jwt:Issuer")).TrimEnd('/');
 
     /// <inheritdoc />
     public IssuedAccessToken Issue(AccessTokenRequest request)
