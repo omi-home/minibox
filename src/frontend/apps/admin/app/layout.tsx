@@ -1,3 +1,4 @@
+import { fontVariables } from "@minibox/ui/fonts";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -12,14 +13,15 @@ export const metadata: Metadata = {
 };
 
 /**
- * Layout gốc của app admin: khung HTML tiếng Việt bao mọi trang.
+ * Layout gốc của app admin: khung HTML tiếng Việt bao mọi trang, gắn biến font tự host.
  *
  * @param props - Thuộc tính layout; `children` là nội dung trang hiện tại.
  * @returns Khung HTML của trang.
  */
 const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
-    <html lang="vi">
+    // data-theme do trang /design đặt phía client (bộ chuyển sáng/tối), nên bỏ cảnh báo lệch thuộc tính khi hydrate.
+    <html lang="vi" className={fontVariables} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

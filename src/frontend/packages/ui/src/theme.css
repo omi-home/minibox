@@ -1,8 +1,10 @@
 /*
- * Design token khối hộp dùng chung cho shop và admin (spec §6.4). Tailwind v4 sinh utility từ các biến @theme
- * (bg-surface, text-muted, rounded-box, shadow-box-2, max-w-prose, sm:/lg:/2xl:…); `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
- * Màu/font là TẠM, chờ OPEN-08 (logo, bảng màu, font) — đổi giá trị ở đây, không đổi tên token.
- * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`
+ * Design token Minibox dùng chung cho shop và admin (spec §6.4, docs/superpowers/specs/2026-11-27-design-system-448-design.md).
+ * Tailwind v4 sinh utility từ các biến @theme (bg-surface, text-muted, rounded-box, shadow-box-2, chamfer, sm:/lg:/2xl:…);
+ * `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
+ * Mỗi màu khai light-dark(sáng, tối): chế độ theo hệ điều hành, hoặc ép bằng data-theme="light|dark" trên <html>.
+ * Bộ nhận diện "Rừng sâu" (PO chốt OPEN-08): xanh rừng đậm làm mảng thương hiệu + xương lạnh, điểm hổ phách (highlight) rất ít.
+ * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`, <html className={fontVariables}>.
  */
 
 /* Cho Tailwind của app quét class trong component của package này. */
@@ -10,57 +12,75 @@
 
 @theme static {
   /*
-   * Màu (tạm, OPEN-08): nền xám lạnh trung tính + MỘT màu nhấn xanh lục đậm (primary). accent là sắc nhạt của primary
-   * (nền mục đang chọn, highlight), không phải màu thứ hai. success/warning/danger chỉ dùng cho trạng thái, luôn kèm icon/chữ.
-   * Cặp chữ/nền đạt WCAG AA: foreground/background ~16:1, muted/surface ~5.6:1, primary-foreground/primary ~5.5:1.
+   * Màu ngữ nghĩa. primary là MỘT màu nhấn; accent là sắc nhạt của primary (nền mục đang chọn), không phải màu thứ hai.
+   * success/warning/danger/info chỉ cho trạng thái, luôn kèm icon/chữ; -soft là nền nhạt cho badge/alert (chữ dùng màu trạng thái).
+   * Ngưỡng tương phản khoá bằng contrast.test.ts (chữ chính ≥ 7, chữ phụ ≥ 4.5, viền/focus ≥ 3).
    */
   --color-*: initial;
   --color-white: oklch(0.995 0 0);
   --color-black: oklch(0.15 0.005 260);
-  --color-background: oklch(0.975 0.003 250);
-  --color-surface: oklch(0.995 0.001 250);
-  --color-surface-sunken: oklch(0.955 0.004 250);
-  --color-foreground: oklch(0.2 0.012 260);
-  --color-muted: oklch(0.5 0.012 260);
-  --color-border: oklch(0.905 0.006 250);
-  --color-border-strong: oklch(0.82 0.008 250);
-  --color-primary: oklch(0.5 0.12 162);
-  --color-primary-hover: oklch(0.44 0.11 162);
-  --color-primary-foreground: oklch(0.99 0.01 162);
-  --color-accent: oklch(0.95 0.035 162);
-  --color-accent-foreground: oklch(0.38 0.09 162);
-  --color-success: oklch(0.52 0.13 150);
-  --color-warning: oklch(0.6 0.13 70);
-  --color-danger: oklch(0.54 0.2 25);
-  --color-danger-hover: oklch(0.48 0.19 25);
-  --color-focus: oklch(0.6 0.13 162);
-  /* Cạnh dày của khối (mặt đáy nhìn thấy dưới nút/thẻ) — tạo cảm giác 3D. */
-  --color-edge: oklch(0.86 0.008 250);
-  --color-primary-edge: oklch(0.36 0.1 162);
-  --color-danger-edge: oklch(0.4 0.17 25);
+  --color-background: light-dark(oklch(0.97 0.006 160), oklch(0.165 0.015 165));
+  --color-surface: light-dark(oklch(0.993 0.003 160), oklch(0.205 0.018 165));
+  --color-surface-sunken: light-dark(oklch(0.945 0.008 160), oklch(0.14 0.014 165));
+  --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.245 0.02 165));
+  --color-foreground: light-dark(oklch(0.22 0.02 165), oklch(0.95 0.008 160));
+  --color-muted: light-dark(oklch(0.47 0.02 165), oklch(0.73 0.02 160));
+  --color-border: light-dark(oklch(0.89 0.01 160), oklch(0.31 0.02 165));
+  --color-border-strong: light-dark(oklch(0.79 0.014 160), oklch(0.43 0.024 165));
+  --color-primary: light-dark(oklch(0.38 0.08 165), oklch(0.72 0.1 160));
+  --color-primary-hover: light-dark(oklch(0.33 0.075 165), oklch(0.78 0.09 160));
+  --color-primary-foreground: light-dark(oklch(0.97 0.015 160), oklch(0.18 0.04 165));
+  --color-accent: light-dark(oklch(0.93 0.03 165), oklch(0.3 0.05 165));
+  --color-accent-foreground: light-dark(oklch(0.36 0.07 165), oklch(0.86 0.07 160));
+  --color-highlight: light-dark(oklch(0.78 0.14 75), oklch(0.8 0.13 75));
+  --color-focus: light-dark(oklch(0.55 0.1 165), oklch(0.75 0.1 160));
+  --color-success: light-dark(oklch(0.5 0.12 150), oklch(0.76 0.13 150));
+  --color-success-soft: light-dark(oklch(0.95 0.03 150), oklch(0.27 0.05 150));
+  --color-warning: light-dark(oklch(0.52 0.11 60), oklch(0.8 0.13 75));
+  --color-warning-soft: light-dark(oklch(0.95 0.04 75), oklch(0.27 0.05 75));
+  --color-danger: light-dark(oklch(0.53 0.19 27), oklch(0.72 0.16 25));
+  --color-danger-hover: light-dark(oklch(0.47 0.18 27), oklch(0.77 0.14 25));
+  --color-danger-foreground: light-dark(oklch(0.99 0.005 27), oklch(0.18 0.04 25));
+  --color-danger-soft: light-dark(oklch(0.95 0.03 27), oklch(0.27 0.06 25));
+  --color-info: light-dark(oklch(0.52 0.13 245), oklch(0.76 0.11 245));
+  --color-info-soft: light-dark(oklch(0.95 0.03 245), oklch(0.27 0.05 245));
 
-  /* Chữ (tạm, OPEN-08): Be Vietnam Pro do app tự host qua next/font (biến --font-brand), fallback font hệ thống đủ dấu tiếng Việt. */
-  --font-sans: var(--font-brand, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối hộp. */
+  /* Chữ: tiêu đề Space Grotesk (font-display), chữ thường Be Vietnam Pro, mono cho SKU/kích thước/giá. Biến font do next/font gắn trên <html>. */
+  --font-display: var(--font-heading, var(--font-body)), system-ui, sans-serif;
+  --font-sans: var(--font-body, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-code, ui-monospace), SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối. */
   --spacing: 0.25rem;
   --spacing-box: 1rem;
   --spacing-box-lg: 1.5rem;
 
-  /* Bo góc — quy tắc cố định: control (nút, ô nhập) rounded-box; khối chứa (thẻ, bảng, sheet) rounded-lg; nhãn nhỏ rounded-sm. */
-  --radius-sm: 0.25rem;
+  /*
+   * Hình khối, quy tắc cố định: control (nút, ô nhập) rounded-box; khối chứa (thẻ, bảng, sheet) rounded-lg;
+   * nhãn nhỏ rounded-sm. Khối chứa vát góc trên phải như mép hộp giấy: thêm `chamfer` (badge/tem: `chamfer-sm`).
+   */
+  --radius-sm: 0.1875rem;
   --radius-box: 0.375rem;
-  --radius-lg: 0.625rem;
+  --radius-lg: 0.5rem;
+  --chamfer: 0.875rem;
+  --chamfer-sm: 0.5rem;
 
   /*
-   * Độ sâu kiểu khối hộp: cạnh đáy đặc (độ dày) + bóng mềm pha màu chữ (không đen thuần), 3 tầng:
-   * thẻ nằm → thẻ nổi (hover) → lớp phủ (sheet). shadow-inset cho ô nhập lõm xuống, đối lập với nút nổi lên.
+   * Độ sâu tiết chế: viền sáng mảnh phía trên (nắp hộp, --rim) + bóng mềm nhiều lớp pha màu nền. 3 tầng: thẻ nằm → thẻ nổi → lớp phủ.
+   * shadow-inset cho ô nhập; shadow-plinth là bóng tiếp xúc dưới sản phẩm trên bục trưng bày.
    */
-  --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0.2 0.012 260 / 0.1);
-  --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0.2 0.012 260 / 0.25);
-  --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0.2 0.012 260 / 0.35);
-  --shadow-inset: inset 0 2px 3px oklch(0.2 0.012 260 / 0.08), inset 0 1px 0 oklch(0.2 0.012 260 / 0.04);
+  --shadow-box-1: inset 0 1px 0 var(--rim), 0 1px 2px color-mix(in oklab, var(--shade) 8%, transparent), 0 2px 8px -2px color-mix(in oklab, var(--shade) 8%, transparent);
+  --shadow-box-2: inset 0 1px 0 var(--rim), 0 2px 4px color-mix(in oklab, var(--shade) 6%, transparent), 0 12px 28px -8px color-mix(in oklab, var(--shade) 18%, transparent);
+  --shadow-box-3: inset 0 1px 0 var(--rim), 0 4px 8px color-mix(in oklab, var(--shade) 8%, transparent), 0 32px 64px -16px color-mix(in oklab, var(--shade) 32%, transparent);
+  --shadow-inset: inset 0 1px 2px color-mix(in oklab, var(--shade) 8%, transparent);
+  --shadow-plinth: 0 18px 24px -14px color-mix(in oklab, var(--shade) 45%, transparent);
+
+  /* Lớp xếp chồng: dính (header) → nền mờ → hộp thoại/sheet → thông báo. */
+  --z-index-sticky: 20;
+  --z-index-overlay: 40;
+  --z-index-modal: 50;
+  --z-index-toast: 60;
 
   /* Breakpoint 4 nhóm thiết bị: mobile < 640 (mặc định), sm: tablet 640–1023, lg: laptop 1024–1535, 2xl: desktop lớn ≥ 1536. */
   --breakpoint-*: initial;
@@ -72,15 +92,25 @@
   --container-prose: 75ch;
   --container-page: 80rem;
 
-  /* Chuyển động: vào chậm hơn ra; đường cong giảm tốc kiểu sheet iOS. */
+  /*
+   * Chuyển động "mở hộp": vào giảm tốc, ra tăng tốc và ngắn hơn. Chỉ transform/opacity; tắt dưới prefers-reduced-motion.
+   * lid: hộp thoại/popover lật như nắp hộp từ cạnh trên; slot: thông báo trượt ra như thẻ rút khỏi khe.
+   */
   --ease-out-box: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-box: cubic-bezier(0.4, 0, 1, 1);
   --animate-sheet-up: sheet-up 320ms var(--ease-out-box);
-  --animate-sheet-down: sheet-up 200ms ease-in reverse;
+  --animate-sheet-down: sheet-up 200ms var(--ease-in-box) reverse;
   --animate-sheet-left: sheet-left 320ms var(--ease-out-box);
-  --animate-sheet-right: sheet-left 200ms ease-in reverse;
+  --animate-sheet-right: sheet-left 200ms var(--ease-in-box) reverse;
   --animate-fade-in: fade 200ms ease-out;
   --animate-fade-out: fade 150ms ease-in reverse;
   --animate-rise: rise 600ms var(--ease-out-box) both;
+  --animate-lid-open: lid 260ms var(--ease-out-box);
+  --animate-lid-close: lid 160ms var(--ease-in-box) reverse;
+  --animate-slot-in: slot 280ms var(--ease-out-box);
+  --animate-slot-out: slot 160ms var(--ease-in-box) reverse;
+  --animate-cube-spin: cube 1.6s var(--ease-out-box) infinite;
+  --animate-shimmer: shimmer 1.4s linear infinite;
 
   @keyframes sheet-up {
     from { transform: translateY(100%); }
@@ -92,47 +122,68 @@
     from { opacity: 0; }
   }
   @keyframes rise {
-    from { opacity: 0; transform: translateY(16px) rotateX(8deg); }
+    from { opacity: 0; transform: translateY(16px); }
+  }
+  @keyframes lid {
+    from { opacity: 0; transform: perspective(60rem) rotateX(-10deg) translateY(-6px); }
+  }
+  @keyframes slot {
+    from { opacity: 0; transform: translateY(110%) scale(0.97); }
+  }
+  @keyframes cube {
+    0%, 15% { transform: rotate(0deg); }
+    50%, 65% { transform: rotate(120deg); }
+    100% { transform: rotate(240deg); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
   }
 }
 
-/*
- * Phím bấm nổi: cạnh đáy màu --key-edge (đặt theo biến thể nút) + viền sáng phía trên; khi nhấn cạnh biến mất và nút lún xuống đúng độ dày.
- * `inline` để var(--key-edge) được tính tại phần tử, không phải tại :root.
- */
-@theme inline {
-  --shadow-key: inset 0 1px 0 oklch(1 0 0 / 0.2), 0 3px 0 var(--key-edge, var(--color-edge)), 0 6px 12px -4px oklch(0.2 0.012 260 / 0.3);
-  --shadow-key-pressed: inset 0 1px 0 oklch(1 0 0 / 0.1), 0 0 0 var(--key-edge, var(--color-edge)), 0 1px 2px oklch(0.2 0.012 260 / 0.2);
+/* Góc vát nắp hộp: viền, bóng và focus đi theo góc vát; trình duyệt chưa hỗ trợ corner-shape thì thành góc bo. */
+@utility chamfer {
+  border-top-right-radius: var(--chamfer);
+  corner-top-right-shape: bevel;
+}
+@utility chamfer-sm {
+  border-top-right-radius: var(--chamfer-sm);
+  corner-top-right-shape: bevel;
 }
 
 @layer base {
-  /* Dark mode theo hệ điều hành: chỉ đổi giá trị token, component không cần biến thể dark:. */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-background: oklch(0.17 0.008 260);
-      --color-surface: oklch(0.21 0.009 260);
-      --color-surface-sunken: oklch(0.15 0.008 260);
-      --color-foreground: oklch(0.95 0.004 250);
-      --color-muted: oklch(0.72 0.01 260);
-      --color-border: oklch(0.3 0.01 260);
-      --color-border-strong: oklch(0.4 0.012 260);
-      --color-primary: oklch(0.72 0.13 162);
-      --color-primary-hover: oklch(0.78 0.12 162);
-      --color-primary-foreground: oklch(0.2 0.04 162);
-      --color-accent: oklch(0.3 0.05 162);
-      --color-accent-foreground: oklch(0.85 0.1 162);
-      --color-danger: oklch(0.68 0.18 25);
-      --color-danger-hover: oklch(0.74 0.16 25);
-      --color-focus: oklch(0.75 0.13 162);
-      --color-edge: oklch(0.12 0.008 260);
-      --color-primary-edge: oklch(0.5 0.11 162);
-      --color-danger-edge: oklch(0.48 0.17 25);
-      --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0 0 0 / 0.5);
-      --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0 0 0 / 0.7);
-      --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0 0 0 / 0.8);
-      --shadow-inset: inset 0 2px 3px oklch(0 0 0 / 0.35);
-      color-scheme: dark;
-    }
+  :root {
+    color-scheme: light dark;
+    /* Viền sáng phía trên khối (nắp hộp). */
+    --rim: light-dark(oklch(1 0 0 / 0.8), oklch(1 0 0 / 0.06));
+    /* Màu pha vào bóng (không đen thuần), theo sắc nền; ngoài @theme để Tailwind không chép cứng vào utility. */
+    --shade: light-dark(oklch(0.3 0.04 165), oklch(0 0 0));
+    /* Chiều cao control: 44px cho ngón tay; admin bật data-density="compact". */
+    --control-h: 2.75rem;
+
+    /*
+     * Cảnh nền (scene.tsx): sáng = buổi sáng, tối = ban đêm. Lớp xa/giữa/gần cùng tông sáng với nền để chữ trên nền vẫn đọc được.
+     * Cảnh rừng thông trong sương sớm / dưới trăng, đom đóm hổ phách.
+     */
+    --scene-sun: light-dark(oklch(0.96 0.09 92), transparent);
+    --scene-moon: light-dark(transparent, oklch(0.93 0.03 95));
+    --scene-halo: light-dark(oklch(0.98 0.06 92 / 0.7), oklch(0.9 0.03 95 / 0.18));
+    --scene-star: light-dark(transparent, oklch(0.95 0.02 95));
+    --scene-cloud: light-dark(oklch(1 0 0 / 0.7), oklch(1 0 0 / 0.04));
+    --scene-sky: light-dark(oklch(0.93 0.04 115), oklch(0.24 0.035 200));
+    --scene-far: light-dark(oklch(0.935 0.02 160), oklch(0.215 0.03 170));
+    --scene-mid: light-dark(oklch(0.905 0.035 160), oklch(0.19 0.028 170));
+    --scene-near: light-dark(oklch(0.875 0.05 162), oklch(0.165 0.022 170));
+    --scene-glow: light-dark(transparent, oklch(0.88 0.16 95));
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+  [data-density="compact"] {
+    --control-h: 2.25rem;
   }
 
   body {
@@ -142,6 +193,13 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 
   button:not(:disabled),
@@ -159,7 +217,144 @@
     ::before,
     ::after {
       animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 1ms !important;
     }
+  }
+}
+
+@layer components {
+  /*
+   * Logo: khối lập phương 3D cạnh 1.15em, chữ M trên bốn mặt bên, xoay từng nấc 90° rồi dừng đọc (như tay xoay hộp).
+   * Màu theo --cube-face (mặt) và --cube-ink (chữ); trên nền màu chính thì đảo hai biến này.
+   */
+  .logo-cube {
+    --cube-face: var(--color-primary);
+    --cube-ink: var(--color-primary-foreground);
+    --cube-layer: color-mix(in oklab, var(--cube-ink) 11%, transparent);
+    width: 1.15em;
+    height: 1.15em;
+    flex-shrink: 0;
+    /* Khối xoay chìa ra ngoài hộp của nó: chừa lề để không đè chữ bên cạnh. */
+    margin-inline: 0.18em 0.22em;
+    perspective: 9em;
+  }
+  /* Xoay bắt đầu sau khi khối in xong. */
+  .logo-cube > span {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateX(-16deg) rotateY(-28deg);
+    will-change: transform;
+    /* Mỗi nấc xoay tăng tốc rồi giảm tốc đều (ease-in-out) để chuyển động mềm, không giật. */
+    animation: logo-turn 10s cubic-bezier(0.65, 0, 0.35, 1) 1.9s infinite;
+  }
+  /*
+   * Liên tưởng in 3D: mặt bên có vân lớp in ngang (FDM), mặt trên là lưới infill chéo. Khi tải, bốn mặt bên được "in" dựng từ
+   * dưới lên theo từng lớp (steps), rồi mặt trên đậy lại như lớp cuối cùng. Đổ sáng chuyển dần trên mỗi mặt, góc bo rất nhẹ và
+   * viền trong suốt (khử răng cưa cạnh khi xoay 3D) cho khối mượt.
+   */
+  .logo-cube i {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 0.06em;
+    background-color: var(--cube-face);
+    background-image:
+      linear-gradient(155deg, color-mix(in oklab, var(--color-white) 22%, transparent), transparent 55%, color-mix(in oklab, var(--color-black) 14%, transparent)),
+      repeating-linear-gradient(to bottom, transparent 0 0.045em, var(--cube-layer) 0.065em, transparent 0.085em);
+    color: var(--cube-ink);
+    box-shadow: inset 0 0 0 0.03em color-mix(in oklab, var(--cube-face) 70%, var(--color-white));
+    outline: 1px solid transparent;
+    backface-visibility: hidden;
+    font: normal 700 1em/1 var(--font-display);
+    animation: logo-print 1.4s steps(24, end) both;
+  }
+  .logo-cube i::before {
+    content: "M";
+    font-size: 0.82em;
+    letter-spacing: -0.04em;
+  }
+  .logo-cube [data-face="front"] { transform: translateZ(0.575em); }
+  .logo-cube [data-face="right"] { transform: rotateY(90deg) translateZ(0.575em); background-color: color-mix(in oklab, var(--cube-face) 80%, var(--color-black)); }
+  .logo-cube [data-face="back"] { transform: rotateY(180deg) translateZ(0.575em); }
+  .logo-cube [data-face="left"] { transform: rotateY(-90deg) translateZ(0.575em); background-color: color-mix(in oklab, var(--cube-face) 80%, var(--color-black)); }
+  .logo-cube [data-face="top"] {
+    transform: rotateX(90deg) translateZ(0.575em);
+    background-color: color-mix(in oklab, var(--cube-face) 55%, var(--color-white));
+    background-image:
+      repeating-linear-gradient(45deg, transparent 0 0.15em, var(--cube-layer) 0.17em, transparent 0.19em),
+      repeating-linear-gradient(-45deg, transparent 0 0.15em, var(--cube-layer) 0.17em, transparent 0.19em);
+    animation: logo-cap 0.35s ease-out 1.4s both;
+  }
+  .logo-cube [data-face="bottom"] { transform: rotateX(-90deg) translateZ(0.575em); animation: none; }
+  .logo-cube [data-face="top"]::before,
+  .logo-cube [data-face="bottom"]::before {
+    content: none;
+  }
+  @keyframes logo-print {
+    from { clip-path: inset(100% 0 0 0); }
+    to { clip-path: inset(0); }
+  }
+  @keyframes logo-cap {
+    from { opacity: 0; }
+  }
+  @keyframes logo-turn {
+    0%, 15% { transform: rotateX(-16deg) rotateY(-28deg); }
+    25%, 40% { transform: rotateX(-16deg) rotateY(-118deg); }
+    50%, 65% { transform: rotateX(-16deg) rotateY(-208deg); }
+    75%, 90% { transform: rotateX(-16deg) rotateY(-298deg); }
+    100% { transform: rotateX(-16deg) rotateY(-388deg); }
+  }
+
+  /* Hộp bay vào giỏ (flyToCart trong brand.tsx): khối chữ M xoay nhanh trong lúc bay, không chạy hiệu ứng in. */
+  .cart-fly {
+    position: fixed;
+    z-index: var(--z-index-toast);
+    pointer-events: none;
+  }
+  .cart-fly > span {
+    display: block;
+  }
+  .cart-fly .logo-cube {
+    display: block;
+    margin: 0;
+  }
+  .cart-fly .logo-cube i {
+    animation: none;
+  }
+  .cart-fly .logo-cube > span {
+    animation: cart-spin 0.8s linear;
+  }
+  @keyframes cart-spin {
+    from { transform: rotateX(-16deg) rotateY(-28deg); }
+    to { transform: rotateX(-30deg) rotateY(-388deg); }
+  }
+
+  /* Cảnh nền (scene.tsx): chuyển động nhẹ, tắt theo prefers-reduced-motion ở trên. */
+  .scene-drift {
+    animation: scene-drift 70s ease-in-out infinite alternate;
+  }
+  .scene-twinkle {
+    animation: scene-twinkle 3.5s ease-in-out infinite alternate;
+  }
+  .scene-float {
+    transform-box: fill-box;
+    animation: scene-float 5s ease-in-out infinite alternate;
+  }
+  @keyframes scene-drift {
+    from { transform: translateX(-80px); }
+    to { transform: translateX(120px); }
+  }
+  @keyframes scene-twinkle {
+    to { opacity: 0.25; }
+  }
+  @keyframes scene-float {
+    0% { transform: translate(0, 0); opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { transform: translate(14px, -26px); opacity: 0.35; }
   }
 }

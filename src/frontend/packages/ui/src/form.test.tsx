@@ -13,7 +13,7 @@ test("ac231_2 ô dùng được nền trắng, chỉ ô bị khoá mới nền x
     </>,
   );
   const open = screen.getByRole("textbox", { name: "Mở" }).className.split(" ");
-  expect(open).toContain("bg-surface");
+  expect(open).toContain("bg-surface-raised");
   expect(open).not.toContain("bg-surface-sunken");
   expect(open).toContain("disabled:bg-surface-sunken");
 });

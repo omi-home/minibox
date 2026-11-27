@@ -13,3 +13,7 @@ Nguồn sự thật: `docs/technical-spec.md` (kỹ thuật), `docs/business-req
 - Mọi component (kể cả page/layout/route của Next.js) viết dạng **arrow function**: `export const Button = (props: ButtonProps) => …`;
   default export thì `const Page = () => …; export default Page;`; component generic dùng `<T,>(…) => …`. Hook và hàm tiện ích không bắt buộc.
 - `pnpm lint` chặn (`react/function-component-definition` + cấm `export default function`), cấu hình ở `src/frontend/packages/config/eslint.config.mjs`.
+
+## Giao diện
+
+- Trước khi làm UI đọc `docs/design-system.md` (token, component nào dùng khi nào, hình khối, chuyển động, giọng văn, checklist); xem thật ở route `/design`.
