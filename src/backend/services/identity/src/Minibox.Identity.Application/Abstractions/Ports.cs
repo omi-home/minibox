@@ -1,3 +1,5 @@
+using Minibox.Identity.Application.Features.Accounts.Queries.GetMyPreferences;
+
 namespace Minibox.Identity.Application.Abstractions;
 
 /// <summary>Đọc quyền hiệu lực của tài khoản cho claim <c>perms</c> của access token (spec §3.6).</summary>
@@ -33,4 +35,14 @@ public interface ISigningKeys
     /// <summary>Dựng tài liệu JWKS (RFC 7517) chỉ gồm phần công khai của các khoá đang công bố.</summary>
     /// <returns>Đối tượng <c>{"keys":[…]}</c> để serialize JSON.</returns>
     object Jwks();
+}
+
+/// <summary>Port đọc tùy chọn hiển thị của tài khoản (phía query).</summary>
+public interface IAccountPreferencesReadService
+{
+    /// <summary>Đọc locale và múi giờ của tài khoản.</summary>
+    /// <param name="accountId">Tài khoản.</param>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Tùy chọn; <c>null</c> nếu tài khoản không tồn tại.</returns>
+    Task<PreferencesDto?> GetAsync(Guid accountId, CancellationToken cancellationToken = default);
 }

@@ -23,6 +23,12 @@ public sealed record MfaEnabled(Guid AccountId) : IDomainEvent;
 /// <param name="Reason"><c>logout</c>, <c>reuse</c> hoặc <c>mfa</c>.</param>
 public sealed record SessionRevoked(Guid AccountId, Guid FamilyId, string Reason) : IDomainEvent;
 
+/// <summary>Tài khoản đổi tùy chọn hiển thị (audit).</summary>
+/// <param name="AccountId">Id tài khoản.</param>
+/// <param name="Locale">Locale mới; <c>null</c> = bỏ chọn.</param>
+/// <param name="TimeZone">Múi giờ IANA mới.</param>
+public sealed record AccountPreferencesChanged(Guid AccountId, string? Locale, string TimeZone) : IDomainEvent;
+
 /// <summary>Một dòng của ảnh chụp phân công.</summary>
 /// <param name="Role">Mã vai trò.</param>
 /// <param name="Scope">Phạm vi.</param>

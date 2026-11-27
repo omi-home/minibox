@@ -64,4 +64,10 @@ public static class IdentityErrors
 
     /// <summary>Người gọi thiếu quyền trong phạm vi, hoặc tự đổi phân công của mình (không lộ lý do cụ thể).</summary>
     public static readonly Error AssignmentForbidden = Error.Forbidden("Auth.Forbidden", "Không có quyền thực hiện thao tác.");
+
+    /// <summary>Locale không đúng dạng BCP 47 (ví dụ <c>vi</c>, <c>en</c>, <c>zh-Hant</c>).</summary>
+    public static readonly Error InvalidLocale = Error.Validation("Identity.InvalidLocale", "Mã ngôn ngữ không hợp lệ.");
+
+    /// <summary>Múi giờ không phải mã IANA có thật (ví dụ <c>Asia/Ho_Chi_Minh</c>).</summary>
+    public static readonly Error InvalidTimeZone = Error.Validation("Identity.InvalidTimeZone", "Múi giờ không hợp lệ.");
 }

@@ -26,6 +26,7 @@ public static class InfrastructureSetup
         .AddScoped<IRefreshTokenRepository, RefreshTokenRepository>()
         .AddScoped<IRoleRepository, RoleRepository>()
         .AddScoped<IPermissionReadService, PermissionReadService>()
+        .AddScoped<IAccountPreferencesReadService, AccountPreferencesReadService>()
         .AddSingleton<IPasswordHasher, Argon2idPasswordHasher>()
         .AddSingleton<IMfaSecretProtector>(sp => new AesGcmMfaSecretProtector(Convert.FromBase64String(
             sp.GetRequiredService<IConfiguration>()["Mfa:EncryptionKey"] ?? throw new InvalidOperationException("Thiếu cấu hình Mfa:EncryptionKey"))))

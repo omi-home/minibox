@@ -19,6 +19,7 @@ using Minibox.Localization.Application.Features.Messages.Queries.GetPublishedMes
 using Minibox.Localization.Application.Features.Messages.Queries.ListMessages;
 using Minibox.Localization.Application.Abstractions;
 using Minibox.Localization.Application.Features.Locales.Queries.ListLocales;
+using Minibox.Localization.Application.Features.Currencies.Queries.ListCurrencies;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -105,6 +106,25 @@ public sealed class ApiHostTests : IAsyncLifetime
     public async Task seeded_locales_listed() =>
         Assert.Equal([new LocaleDto("vi", "Tiếng Việt", null), new LocaleDto("en", "English", "vi")],
             (await _factory.CreateClient().GetFromJsonAsync<LocaleDto[]>("/locales", Ct))!);
+
+    [Fact(DisplayName = "GET /currencies (công khai) trả tiền tệ đang bật kèm tỷ giá hiện hành: dòng mới nhất không ở tương lai; VND = 1")]
+    public async Task currencies_with_current_rate()
+    {
+        await Exec("""
+            INSERT INTO currency (code, name, symbol, minor_unit, enabled, sort_order) VALUES
+              ('USD', 'US Dollar', '$', 2, true, 1), ('JPY', 'Yen', '¥', 0, true, 2), ('EUR', 'Euro', '€', 2, false, 3);
+            INSERT INTO exchange_rate (id, currency_code, vnd_per_unit, effective_at, actor) VALUES
+              (gen_random_uuid(), 'USD', 25000, now() - interval '2 day', 'system'),
+              (gen_random_uuid(), 'USD', 26000.5, now() - interval '1 day', 'system'),
+              (gen_random_uuid(), 'USD', 99999, now() + interval '1 day', 'system'),
+              (gen_random_uuid(), 'EUR', 28000, now() - interval '1 day', 'system')
+            """);
+        var list = (await _factory.CreateClient().GetFromJsonAsync<CurrencyDto[]>("/currencies", Ct))!;
+        Assert.Equal(["VND", "USD", "JPY"], list.Select(c => c.Code));
+        Assert.Equal(1m, list[0].VndPerUnit);
+        Assert.Equal(("$", 2, 26000.5m), (list[1].Symbol, list[1].MinorUnit, list[1].VndPerUnit));
+        Assert.Null(list[2].VndPerUnit); // chưa có tỷ giá: không hiển thị quy đổi
+    }
 
     [Fact(DisplayName = "Mapping EF khớp DDL: locale tắt không hiện, bật thì xếp theo sort_order")]
     public async Task ef_mapping_matches_migrated_schema()
