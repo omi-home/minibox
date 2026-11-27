@@ -1,5 +1,6 @@
 import { fontVariables } from "@minibox/ui/fonts";
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -17,8 +18,10 @@ export const metadata: Metadata = {
  *
  * @param props - Thuộc tính layout; `children` là nội dung trang hiện tại.
  * @returns Khung HTML của trang.
+ * @remarks Mọi trang render động để Next gắn nonce CSP của request (proxy.ts) vào script; trang tĩnh build sẵn không có nonce.
  */
-const RootLayout = ({ children }: { children: ReactNode }) => {
+const RootLayout = async ({ children }: { children: ReactNode }) => {
+  await connection();
   return (
     // data-theme do trang /design đặt phía client (bộ chuyển sáng/tối), nên bỏ cảnh báo lệch thuộc tính khi hydrate.
     <html lang="vi" className={fontVariables} suppressHydrationWarning>

@@ -33,3 +33,18 @@ test("ac231_2 đầu trang có h1, mô tả và hành động", () => {
   expect(screen.getByRole("heading", { level: 1, name: "Đơn sản xuất" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Tạo đơn" })).toBeTruthy();
 });
+
+test("ac208_3 sidebar admin chia vùng theo group, giữ thứ tự", () => {
+  render(
+    <AdminShell
+      nav={[
+        { href: "/kho", label: "Kho", group: "Nghiệp vụ" },
+        { href: "/loi", label: "Lỗi hệ thống", group: "Kỹ thuật và tích hợp" },
+        { href: "/don", label: "Đơn hàng", group: "Nghiệp vụ" },
+      ]}
+    >
+      Bảng
+    </AdminShell>,
+  );
+  expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Nghiệp vụ", "Kỹ thuật và tích hợp"]);
+});

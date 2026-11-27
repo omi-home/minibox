@@ -90,8 +90,11 @@ export const ShopShell = ({ nav, cartCount = 0, search, children, link: Link = "
 
 /** Thuộc tính của {@link AdminShell}. */
 export type AdminShellProps = {
-  /** Mục điều hướng quản trị: sidebar từ laptop, hàng link trên tablet, điều hướng dưới (5 mục đầu) trên mobile. */
-  nav: BottomNavItem[];
+  /**
+   * Mục điều hướng quản trị: sidebar từ laptop (chia vùng theo `group`, giữ thứ tự xuất hiện), hàng link trên tablet,
+   * điều hướng dưới (5 mục đầu) trên mobile.
+   */
+  nav: (BottomNavItem & { group?: string })[];
   /** Khu người dùng (tên, đăng xuất) ở cuối sidebar và trên thanh đầu. */
   user?: ReactNode;
   /** Nội dung trang. */
@@ -107,9 +110,10 @@ export type AdminShellProps = {
  * @returns Khung trang.
  */
 export const AdminShell = ({ nav, user, children, link: Link = "a" }: AdminShellProps) => {
-  const links = (vertical: boolean) => (
+  const groups = [...new Set(nav.map((i) => i.group))].map((g) => [g, nav.filter((i) => i.group === g)] as const);
+  const links = (vertical: boolean, items = nav) => (
     <ul className={cx("flex gap-1", vertical ? "flex-col" : "items-center")}>
-      {nav.map((i) => (
+      {items.map((i) => (
         <li key={i.href}>
           <Link href={i.href} aria-current={i.current ? "page" : undefined} className={cx(navLink, vertical && "aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground")}>
             {i.icon && <span aria-hidden>{i.icon}</span>}
@@ -128,8 +132,17 @@ export const AdminShell = ({ nav, user, children, link: Link = "a" }: AdminShell
         <Link href="/" className="px-3 text-lg">
           <Logo title="Minibox quản trị, về bảng điều khiển" />
         </Link>
-        <nav aria-label="Điều hướng quản trị" className="flex-1">
-          {links(true)}
+        <nav aria-label="Điều hướng quản trị" className="flex flex-1 flex-col gap-5 overflow-y-auto">
+          {groups.map(([group, items]) => (
+            <div key={group ?? ""} className="flex flex-col gap-1">
+              {group && (
+                <h2 className="px-3 text-xs font-semibold tracking-wide text-muted uppercase">
+                  {group}
+                </h2>
+              )}
+              {links(true, items)}
+            </div>
+          ))}
         </nav>
         {user && <div className="border-t border-border px-3 pt-4 text-sm">{user}</div>}
       </aside>
@@ -138,7 +151,7 @@ export const AdminShell = ({ nav, user, children, link: Link = "a" }: AdminShell
           <Link href="/" className="text-base">
             <Logo title="Minibox quản trị, về bảng điều khiển" />
           </Link>
-          <nav aria-label="Điều hướng quản trị" className="hidden overflow-x-auto sm:block">
+          <nav aria-label="Điều hướng quản trị" className="hidden min-w-0 overflow-x-auto sm:block">
             {links(false)}
           </nav>
           {user && <div className="ml-auto text-sm">{user}</div>}
