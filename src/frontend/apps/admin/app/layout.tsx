@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+
+/** Viewport phủ cả tai thỏ/thanh home để component dùng env(safe-area-inset-*). */
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 /** Metadata mặc định của app quản trị cho nhân viên; chặn bot index. */
 export const metadata: Metadata = {
