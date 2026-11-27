@@ -3,10 +3,12 @@
  *
  * @returns Nội dung trang chủ.
  */
-export default function Home() {
+const Home = () => {
   return (
     <main>
       <h1>Minibox</h1>
     </main>
   );
-}
+};
+
+export default Home;
