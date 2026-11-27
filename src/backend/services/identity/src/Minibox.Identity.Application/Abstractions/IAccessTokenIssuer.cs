@@ -1,4 +1,4 @@
-namespace Minibox.Identity.Application.Tokens;
+namespace Minibox.Identity.Application.Abstractions;
 
 /// <summary>Thông tin đưa vào access token.</summary>
 /// <param name="Subject">Định danh tài khoản hoặc service (<c>sub</c>).</param>

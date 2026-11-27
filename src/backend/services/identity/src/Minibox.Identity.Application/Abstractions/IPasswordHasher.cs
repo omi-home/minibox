@@ -1,4 +1,4 @@
-namespace Minibox.Identity.Application.Accounts;
+namespace Minibox.Identity.Application.Abstractions;
 
 /// <summary>Kết quả so khớp mật khẩu với bản băm đã lưu.</summary>
 public enum PasswordVerification
