@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Abstractions;
@@ -13,6 +14,14 @@ namespace Minibox.Identity.Application.Features.Sessions.Commands.Login;
 /// <param name="Password">Mật khẩu.</param>
 /// <param name="Ip">IP người dùng cuối mà BFF thấy.</param>
 public sealed record Login(string? Identifier, string? Password, string? Ip) : ICommand<TokenResponse>;
+
+/// <summary>Kiểm dạng IP do BFF gửi (khoá bộ đếm sai theo IP). Định danh và mật khẩu cố ý không kiểm ở đây: sai dạng vẫn trả
+/// <see cref="IdentityErrors.InvalidCredentials"/> như sai giá trị để không lộ gì.</summary>
+public sealed class LoginValidator : AbstractValidator<Login>
+{
+    /// <summary>Khai báo luật: <c>Ip</c> bắt buộc, là địa chỉ IPv4/IPv6 hợp lệ.</summary>
+    public LoginValidator() => RuleFor(x => x.Ip).NotEmpty().Must(ip => System.Net.IPAddress.TryParse(ip, out _)).WithMessage("IP không hợp lệ.");
+}
 
 /// <summary>Kiểm mật khẩu và mở phiên <c>amr = [pwd]</c>.</summary>
 /// <param name="accounts">Repository tài khoản.</param>

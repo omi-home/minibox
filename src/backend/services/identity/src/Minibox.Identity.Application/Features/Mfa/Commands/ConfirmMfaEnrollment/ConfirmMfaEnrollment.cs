@@ -1,3 +1,4 @@
+using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Abstractions;
@@ -10,6 +11,13 @@ namespace Minibox.Identity.Application.Features.Mfa.Commands.ConfirmMfaEnrollmen
 /// <summary>Lệnh bật MFA khi người dùng nhập đúng mã từ secret đang chờ.</summary>
 /// <param name="Code">Mã 6 chữ số.</param>
 public sealed record ConfirmMfaEnrollment(string? Code) : ICommand<IReadOnlyList<string>>;
+
+/// <summary>Kiểm dạng mã trước khi mở transaction: mã rỗng hoặc dài bất thường không bị tính là một lần đoán sai.</summary>
+public sealed class ConfirmMfaEnrollmentValidator : AbstractValidator<ConfirmMfaEnrollment>
+{
+    /// <summary>Khai báo luật: <c>Code</c> bắt buộc, tối đa 64 ký tự (mã TOTP 6 số, mã khôi phục 16 ký tự kèm dấu ngăn).</summary>
+    public ConfirmMfaEnrollmentValidator() => RuleFor(x => x.Code).NotEmpty().MaximumLength(64);
+}
 
 /// <summary>Kiểm mã (có giới hạn nhập sai), bật MFA và cấp bộ mã khôi phục mới.</summary>
 /// <param name="user">Người gọi.</param>

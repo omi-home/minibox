@@ -1,3 +1,4 @@
+using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Abstractions;
@@ -10,6 +11,17 @@ namespace Minibox.Identity.Application.Features.Assignments.Commands.RevokeAssig
 /// <param name="Role">Mã vai trò.</param>
 /// <param name="Scope">Phạm vi của phân công.</param>
 public sealed record RevokeAssignment(Guid AccountId, string Role, string Scope) : ICommand;
+
+/// <summary>Kiểm dạng vai trò và phạm vi trước khi mở transaction; cú pháp phạm vi chi tiết do <c>AssignmentPolicy</c> kiểm trong handler.</summary>
+public sealed class RevokeAssignmentValidator : AbstractValidator<RevokeAssignment>
+{
+    /// <summary>Khai báo luật: <c>Role</c> và <c>Scope</c> bắt buộc, tối đa <see cref="AssignmentAccess.MaxCodeLength"/> ký tự.</summary>
+    public RevokeAssignmentValidator()
+    {
+        RuleFor(x => x.Role).NotEmpty().MaximumLength(AssignmentAccess.MaxCodeLength);
+        RuleFor(x => x.Scope).NotEmpty().MaximumLength(AssignmentAccess.MaxCodeLength);
+    }
+}
 
 /// <summary>Chống leo thang đặc quyền rồi thu hồi qua aggregate <c>Account</c> (khoá dòng); audit trước/sau đi qua Unit of Work.</summary>
 /// <param name="user">Người gọi.</param>

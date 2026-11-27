@@ -1,3 +1,4 @@
+using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Identity.Application.Abstractions;
@@ -13,6 +14,13 @@ namespace Minibox.Identity.Application.Features.Mfa.Commands.VerifyMfa;
 /// <param name="RefreshToken">Refresh token của phiên hiện tại (không bắt buộc), bị thu hồi khi xác minh thành công.</param>
 /// <remarks>Tài khoản lấy từ claim <c>sub</c> của access token, không từ body.</remarks>
 public sealed record VerifyMfa(string? Code, string? RefreshToken) : ICommand<TokenResponse>;
+
+/// <summary>Kiểm dạng mã trước khi mở transaction: mã rỗng hoặc dài bất thường không bị tính là một lần đoán sai.</summary>
+public sealed class VerifyMfaValidator : AbstractValidator<VerifyMfa>
+{
+    /// <summary>Khai báo luật: <c>Code</c> bắt buộc, tối đa 64 ký tự (mã TOTP 6 số, mã khôi phục 16 ký tự kèm dấu ngăn).</summary>
+    public VerifyMfaValidator() => RuleFor(x => x.Code).NotEmpty().MaximumLength(64);
+}
 
 /// <summary>Kiểm mã (có giới hạn nhập sai) và mở phiên mới <c>amr = [pwd, mfa]</c>, <c>auth_time</c> = bây giờ.</summary>
 /// <param name="user">Người gọi.</param>
