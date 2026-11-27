@@ -231,7 +231,7 @@
   .logo-cube {
     --cube-face: var(--color-primary);
     --cube-ink: var(--color-primary-foreground);
-    --cube-layer: color-mix(in oklab, var(--cube-ink) 16%, transparent);
+    --cube-layer: color-mix(in oklab, var(--cube-ink) 11%, transparent);
     width: 1.15em;
     height: 1.15em;
     flex-shrink: 0;
@@ -247,23 +247,31 @@
     height: 100%;
     transform-style: preserve-3d;
     transform: rotateX(-16deg) rotateY(-28deg);
-    animation: logo-turn 9s var(--ease-out-box) 1.7s infinite;
+    will-change: transform;
+    /* Mỗi nấc xoay tăng tốc rồi giảm tốc đều (ease-in-out) để chuyển động mềm, không giật. */
+    animation: logo-turn 10s cubic-bezier(0.65, 0, 0.35, 1) 1.9s infinite;
   }
   /*
    * Liên tưởng in 3D: mặt bên có vân lớp in ngang (FDM), mặt trên là lưới infill chéo. Khi tải, bốn mặt bên được "in" dựng từ
-   * dưới lên theo từng lớp (steps), rồi mặt trên đậy lại như lớp cuối cùng.
+   * dưới lên theo từng lớp (steps), rồi mặt trên đậy lại như lớp cuối cùng. Đổ sáng chuyển dần trên mỗi mặt, góc bo rất nhẹ và
+   * viền trong suốt (khử răng cưa cạnh khi xoay 3D) cho khối mượt.
    */
   .logo-cube i {
     position: absolute;
     inset: 0;
     display: grid;
     place-items: center;
+    border-radius: 0.06em;
     background-color: var(--cube-face);
-    background-image: repeating-linear-gradient(to bottom, transparent 0 0.075em, var(--cube-layer) 0.075em 0.1em);
+    background-image:
+      linear-gradient(155deg, color-mix(in oklab, var(--color-white) 22%, transparent), transparent 55%, color-mix(in oklab, var(--color-black) 14%, transparent)),
+      repeating-linear-gradient(to bottom, transparent 0 0.045em, var(--cube-layer) 0.065em, transparent 0.085em);
     color: var(--cube-ink);
-    box-shadow: inset 0 0 0 0.04em color-mix(in oklab, var(--cube-face) 60%, var(--color-white));
+    box-shadow: inset 0 0 0 0.03em color-mix(in oklab, var(--cube-face) 70%, var(--color-white));
+    outline: 1px solid transparent;
+    backface-visibility: hidden;
     font: normal 700 1em/1 var(--font-display);
-    animation: logo-print 1.3s steps(11, end) both;
+    animation: logo-print 1.4s steps(24, end) both;
   }
   .logo-cube i::before {
     content: "M";
@@ -278,9 +286,9 @@
     transform: rotateX(90deg) translateZ(0.575em);
     background-color: color-mix(in oklab, var(--cube-face) 55%, var(--color-white));
     background-image:
-      repeating-linear-gradient(45deg, transparent 0 0.16em, var(--cube-layer) 0.16em 0.2em),
-      repeating-linear-gradient(-45deg, transparent 0 0.16em, var(--cube-layer) 0.16em 0.2em);
-    animation: logo-cap 0.25s ease-out 1.3s both;
+      repeating-linear-gradient(45deg, transparent 0 0.15em, var(--cube-layer) 0.17em, transparent 0.19em),
+      repeating-linear-gradient(-45deg, transparent 0 0.15em, var(--cube-layer) 0.17em, transparent 0.19em);
+    animation: logo-cap 0.35s ease-out 1.4s both;
   }
   .logo-cube [data-face="bottom"] { transform: rotateX(-90deg) translateZ(0.575em); animation: none; }
   .logo-cube [data-face="top"]::before,
@@ -295,10 +303,10 @@
     from { opacity: 0; }
   }
   @keyframes logo-turn {
-    0%, 19% { transform: rotateX(-16deg) rotateY(-28deg); }
-    25%, 44% { transform: rotateX(-16deg) rotateY(-118deg); }
-    50%, 69% { transform: rotateX(-16deg) rotateY(-208deg); }
-    75%, 94% { transform: rotateX(-16deg) rotateY(-298deg); }
+    0%, 15% { transform: rotateX(-16deg) rotateY(-28deg); }
+    25%, 40% { transform: rotateX(-16deg) rotateY(-118deg); }
+    50%, 65% { transform: rotateX(-16deg) rotateY(-208deg); }
+    75%, 90% { transform: rotateX(-16deg) rotateY(-298deg); }
     100% { transform: rotateX(-16deg) rotateY(-388deg); }
   }
 

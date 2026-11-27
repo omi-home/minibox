@@ -45,7 +45,7 @@ export const Logo = ({ withWordmark = true, title = "Minibox", className }: Logo
       </span>
       {withWordmark && (
         <span aria-hidden className="font-display text-[1.125em] font-bold leading-none tracking-tight">
-          inibox<span className="text-primary">.vn</span>
+          inibox<span className="text-[0.72em] text-primary">.vn</span>
         </span>
       )}
     </span>
