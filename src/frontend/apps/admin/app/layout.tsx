@@ -14,10 +14,12 @@ export const metadata: Metadata = {
  * @param props - Thuộc tính layout; `children` là nội dung trang hiện tại.
  * @returns Khung HTML của trang.
  */
-export default function RootLayout({ children }: { children: ReactNode }) {
+const RootLayout = ({ children }: { children: ReactNode }) => {
   return (
     <html lang="vi">
       <body>{children}</body>
     </html>
   );
-}
+};
+
+export default RootLayout;

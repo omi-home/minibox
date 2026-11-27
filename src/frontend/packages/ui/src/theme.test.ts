@@ -8,7 +8,7 @@ const build = async (classes: string[]) => (await compile(`${theme}\n@tailwind u
 
 test("ac231_1 token CSS variables đủ 5 nhóm (màu, chữ, khoảng cách, bo góc, độ sâu) trên :root", async () => {
   const css = await build([]);
-  for (const v of ["--color-primary", "--color-background", "--color-foreground", "--font-sans", "--spacing", "--spacing-box", "--radius-box", "--shadow-box-1", "--shadow-box-3", "--container-prose"])
+  for (const v of ["--color-primary", "--color-accent", "--color-danger", "--color-focus", "--color-background", "--color-foreground", "--font-sans", "--spacing", "--spacing-box", "--radius-box", "--shadow-box-1", "--shadow-box-3", "--container-prose"])
     expect(css).toMatch(new RegExp(`${v}:`));
 });
 
@@ -18,4 +18,8 @@ test("ac231_1 utility sinh từ token; breakpoint đúng 4 nhóm thiết bị 64
   expect(css).toContain("max-width: var(--container-prose)");
   expect([...css.matchAll(/@media \(width >= ([\d.]+rem)\)/g)].map((m) => m[1])).toEqual(["40rem", "64rem", "96rem"]);
   expect(css).not.toMatch(/\.md\:flex|\.xl\:flex/);
+});
+
+test("ac231_2 theme.css khai @source để app sinh utility cho class trong component của packages/ui", () => {
+  expect(theme).toMatch(/@source "\.\/";/);
 });

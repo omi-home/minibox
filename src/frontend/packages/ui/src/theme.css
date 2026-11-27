@@ -4,28 +4,43 @@
  * Màu/font là TẠM, chờ OPEN-08 (logo, bảng màu, font) — đổi giá trị ở đây, không đổi tên token.
  * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`
  */
-@theme static {
-  /* Màu (tạm, OPEN-08): nền giấy kraft nhạt, chữ than, chính là xanh hộp, nhấn cam băng keo. */
-  --color-*: initial;
-  --color-white: #fff;
-  --color-black: #000;
-  --color-background: oklch(0.98 0.01 85);
-  --color-surface: oklch(1 0 0);
-  --color-surface-sunken: oklch(0.95 0.015 85);
-  --color-foreground: oklch(0.22 0.02 260);
-  --color-muted: oklch(0.5 0.02 260);
-  --color-border: oklch(0.88 0.02 85);
-  --color-primary: oklch(0.45 0.12 250);
-  --color-primary-foreground: oklch(0.99 0 0);
-  --color-accent: oklch(0.72 0.16 60);
-  --color-accent-foreground: oklch(0.22 0.02 260);
-  --color-success: oklch(0.55 0.14 150);
-  --color-warning: oklch(0.75 0.15 80);
-  --color-danger: oklch(0.55 0.2 25);
-  --color-focus: oklch(0.6 0.18 250);
 
-  /* Chữ (tạm, OPEN-08): font hệ thống có đủ dấu tiếng Việt, không tải font ngoài. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* Cho Tailwind của app quét class trong component của package này. */
+@source "./";
+
+@theme static {
+  /*
+   * Màu (tạm, OPEN-08): nền xám lạnh trung tính + MỘT màu nhấn xanh lục đậm (primary). accent là sắc nhạt của primary
+   * (nền mục đang chọn, highlight), không phải màu thứ hai. success/warning/danger chỉ dùng cho trạng thái, luôn kèm icon/chữ.
+   * Cặp chữ/nền đạt WCAG AA: foreground/background ~16:1, muted/surface ~5.6:1, primary-foreground/primary ~5.5:1.
+   */
+  --color-*: initial;
+  --color-white: oklch(0.995 0 0);
+  --color-black: oklch(0.15 0.005 260);
+  --color-background: oklch(0.975 0.003 250);
+  --color-surface: oklch(0.995 0.001 250);
+  --color-surface-sunken: oklch(0.955 0.004 250);
+  --color-foreground: oklch(0.2 0.012 260);
+  --color-muted: oklch(0.5 0.012 260);
+  --color-border: oklch(0.905 0.006 250);
+  --color-border-strong: oklch(0.82 0.008 250);
+  --color-primary: oklch(0.5 0.12 162);
+  --color-primary-hover: oklch(0.44 0.11 162);
+  --color-primary-foreground: oklch(0.99 0.01 162);
+  --color-accent: oklch(0.95 0.035 162);
+  --color-accent-foreground: oklch(0.38 0.09 162);
+  --color-success: oklch(0.52 0.13 150);
+  --color-warning: oklch(0.6 0.13 70);
+  --color-danger: oklch(0.54 0.2 25);
+  --color-danger-hover: oklch(0.48 0.19 25);
+  --color-focus: oklch(0.6 0.13 162);
+  /* Cạnh dày của khối (mặt đáy nhìn thấy dưới nút/thẻ) — tạo cảm giác 3D. */
+  --color-edge: oklch(0.86 0.008 250);
+  --color-primary-edge: oklch(0.36 0.1 162);
+  --color-danger-edge: oklch(0.4 0.17 25);
+
+  /* Chữ (tạm, OPEN-08): Be Vietnam Pro do app tự host qua next/font (biến --font-brand), fallback font hệ thống đủ dấu tiếng Việt. */
+  --font-sans: var(--font-brand, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối hộp. */
@@ -33,15 +48,19 @@
   --spacing-box: 1rem;
   --spacing-box-lg: 1.5rem;
 
-  /* Bo góc: góc hộp gần vuông. */
+  /* Bo góc — quy tắc cố định: control (nút, ô nhập) rounded-box; khối chứa (thẻ, bảng, sheet) rounded-lg; nhãn nhỏ rounded-sm. */
   --radius-sm: 0.25rem;
-  --radius-box: 0.5rem;
-  --radius-lg: 0.75rem;
+  --radius-box: 0.375rem;
+  --radius-lg: 0.625rem;
 
-  /* Độ sâu: bóng lệch về một phía như cạnh khối lập phương, 3 tầng. */
-  --shadow-box-1: 2px 2px 0 0 oklch(0.22 0.02 260 / 0.12);
-  --shadow-box-2: 4px 4px 0 0 oklch(0.22 0.02 260 / 0.14), 0 1px 3px oklch(0.22 0.02 260 / 0.1);
-  --shadow-box-3: 8px 8px 0 0 oklch(0.22 0.02 260 / 0.16), 0 4px 12px oklch(0.22 0.02 260 / 0.12);
+  /*
+   * Độ sâu kiểu khối hộp: cạnh đáy đặc (độ dày) + bóng mềm pha màu chữ (không đen thuần), 3 tầng:
+   * thẻ nằm → thẻ nổi (hover) → lớp phủ (sheet). shadow-inset cho ô nhập lõm xuống, đối lập với nút nổi lên.
+   */
+  --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0.2 0.012 260 / 0.1);
+  --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0.2 0.012 260 / 0.25);
+  --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0.2 0.012 260 / 0.35);
+  --shadow-inset: inset 0 2px 3px oklch(0.2 0.012 260 / 0.08), inset 0 1px 0 oklch(0.2 0.012 260 / 0.04);
 
   /* Breakpoint 4 nhóm thiết bị: mobile < 640 (mặc định), sm: tablet 640–1023, lg: laptop 1024–1535, 2xl: desktop lớn ≥ 1536. */
   --breakpoint-*: initial;
@@ -51,18 +70,96 @@
 
   /* Giới hạn độ dài dòng ~75 ký tự (max-w-prose); khung trang không kéo giãn vô hạn trên desktop lớn (max-w-page). */
   --container-prose: 75ch;
-  --container-page: 96rem;
+  --container-page: 80rem;
+
+  /* Chuyển động: vào chậm hơn ra; đường cong giảm tốc kiểu sheet iOS. */
+  --ease-out-box: cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-sheet-up: sheet-up 320ms var(--ease-out-box);
+  --animate-sheet-down: sheet-up 200ms ease-in reverse;
+  --animate-sheet-left: sheet-left 320ms var(--ease-out-box);
+  --animate-sheet-right: sheet-left 200ms ease-in reverse;
+  --animate-fade-in: fade 200ms ease-out;
+  --animate-fade-out: fade 150ms ease-in reverse;
+  --animate-rise: rise 600ms var(--ease-out-box) both;
+
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+  }
+  @keyframes sheet-left {
+    from { transform: translateX(100%); }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(16px) rotateX(8deg); }
+  }
+}
+
+/*
+ * Phím bấm nổi: cạnh đáy màu --key-edge (đặt theo biến thể nút) + viền sáng phía trên; khi nhấn cạnh biến mất và nút lún xuống đúng độ dày.
+ * `inline` để var(--key-edge) được tính tại phần tử, không phải tại :root.
+ */
+@theme inline {
+  --shadow-key: inset 0 1px 0 oklch(1 0 0 / 0.2), 0 3px 0 var(--key-edge, var(--color-edge)), 0 6px 12px -4px oklch(0.2 0.012 260 / 0.3);
+  --shadow-key-pressed: inset 0 1px 0 oklch(1 0 0 / 0.1), 0 0 0 var(--key-edge, var(--color-edge)), 0 1px 2px oklch(0.2 0.012 260 / 0.2);
 }
 
 @layer base {
+  /* Dark mode theo hệ điều hành: chỉ đổi giá trị token, component không cần biến thể dark:. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background: oklch(0.17 0.008 260);
+      --color-surface: oklch(0.21 0.009 260);
+      --color-surface-sunken: oklch(0.15 0.008 260);
+      --color-foreground: oklch(0.95 0.004 250);
+      --color-muted: oklch(0.72 0.01 260);
+      --color-border: oklch(0.3 0.01 260);
+      --color-border-strong: oklch(0.4 0.012 260);
+      --color-primary: oklch(0.72 0.13 162);
+      --color-primary-hover: oklch(0.78 0.12 162);
+      --color-primary-foreground: oklch(0.2 0.04 162);
+      --color-accent: oklch(0.3 0.05 162);
+      --color-accent-foreground: oklch(0.85 0.1 162);
+      --color-danger: oklch(0.68 0.18 25);
+      --color-danger-hover: oklch(0.74 0.16 25);
+      --color-focus: oklch(0.75 0.13 162);
+      --color-edge: oklch(0.12 0.008 260);
+      --color-primary-edge: oklch(0.5 0.11 162);
+      --color-danger-edge: oklch(0.48 0.17 25);
+      --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0 0 0 / 0.5);
+      --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0 0 0 / 0.7);
+      --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0 0 0 / 0.8);
+      --shadow-inset: inset 0 2px 3px oklch(0 0 0 / 0.35);
+      color-scheme: dark;
+    }
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
   }
 
   :focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
   }
 }

@@ -22,7 +22,7 @@
     "@minibox/api-clients": "workspace:*",
     "@minibox/config": "workspace:*",
     "@minibox/ui": "workspace:*",
-    "@tailwindcss/postcss": "4.3.5",
-    "tailwindcss": "4.3.5"
+    "@tailwindcss/postcss": "catalog:",
+    "tailwindcss": "catalog:"
   }
 }
