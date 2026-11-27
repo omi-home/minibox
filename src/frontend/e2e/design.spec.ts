@@ -40,9 +40,10 @@ for (const [app, base] of Object.entries(APPS)) {
       await expect(table).toBeVisible({ visible: !mobile });
       if (mobile) await expect(cards.getByRole("listitem")).toHaveCount(4);
       await settle(page);
-      // Ảnh chuẩn (e2e/design.spec.ts-snapshots, chụp trên Linux như CI). Che ảnh sản phẩm mẫu vì tải từ Unsplash.
+      // Ảnh chuẩn (e2e/design.spec.ts-snapshots) chụp trên Linux như CI; máy Windows/macOS render font khác nên chỉ so trên Linux. Che ảnh sản phẩm mẫu vì tải từ Unsplash.
       // Đổi giao diện có chủ đích: `pnpm exec playwright test --update-snapshots` trong container Playwright rồi commit ảnh mới.
-      await expect(page).toHaveScreenshot(`${app}-${bp.name}.png`, { fullPage: true, animations: "disabled", mask: [page.locator("img")], maxDiffPixelRatio: 0.01 });
+      if (process.platform === "linux")
+        await expect(page).toHaveScreenshot(`${app}-${bp.name}.png`, { fullPage: true, animations: "disabled", mask: [page.locator("img")], maxDiffPixelRatio: 0.01 });
     });
   }
 
