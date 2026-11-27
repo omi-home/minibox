@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
+import { requestLocale } from "../lib/i18n";
 import { THEME_COOKIE, themeOf } from "../lib/menu";
 import "./globals.css";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Layout gốc của app admin: khung HTML tiếng Việt bao mọi trang, gắn biến font tự host.
+ * Layout gốc của app admin: khung HTML theo locale của request bao mọi trang, gắn biến font tự host.
  *
  * @param props - Thuộc tính layout; `children` là nội dung trang hiện tại.
  * @returns Khung HTML của trang.
@@ -25,10 +26,10 @@ export const metadata: Metadata = {
  */
 const RootLayout = async ({ children }: { children: ReactNode }) => {
   await connection();
-  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
+  const [theme, locale] = [themeOf((await cookies()).get(THEME_COOKIE)?.value), await requestLocale()];
   return (
     // data-theme theo cookie để không nháy màu; trang /design và nút đổi giao diện đổi lại phía client nên bỏ cảnh báo lệch khi hydrate.
-    <html lang="vi" className={fontVariables} data-theme={theme === "system" ? undefined : theme} suppressHydrationWarning>
+    <html lang={locale} className={fontVariables} data-theme={theme === "system" ? undefined : theme} suppressHydrationWarning>
       <body>
         {children}
         <Toaster />

@@ -20,6 +20,7 @@ export default defineConfig({
     url: `${url}/design`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
-    env: app === "admin" ? { ADMIN_SESSION_KEY: E2E_ADMIN_SESSION_KEY } : {},
+    // LOCALIZATION_URL trỏ cổng đóng: BFF rơi về vi và hiện key khi không có service localization.
+    env: { LOCALIZATION_URL: "http://127.0.0.1:9", ...(app === "admin" ? { ADMIN_SESSION_KEY: E2E_ADMIN_SESSION_KEY } : {}) },
   })),
 });

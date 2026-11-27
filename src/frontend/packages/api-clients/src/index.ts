@@ -1,7 +1,12 @@
 import createClient, { type Client, type ClientOptions } from "openapi-fetch";
 import type { components as IdentityComponents, paths as IdentityPaths } from "./generated/identity";
+import type { components as LocalizationComponents, paths as LocalizationPaths } from "./generated/localization";
 
-export type { IdentityComponents, IdentityPaths };
+export type { IdentityComponents, IdentityPaths, LocalizationComponents, LocalizationPaths };
+export * from "./localization";
+
+/** Client có kiểu của service localization, sinh từ `contracts/openapi/localization.json`. */
+export type LocalizationClient = Client<LocalizationPaths>;
 
 /** Client có kiểu của service identity, sinh từ `contracts/openapi/identity.json`. */
 export type IdentityClient = Client<IdentityPaths>;
@@ -35,3 +40,13 @@ export function createApiClient<Paths extends object>(baseUrl: string, options: 
  */
 export const createIdentityClient = (baseUrl: string, options?: Omit<ClientOptions, "baseUrl">): IdentityClient =>
   createApiClient<IdentityPaths>(baseUrl, options);
+
+/**
+ * Tạo client cho service localization.
+ *
+ * @param baseUrl - Gốc URL nội bộ của localization.
+ * @param options - Tuỳ chọn openapi-fetch.
+ * @returns Client localization có kiểu.
+ */
+export const createLocalizationClient = (baseUrl: string, options?: Omit<ClientOptions, "baseUrl">): LocalizationClient =>
+  createApiClient<LocalizationPaths>(baseUrl, options);

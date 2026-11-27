@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import {
   CURRENCIES,
   CURRENCY_COOKIE,
-  LOCALE_COOKIE,
-  LOCALES,
   pick,
   readPerms,
   SIDEBAR_COOKIE,
@@ -14,6 +12,7 @@ import {
   TIMEZONES,
   visibleMenu,
 } from "../../lib/menu";
+import { requestLocale } from "../../lib/i18n";
 import { notifications } from "../../lib/notifications";
 import { SESSION_COOKIE, unsealSession } from "../../lib/session";
 import { Shell } from "./shell";
@@ -32,7 +31,7 @@ const AppLayout = async ({ children }: { children: ReactNode }) => {
       items={visibleMenu(readPerms(session?.accessToken))}
       collapsed={jar.get(SIDEBAR_COOKIE)?.value === "1"}
       theme={themeOf(jar.get(THEME_COOKIE)?.value)}
-      locale={pick(jar.get(LOCALE_COOKIE)?.value, LOCALES.map((l) => l.code))}
+      locale={await requestLocale()}
       timezone={pick(jar.get(TIMEZONE_COOKIE)?.value, TIMEZONES.map((t) => t.value))}
       currency={pick(jar.get(CURRENCY_COOKIE)?.value, CURRENCIES.map((c) => c.value))}
       notifications={notifications()}
