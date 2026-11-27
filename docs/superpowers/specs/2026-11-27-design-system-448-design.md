@@ -41,7 +41,8 @@ Cơ chế so sánh: `theme.css` khai token mặc định (A) và ghi đè theo `
 Giữ cấu trúc hiện có (Tailwind v4 `@theme static`), đổi giá trị và bổ sung:
 - **Màu ngữ nghĩa:** background, surface, surface-sunken, surface-raised, foreground, muted, border, border-strong, primary(+hover, foreground), accent(+foreground), success, warning, danger(+hover), info, focus. Mỗi màu trạng thái có cặp `-soft` (nền nhạt) để làm badge/alert. Bỏ `edge`, `primary-edge`, `danger-edge`, `shadow-key*`.
 - **Chữ:** `--font-display`, `--font-sans`, `--font-mono`; thang cỡ 12/14/16/18/20/24/30/36/48 với line-height đi kèm; số dạng tabular cho giá/tồn.
-- **Hình khối:** `--radius-control` (nút, ô nhập, bo nhẹ), `--radius-container` (thẻ, sheet), `--chamfer` (kích thước góc vát). Quy tắc: control bo nhẹ; khối chứa (thẻ, khung ảnh, badge, tem) vát một góc trên phải.
+- **Hình khối:** giữ `--radius-box` (control: nút, ô nhập, bo nhẹ) và `--radius-lg` (khối chứa: thẻ, sheet); thêm `--chamfer`/`--chamfer-sm` (kích thước góc vát, utility `chamfer` dùng `corner-top-right-shape: bevel`, trình duyệt chưa hỗ trợ thì thành góc bo). Quy tắc: control bo nhẹ; khối chứa (thẻ, khung ảnh, badge, tem) vát một góc trên phải.
+- **Sáng/tối:** mỗi màu khai `light-dark(sáng, tối)`; `[data-theme="light|dark"]` đặt `color-scheme`, không có thì theo hệ điều hành.
 - **Độ sâu:** `shadow-1..3` bóng mềm nhiều lớp pha màu nền + viền sáng mảnh phía trên (`--rim`); `shadow-plinth` cho bóng tiếp xúc dưới sản phẩm.
 - **Mật độ:** `[data-density="compact"]` đổi `--control-h` (44px → 36px, vẫn ≥ 24px vùng chạm WCAG 2.2 và giữ 44px cho thao tác chính trên mobile), padding ô bảng, cỡ chữ bảng.
 - **Chuyển động:** `--duration-fast/base/slow` (120/220/400ms), `--ease-out-box`, `--ease-in-box`; thoát ngắn hơn vào; mọi animation tắt dưới `prefers-reduced-motion`.
@@ -49,7 +50,7 @@ Giữ cấu trúc hiện có (Tailwind v4 `@theme static`), đổi giá trị v�
 
 ## 5. Điểm nhấn thương hiệu
 
-1. **Góc vát nắp hộp:** `clip-path` trên khối chứa; focus ring vẽ bằng `box-shadow`/outline của lớp bọc ngoài để không bị cắt.
+1. **Góc vát nắp hộp:** utility `chamfer` trên khối chứa; viền, bóng và focus ring đi theo góc vát nên không cần lớp bọc.
 2. **Bục trưng bày + isometric:** `ProductMedia` đặt ảnh trên mặt sàn sáng dần + `shadow-plinth`; logo, minh hoạ `EmptyState`, placeholder ảnh và `CubeLoader` cùng góc isometric 30°.
 3. **Tem hộp:** `SpecLabel` hiển thị SKU, kích thước (dùng `×`), vật liệu (PLA, PETG, resin), độ dày lớp bằng font mono trên nền tem có viền nét đứt nhẹ.
 4. **Chuyển động mở hộp:** Dialog/Sheet mở bằng `rotateX` quanh cạnh trên (nắp lật) + fade; Toast trượt ra như thẻ rút khỏi khe; logo lắp khối một lần khi tải (≤ 1,2s), xoay nhẹ khi rê; nút thêm giỏ có hiệu ứng hộp đóng nắp. Chỉ `transform`/`opacity`, CSS thuần, không thêm thư viện.
@@ -93,4 +94,4 @@ Chưa làm (YAGNI): Avatar, Accordion, Slider, Carousel.
 2. **PO chọn** (`[manual]` trong #448).
 3. **Pha 2:** gộp về phương án đã chọn (xoá token/font/logo còn lại và bộ chuyển), bỏ ghi chú "tạm, OPEN-08", viết `docs/design-system.md`, test tương phản + screenshot, cập nhật spec §6.4 và bảng OPEN-08 (BRD), dừng cho người dùng duyệt UI trước `qa`.
 
-Rủi ro: diff lớn (cả `packages/ui`); giảm bằng commit theo nhóm component và chạy `check` sau mỗi nhóm. `clip-path` cắt focus ring và bóng: xử lý bằng lớp bọc. Nạp 3 bộ font ở pha 1 làm trang nặng: chấp nhận vì chỉ tạm, pha 2 xoá.
+Rủi ro: diff lớn (cả `packages/ui`); giảm bằng commit theo nhóm component và chạy `check` sau mỗi nhóm. `corner-shape` mới có ở Chromium: trình duyệt khác thấy góc bo, chấp nhận được. Nạp 3 bộ font ở pha 1 làm trang nặng: chấp nhận vì chỉ tạm, pha 2 xoá.
