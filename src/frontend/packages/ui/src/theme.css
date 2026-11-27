@@ -1,8 +1,11 @@
 /*
- * Design token khối hộp dùng chung cho shop và admin (spec §6.4). Tailwind v4 sinh utility từ các biến @theme
- * (bg-surface, text-muted, rounded-box, shadow-box-2, max-w-prose, sm:/lg:/2xl:…); `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
- * Màu/font là TẠM, chờ OPEN-08 (logo, bảng màu, font) — đổi giá trị ở đây, không đổi tên token.
- * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`
+ * Design token Minibox dùng chung cho shop và admin (spec §6.4, docs/superpowers/specs/2026-11-27-design-system-448-design.md).
+ * Tailwind v4 sinh utility từ các biến @theme (bg-surface, text-muted, rounded-box, shadow-box-2, chamfer, sm:/lg:/2xl:…);
+ * `static` xuất mọi biến trên :root để CSS thường dùng var(--…).
+ * Mỗi màu khai light-dark(sáng, tối): chế độ theo hệ điều hành, hoặc ép bằng data-theme="light|dark" trên <html>.
+ * PHA 1 #448: ba phương án nhận diện để PO so sánh. A (Đá & Cobalt) là mặc định; B (Rừng sâu), C (Tủ kính đêm) ghi đè bằng
+ * data-brand="b|c" trên <html>. Sau khi PO chọn, gộp về một bộ và xoá khối data-brand.
+ * App dùng: globals.css = `@import "tailwindcss"; @import "@minibox/ui/theme.css";`, <html className={fontVariables}>.
  */
 
 /* Cho Tailwind của app quét class trong component của package này. */
@@ -10,57 +13,75 @@
 
 @theme static {
   /*
-   * Màu (tạm, OPEN-08): nền xám lạnh trung tính + MỘT màu nhấn xanh lục đậm (primary). accent là sắc nhạt của primary
-   * (nền mục đang chọn, highlight), không phải màu thứ hai. success/warning/danger chỉ dùng cho trạng thái, luôn kèm icon/chữ.
-   * Cặp chữ/nền đạt WCAG AA: foreground/background ~16:1, muted/surface ~5.6:1, primary-foreground/primary ~5.5:1.
+   * Màu ngữ nghĩa. primary là MỘT màu nhấn; accent là sắc nhạt của primary (nền mục đang chọn), không phải màu thứ hai.
+   * success/warning/danger/info chỉ cho trạng thái, luôn kèm icon/chữ; -soft là nền nhạt cho badge/alert (chữ dùng màu trạng thái).
+   * Ngưỡng tương phản khoá bằng contrast.test.ts (chữ chính ≥ 7, chữ phụ ≥ 4.5, viền/focus ≥ 3).
    */
   --color-*: initial;
   --color-white: oklch(0.995 0 0);
   --color-black: oklch(0.15 0.005 260);
-  --color-background: oklch(0.975 0.003 250);
-  --color-surface: oklch(0.995 0.001 250);
-  --color-surface-sunken: oklch(0.955 0.004 250);
-  --color-foreground: oklch(0.2 0.012 260);
-  --color-muted: oklch(0.5 0.012 260);
-  --color-border: oklch(0.905 0.006 250);
-  --color-border-strong: oklch(0.82 0.008 250);
-  --color-primary: oklch(0.5 0.12 162);
-  --color-primary-hover: oklch(0.44 0.11 162);
-  --color-primary-foreground: oklch(0.99 0.01 162);
-  --color-accent: oklch(0.95 0.035 162);
-  --color-accent-foreground: oklch(0.38 0.09 162);
-  --color-success: oklch(0.52 0.13 150);
-  --color-warning: oklch(0.6 0.13 70);
-  --color-danger: oklch(0.54 0.2 25);
-  --color-danger-hover: oklch(0.48 0.19 25);
-  --color-focus: oklch(0.6 0.13 162);
-  /* Cạnh dày của khối (mặt đáy nhìn thấy dưới nút/thẻ) — tạo cảm giác 3D. */
-  --color-edge: oklch(0.86 0.008 250);
-  --color-primary-edge: oklch(0.36 0.1 162);
-  --color-danger-edge: oklch(0.4 0.17 25);
+  --color-background: light-dark(oklch(0.975 0.004 255), oklch(0.16 0.01 262));
+  --color-surface: light-dark(oklch(0.995 0.002 255), oklch(0.2 0.012 262));
+  --color-surface-sunken: light-dark(oklch(0.95 0.005 255), oklch(0.135 0.01 262));
+  --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.24 0.013 262));
+  --color-foreground: light-dark(oklch(0.21 0.015 262), oklch(0.95 0.005 255));
+  --color-muted: light-dark(oklch(0.48 0.015 262), oklch(0.72 0.012 262));
+  --color-border: light-dark(oklch(0.9 0.006 255), oklch(0.3 0.012 262));
+  --color-border-strong: light-dark(oklch(0.8 0.01 255), oklch(0.42 0.014 262));
+  --color-primary: light-dark(oklch(0.5 0.2 264), oklch(0.7 0.15 264));
+  --color-primary-hover: light-dark(oklch(0.44 0.19 264), oklch(0.76 0.13 264));
+  --color-primary-foreground: light-dark(oklch(0.985 0.01 264), oklch(0.18 0.05 264));
+  --color-accent: light-dark(oklch(0.94 0.04 264), oklch(0.3 0.07 264));
+  --color-accent-foreground: light-dark(oklch(0.42 0.17 264), oklch(0.86 0.08 264));
+  --color-highlight: light-dark(oklch(0.5 0.2 264), oklch(0.7 0.15 264));
+  --color-focus: light-dark(oklch(0.58 0.2 264), oklch(0.74 0.15 264));
+  --color-success: light-dark(oklch(0.5 0.12 150), oklch(0.76 0.13 150));
+  --color-success-soft: light-dark(oklch(0.95 0.03 150), oklch(0.27 0.05 150));
+  --color-warning: light-dark(oklch(0.52 0.11 60), oklch(0.8 0.13 75));
+  --color-warning-soft: light-dark(oklch(0.95 0.04 75), oklch(0.27 0.05 75));
+  --color-danger: light-dark(oklch(0.53 0.19 27), oklch(0.72 0.16 25));
+  --color-danger-hover: light-dark(oklch(0.47 0.18 27), oklch(0.77 0.14 25));
+  --color-danger-foreground: light-dark(oklch(0.99 0.005 27), oklch(0.18 0.04 25));
+  --color-danger-soft: light-dark(oklch(0.95 0.03 27), oklch(0.27 0.06 25));
+  --color-info: light-dark(oklch(0.52 0.13 245), oklch(0.76 0.11 245));
+  --color-info-soft: light-dark(oklch(0.95 0.03 245), oklch(0.27 0.05 245));
 
-  /* Chữ (tạm, OPEN-08): Be Vietnam Pro do app tự host qua next/font (biến --font-brand), fallback font hệ thống đủ dấu tiếng Việt. */
-  --font-sans: var(--font-brand, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối hộp. */
+  /* Chữ: tiêu đề theo phương án (font-display), chữ thường Be Vietnam Pro, mono cho SKU/kích thước/giá. Biến font do next/font gắn trên <html>. */
+  --font-display: var(--font-brand-a, var(--font-body)), system-ui, sans-serif;
+  --font-sans: var(--font-body, ui-sans-serif), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-code, ui-monospace), SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Khoảng cách: thang Tailwind (bội số của --spacing) + khoảng cách giữa các khối. */
   --spacing: 0.25rem;
   --spacing-box: 1rem;
   --spacing-box-lg: 1.5rem;
 
-  /* Bo góc — quy tắc cố định: control (nút, ô nhập) rounded-box; khối chứa (thẻ, bảng, sheet) rounded-lg; nhãn nhỏ rounded-sm. */
-  --radius-sm: 0.25rem;
+  /*
+   * Hình khối, quy tắc cố định: control (nút, ô nhập) rounded-box; khối chứa (thẻ, bảng, sheet) rounded-lg;
+   * nhãn nhỏ rounded-sm. Khối chứa vát góc trên phải như mép hộp giấy: thêm `chamfer` (badge/tem: `chamfer-sm`).
+   */
+  --radius-sm: 0.1875rem;
   --radius-box: 0.375rem;
-  --radius-lg: 0.625rem;
+  --radius-lg: 0.5rem;
+  --chamfer: 0.875rem;
+  --chamfer-sm: 0.5rem;
 
   /*
-   * Độ sâu kiểu khối hộp: cạnh đáy đặc (độ dày) + bóng mềm pha màu chữ (không đen thuần), 3 tầng:
-   * thẻ nằm → thẻ nổi (hover) → lớp phủ (sheet). shadow-inset cho ô nhập lõm xuống, đối lập với nút nổi lên.
+   * Độ sâu tiết chế: viền sáng mảnh phía trên (nắp hộp, --rim) + bóng mềm nhiều lớp pha màu nền. 3 tầng: thẻ nằm → thẻ nổi → lớp phủ.
+   * shadow-inset cho ô nhập; shadow-plinth là bóng tiếp xúc dưới sản phẩm trên bục trưng bày.
    */
-  --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0.2 0.012 260 / 0.1);
-  --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0.2 0.012 260 / 0.25);
-  --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0.2 0.012 260 / 0.35);
-  --shadow-inset: inset 0 2px 3px oklch(0.2 0.012 260 / 0.08), inset 0 1px 0 oklch(0.2 0.012 260 / 0.04);
+  --shadow-box-1: inset 0 1px 0 var(--rim), 0 1px 2px color-mix(in oklab, var(--shade) 8%, transparent), 0 2px 8px -2px color-mix(in oklab, var(--shade) 8%, transparent);
+  --shadow-box-2: inset 0 1px 0 var(--rim), 0 2px 4px color-mix(in oklab, var(--shade) 6%, transparent), 0 12px 28px -8px color-mix(in oklab, var(--shade) 18%, transparent);
+  --shadow-box-3: inset 0 1px 0 var(--rim), 0 4px 8px color-mix(in oklab, var(--shade) 8%, transparent), 0 32px 64px -16px color-mix(in oklab, var(--shade) 32%, transparent);
+  --shadow-inset: inset 0 1px 2px color-mix(in oklab, var(--shade) 8%, transparent);
+  --shadow-plinth: 0 18px 24px -14px color-mix(in oklab, var(--shade) 45%, transparent);
+
+  /* Lớp xếp chồng: dính (header) → nền mờ → hộp thoại/sheet → thông báo. */
+  --z-index-sticky: 20;
+  --z-index-overlay: 40;
+  --z-index-modal: 50;
+  --z-index-toast: 60;
 
   /* Breakpoint 4 nhóm thiết bị: mobile < 640 (mặc định), sm: tablet 640–1023, lg: laptop 1024–1535, 2xl: desktop lớn ≥ 1536. */
   --breakpoint-*: initial;
@@ -72,15 +93,26 @@
   --container-prose: 75ch;
   --container-page: 80rem;
 
-  /* Chuyển động: vào chậm hơn ra; đường cong giảm tốc kiểu sheet iOS. */
+  /*
+   * Chuyển động "mở hộp": vào giảm tốc, ra tăng tốc và ngắn hơn. Chỉ transform/opacity; tắt dưới prefers-reduced-motion.
+   * lid: hộp thoại/popover lật như nắp hộp từ cạnh trên; slot: thông báo trượt ra như thẻ rút khỏi khe.
+   */
   --ease-out-box: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-box: cubic-bezier(0.4, 0, 1, 1);
   --animate-sheet-up: sheet-up 320ms var(--ease-out-box);
-  --animate-sheet-down: sheet-up 200ms ease-in reverse;
+  --animate-sheet-down: sheet-up 200ms var(--ease-in-box) reverse;
   --animate-sheet-left: sheet-left 320ms var(--ease-out-box);
-  --animate-sheet-right: sheet-left 200ms ease-in reverse;
+  --animate-sheet-right: sheet-left 200ms var(--ease-in-box) reverse;
   --animate-fade-in: fade 200ms ease-out;
   --animate-fade-out: fade 150ms ease-in reverse;
   --animate-rise: rise 600ms var(--ease-out-box) both;
+  --animate-lid-open: lid 260ms var(--ease-out-box);
+  --animate-lid-close: lid 160ms var(--ease-in-box) reverse;
+  --animate-slot-in: slot 280ms var(--ease-out-box);
+  --animate-slot-out: slot 160ms var(--ease-in-box) reverse;
+  --animate-cube-spin: cube 1.6s var(--ease-out-box) infinite;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  --animate-assemble: assemble 900ms var(--ease-out-box) both;
 
   @keyframes sheet-up {
     from { transform: translateY(100%); }
@@ -92,47 +124,98 @@
     from { opacity: 0; }
   }
   @keyframes rise {
-    from { opacity: 0; transform: translateY(16px) rotateX(8deg); }
+    from { opacity: 0; transform: translateY(16px); }
+  }
+  @keyframes lid {
+    from { opacity: 0; transform: perspective(60rem) rotateX(-10deg) translateY(-6px); }
+  }
+  @keyframes slot {
+    from { opacity: 0; transform: translateY(110%) scale(0.97); }
+  }
+  @keyframes cube {
+    0%, 15% { transform: rotate(0deg); }
+    50%, 65% { transform: rotate(120deg); }
+    100% { transform: rotate(240deg); }
+  }
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+  @keyframes assemble {
+    from { opacity: 0; transform: translateY(-40%); }
   }
 }
 
-/*
- * Phím bấm nổi: cạnh đáy màu --key-edge (đặt theo biến thể nút) + viền sáng phía trên; khi nhấn cạnh biến mất và nút lún xuống đúng độ dày.
- * `inline` để var(--key-edge) được tính tại phần tử, không phải tại :root.
- */
-@theme inline {
-  --shadow-key: inset 0 1px 0 oklch(1 0 0 / 0.2), 0 3px 0 var(--key-edge, var(--color-edge)), 0 6px 12px -4px oklch(0.2 0.012 260 / 0.3);
-  --shadow-key-pressed: inset 0 1px 0 oklch(1 0 0 / 0.1), 0 0 0 var(--key-edge, var(--color-edge)), 0 1px 2px oklch(0.2 0.012 260 / 0.2);
+/* Góc vát nắp hộp: viền, bóng và focus đi theo góc vát; trình duyệt chưa hỗ trợ corner-shape thì thành góc bo. */
+@utility chamfer {
+  border-top-right-radius: var(--chamfer);
+  corner-top-right-shape: bevel;
+}
+@utility chamfer-sm {
+  border-top-right-radius: var(--chamfer-sm);
+  corner-top-right-shape: bevel;
 }
 
 @layer base {
-  /* Dark mode theo hệ điều hành: chỉ đổi giá trị token, component không cần biến thể dark:. */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-background: oklch(0.17 0.008 260);
-      --color-surface: oklch(0.21 0.009 260);
-      --color-surface-sunken: oklch(0.15 0.008 260);
-      --color-foreground: oklch(0.95 0.004 250);
-      --color-muted: oklch(0.72 0.01 260);
-      --color-border: oklch(0.3 0.01 260);
-      --color-border-strong: oklch(0.4 0.012 260);
-      --color-primary: oklch(0.72 0.13 162);
-      --color-primary-hover: oklch(0.78 0.12 162);
-      --color-primary-foreground: oklch(0.2 0.04 162);
-      --color-accent: oklch(0.3 0.05 162);
-      --color-accent-foreground: oklch(0.85 0.1 162);
-      --color-danger: oklch(0.68 0.18 25);
-      --color-danger-hover: oklch(0.74 0.16 25);
-      --color-focus: oklch(0.75 0.13 162);
-      --color-edge: oklch(0.12 0.008 260);
-      --color-primary-edge: oklch(0.5 0.11 162);
-      --color-danger-edge: oklch(0.48 0.17 25);
-      --shadow-box-1: 0 2px 0 var(--color-edge), 0 3px 8px -2px oklch(0 0 0 / 0.5);
-      --shadow-box-2: 0 4px 0 var(--color-edge), 0 14px 28px -10px oklch(0 0 0 / 0.7);
-      --shadow-box-3: 0 4px 0 var(--color-edge), 0 28px 60px -16px oklch(0 0 0 / 0.8);
-      --shadow-inset: inset 0 2px 3px oklch(0 0 0 / 0.35);
-      color-scheme: dark;
-    }
+  :root {
+    color-scheme: light dark;
+    /* Viền sáng phía trên khối (nắp hộp). */
+    --rim: light-dark(oklch(1 0 0 / 0.8), oklch(1 0 0 / 0.06));
+    /* Màu pha vào bóng (không đen thuần), theo sắc nền của phương án; ngoài @theme để Tailwind không chép cứng vào utility. */
+    --shade: light-dark(oklch(0.3 0.04 262), oklch(0 0 0));
+    /* Chiều cao control: 44px cho ngón tay; admin bật data-density="compact". */
+    --control-h: 2.75rem;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+  [data-density="compact"] {
+    --control-h: 2.25rem;
+  }
+
+  /* Phương án B · Rừng sâu: xanh rừng đậm + xương lạnh, điểm hổ phách (highlight) rất ít. */
+  [data-brand="b"] {
+    --font-display: var(--font-brand-b, var(--font-body)), system-ui, sans-serif;
+    --color-background: light-dark(oklch(0.97 0.006 160), oklch(0.165 0.015 165));
+    --color-surface: light-dark(oklch(0.993 0.003 160), oklch(0.205 0.018 165));
+    --color-surface-sunken: light-dark(oklch(0.945 0.008 160), oklch(0.14 0.014 165));
+    --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.245 0.02 165));
+    --color-foreground: light-dark(oklch(0.22 0.02 165), oklch(0.95 0.008 160));
+    --color-muted: light-dark(oklch(0.47 0.02 165), oklch(0.73 0.02 160));
+    --color-border: light-dark(oklch(0.89 0.01 160), oklch(0.31 0.02 165));
+    --color-border-strong: light-dark(oklch(0.79 0.014 160), oklch(0.43 0.024 165));
+    --color-primary: light-dark(oklch(0.38 0.08 165), oklch(0.72 0.1 160));
+    --color-primary-hover: light-dark(oklch(0.33 0.075 165), oklch(0.78 0.09 160));
+    --color-primary-foreground: light-dark(oklch(0.97 0.015 160), oklch(0.18 0.04 165));
+    --color-accent: light-dark(oklch(0.93 0.03 165), oklch(0.3 0.05 165));
+    --color-accent-foreground: light-dark(oklch(0.36 0.07 165), oklch(0.86 0.07 160));
+    --color-highlight: light-dark(oklch(0.78 0.14 75), oklch(0.8 0.13 75));
+    --color-focus: light-dark(oklch(0.55 0.1 165), oklch(0.75 0.1 160));
+    --shade: light-dark(oklch(0.3 0.04 165), oklch(0 0 0));
+  }
+
+  /* Phương án C · Tủ kính đêm: đen than + nâu da sáng; đẹp nhất ở chế độ tối. */
+  [data-brand="c"] {
+    --font-display: var(--font-brand-c, var(--font-body)), system-ui, sans-serif;
+    --color-background: light-dark(oklch(0.97 0.003 60), oklch(0.145 0.006 50));
+    --color-surface: light-dark(oklch(0.993 0.002 60), oklch(0.185 0.007 50));
+    --color-surface-sunken: light-dark(oklch(0.94 0.004 60), oklch(0.12 0.005 50));
+    --color-surface-raised: light-dark(oklch(1 0 0), oklch(0.225 0.008 50));
+    --color-foreground: light-dark(oklch(0.2 0.008 50), oklch(0.94 0.008 70));
+    --color-muted: light-dark(oklch(0.47 0.01 50), oklch(0.72 0.012 65));
+    --color-border: light-dark(oklch(0.88 0.005 60), oklch(0.29 0.008 50));
+    --color-border-strong: light-dark(oklch(0.78 0.008 60), oklch(0.41 0.01 50));
+    --color-primary: light-dark(oklch(0.55 0.085 58), oklch(0.78 0.085 68));
+    --color-primary-hover: light-dark(oklch(0.49 0.08 56), oklch(0.83 0.075 68));
+    --color-primary-foreground: light-dark(oklch(0.985 0.006 60), oklch(0.18 0.02 50));
+    --color-accent: light-dark(oklch(0.93 0.025 65), oklch(0.28 0.03 60));
+    --color-accent-foreground: light-dark(oklch(0.43 0.07 60), oklch(0.85 0.06 68));
+    --color-highlight: light-dark(oklch(0.55 0.085 58), oklch(0.78 0.085 68));
+    --color-focus: light-dark(oklch(0.55 0.09 60), oklch(0.8 0.08 68));
+    --shade: light-dark(oklch(0.25 0.02 50), oklch(0 0 0));
   }
 
   body {
@@ -142,6 +225,13 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 
   button:not(:disabled),
@@ -159,6 +249,7 @@
     ::before,
     ::after {
       animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 1ms !important;
     }
   }

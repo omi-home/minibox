@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
-    "./showcase": "./src/showcase.tsx"
+    "./showcase": "./src/showcase.tsx",
+    "./fonts": "./src/fonts.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -20,12 +21,14 @@
     "react-day-picker": "10.0.2"
   },
   "peerDependencies": {
-    "react": "^19.3.1"
+    "react": "^19.3.1",
+    "next": "^16.4.6"
   },
   "devDependencies": {
     "@minibox/config": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "next": "16.4.6"
   }
 }
