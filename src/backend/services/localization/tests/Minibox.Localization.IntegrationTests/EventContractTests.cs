@@ -78,9 +78,9 @@ public sealed class EventContractTests : IAsyncLifetime
             {
                 // Định tuyến thật của Program; queue capture bind vào exchange fanout như queue tạm của BFF.
                 o.UseMiniboxMessaging(_cs, "localization", new Uri(_mq.GetConnectionString()))
-                    .BindExchange(LocalizationMessaging.MessagesPublishedExchange).ToQueue(PublishedQueue);
+                    .BindExchange(LocalizationMessaging.MessagesPublishedExchange).ToQueue(PublishedQueue)
+                    .BindExchange(Minibox.BuildingBlocks.Infrastructure.Localization.LocaleReplicaSetup.LocaleChangedExchange).ToQueue(LocaleQueue);
                 o.PublishLocalizationEvents();
-                o.PublishMessage<LocaleChangedV1>().ToRabbitQueue(LocaleQueue);
                 o.Discovery.DisableConventionalDiscovery();
             })
             .ConfigureServices(s => s

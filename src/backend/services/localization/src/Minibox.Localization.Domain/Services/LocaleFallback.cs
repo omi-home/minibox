@@ -11,19 +11,7 @@ public static class LocaleFallback
     /// <param name="code">Locale bắt đầu.</param>
     /// <param name="fallbacks">Mã locale → mã fallback (<c>null</c> = rơi về <see cref="Locale.Default"/>).</param>
     /// <returns>Chuỗi mã theo thứ tự ưu tiên; <c>null</c> nếu gặp vòng.</returns>
-    public static IReadOnlyList<string>? Chain(string code, IReadOnlyDictionary<string, string?> fallbacks)
-    {
-        var chain = new List<string>();
-        for (string? c = code; c is not null; c = fallbacks.GetValueOrDefault(c))
-        {
-            if (chain.Contains(c))
-                return null;
-            chain.Add(c);
-        }
-        if (!chain.Contains(Locale.Default))
-            chain.Add(Locale.Default);
-        return chain;
-    }
+    public static IReadOnlyList<string>? Chain(string code, IReadOnlyDictionary<string, string?> fallbacks) => LocaleChain.Build(code, fallbacks);
 
     /// <summary>Kiểm việc đặt fallback của <paramref name="code"/> thành <paramref name="fallbackCode"/>: fallback phải tồn tại và không tạo vòng
     /// (DB chỉ chặn tự trỏ).</summary>

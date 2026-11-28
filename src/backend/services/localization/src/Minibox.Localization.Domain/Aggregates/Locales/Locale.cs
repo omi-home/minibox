@@ -8,7 +8,7 @@ namespace Minibox.Localization.Domain.Aggregates.Locales;
 public sealed partial class Locale : AggregateRoot<string>
 {
     /// <summary>Locale mặc định và fallback cuối của mọi chuỗi fallback.</summary>
-    public const string Default = "vi";
+    public const string Default = LocaleChain.Default;
 
     /// <summary>Độ dài tối đa của <see cref="Name"/>.</summary>
     public const int NameMaxLength = 100;
