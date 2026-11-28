@@ -68,8 +68,11 @@ app.MapMiniboxHealthChecks();
 app.MapLocaleEndpoints();
 app.MapCurrencyEndpoints();
 app.MapMessageEndpoints();
-// Lệnh JasperFx: không tham số thì chạy host; `codegen write` sinh code Wolverine lúc build image (TypeLoadMode.Static).
-return await app.RunJasperFxCommands(args);
+// `codegen write`: sinh code Wolverine lúc build image (TypeLoadMode.Static, src/backend/Dockerfile).
+if (args is ["codegen", ..])
+    return await app.RunJasperFxCommands(args);
+app.Run();
+return 0;
 
 /// <summary>Điểm vào của service localization: Api, hoặc job migrate khi có cờ <c>--migrate</c>.</summary>
 public partial class Program
