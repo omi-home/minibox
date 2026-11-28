@@ -257,7 +257,7 @@ public sealed class ApiHostTests : IAsyncLifetime
     [Fact(DisplayName = "ac236_2: một sản phẩm thuộc nhiều bộ sưu tập và nhiều thẻ; đổi bộ sưu tập không đụng thẻ; danh mục độc lập")]
     public async Task ac236_2_product_in_many_collections_and_tags()
     {
-        var product = Guid.CreateVersion7();
+        var product = await NewProduct("t2-sp");
         var (a, b) = (await CreateTaxon("collections", "t2-qua-tang"), await CreateTaxon("collections", "t2-ban-chay"));
         var (x, y) = (await CreateTaxon("tags", "t2-de-cham"), await CreateTaxon("tags", "t2-trong-nha"));
         var category = await Create("t2-den");
@@ -279,6 +279,8 @@ public sealed class ApiHostTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NoContent, await SetTaxa(product, "tags"));
         Assert.Equal(1L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}'"));
+        Assert.Equal(4L, await Scalar($"SELECT count(*) FROM audit_log WHERE action = 'ProductTaxaChanged' AND aggregate_id = '{product}'"));
+        Assert.Equal(HttpStatusCode.NotFound, await SetTaxa(Guid.CreateVersion7(), "tags", x));
     }
 
     [Fact(DisplayName = "ac236_4: thiếu quyền catalog.collection.manage 403 cho mọi thao tác ghi bộ sưu tập/thẻ và danh sách quản trị; 401 khi chưa đăng nhập")]
@@ -414,6 +416,115 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).GetAsync("/admin/product-types", Ct)).StatusCode);
         Assert.Equal(0L, await Scalar("SELECT count(*) FROM product_type WHERE code = 'p4-x'"));
         Assert.Equal(2L, await Scalar($"SELECT count(*) FROM attribute WHERE product_type_id = '{id}'"));
+    }
+
+    // ---- Sản phẩm (#487) ----
+
+    static readonly string Editor = Token(CatalogPermissions.ProductManage);
+
+    async Task<Guid> NewProductType(string code)
+    {
+        var response = await Client(AttributeManager).PostAsJsonAsync("/admin/product-types", Lamp(code), Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<Guid>(Ct);
+    }
+
+    static object ProductBody(Guid productTypeId, Guid categoryId, string slug, object[]? attributes = null, long? version = null) => new
+    {
+        productTypeId,
+        categoryId,
+        translations = new object[]
+        {
+            new { locale = "vi", name = "Đèn ngủ", slug, seoTitle = "Đèn ngủ gốm" },
+            new { locale = "en", name = "Night lamp", description = "EN", slug = slug + "-en" },
+        },
+        attributes = attributes ?? [new { code = "power-source", values = new[] { "usb" } }, new { code = "wattage", values = new[] { "5.50" } }],
+        version,
+    };
+
+    async Task<Guid> NewProduct(string slug, Guid? productTypeId = null)
+    {
+        var type = productTypeId ?? await NewProductType(slug + "-type");
+        var response = await Client(Editor).PostAsJsonAsync("/admin/products", ProductBody(type, await Create(slug + "-cat"), slug), Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<Guid>(Ct);
+    }
+
+    async Task<ProductAdminDetail> Product(Guid id) => (await Client(Editor).GetFromJsonAsync<ProductAdminDetail>($"/admin/products/{id}", Ct))!;
+
+    [Fact(DisplayName = "Sản phẩm nháp: tạo trong nhóm + danh mục với bản dịch/SEO và giá trị thuộc tính chuẩn hoá; slug trùng 409; giá trị sai 400; nhóm/danh mục không có 404; sửa đổi slug lưu lịch sử, sai version 409")]
+    public async Task product_draft_create_update()
+    {
+        var type = await NewProductType("s1-lamp");
+        var category = await Create("s1-cat");
+        var id = await NewProduct("s1-den", type);
+
+        var p = await Product(id);
+        Assert.Equal(("draft", type), (p.Status, p.ProductTypeId));
+        Assert.Equal(("Đèn ngủ gốm", "s1-den"), (p.Translations.Single(t => t.Locale == "vi").SeoTitle, p.Translations.Single(t => t.Locale == "vi").Slug));
+        Assert.Equal([("power-source", "usb"), ("wattage", "5.5")], p.Attributes.Select(a => (a.Code, Assert.Single(a.Values))));
+
+        var client = Client(Editor);
+        Assert.Equal(HttpStatusCode.Conflict, (await Client(Editor).PostAsJsonAsync("/admin/products", ProductBody(type, category, "s1-den"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Client(Editor).PostAsJsonAsync("/admin/products",
+            ProductBody(type, category, "s1-x", [new { code = "power-source", values = new[] { "solar" } }]), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client(Editor).PostAsJsonAsync("/admin/products", ProductBody(Guid.CreateVersion7(), category, "s1-y"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client(Editor).PostAsJsonAsync("/admin/products", ProductBody(type, Guid.CreateVersion7(), "s1-z"), Ct)).StatusCode);
+
+        var update = ProductBody(type, category, "s1-den-moi", [new { code = "rooms", values = Array.Empty<string>() }], p.Version);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/admin/products/{id}", update, Ct)).StatusCode);
+        update = ProductBody(type, category, "s1-den-moi", [new { code = "wattage", values = new[] { "7" } }], p.Version);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync($"/admin/products/{id}", update, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/admin/products/{id}", update, Ct)).StatusCode);
+        var after = await Product(id);
+        Assert.Equal((category, "7"), (after.CategoryId, Assert.Single(after.Attributes).Values.Single()));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM product_slug_history WHERE product_id = '{id}' AND locale = 'vi' AND slug = 's1-den'"));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM audit_log WHERE action = 'ProductUpdated' AND aggregate_id = '{id}'"));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/admin/products/{Guid.CreateVersion7()}", Ct)).StatusCode);
+    }
+
+    [Fact(DisplayName = "Nhóm sản phẩm: không bỏ thuộc tính hoặc giá trị cho phép đang được sản phẩm dùng (409); bỏ cái chưa dùng được")]
+    public async Task product_type_blocks_attribute_in_use()
+    {
+        var type = await NewProductType("s2-lamp");
+        await NewProduct("s2-den", type);
+        var row = await ProductType(type);
+        object Body(object[] attributes) => new { sortOrder = 0, names = new[] { new { locale = "vi", label = "Đèn" } }, attributes, version = row.Version };
+        object Power(params string[] codes) => new
+        {
+            code = "power-source", dataType = "select", required = true, variant = false, labels = new[] { new { locale = "vi", label = "Nguồn" } },
+            values = codes.Select(c => new { code = c, labels = new[] { new { locale = "vi", label = c } } }).ToArray(),
+        };
+        object wattage = new { code = "wattage", dataType = "number", unit = "W", required = false, variant = false, labels = new[] { new { locale = "vi", label = "W" } }, values = Array.Empty<object>() };
+
+        var client = Client(AttributeManager);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/admin/product-types/{type}", Body([Power("usb", "battery")]), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/admin/product-types/{type}", Body([Power("battery"), wattage]), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync($"/admin/product-types/{type}", Body([Power("usb"), wattage]), Ct)).StatusCode);
+    }
+
+    [Fact(DisplayName = "235.9: tạo nhóm sản phẩm gửi lặp cùng Idempotency-Key trả cùng Id, không tạo thêm")]
+    public async Task product_type_create_is_idempotent()
+    {
+        var client = Client(AttributeManager);
+        var first = await (await client.PostAsJsonAsync("/admin/product-types", Lamp("s3-lamp"), Ct)).Content.ReadFromJsonAsync<Guid>(Ct);
+        var again = await client.PostAsJsonAsync("/admin/product-types", Lamp("s3-lamp"), Ct);
+        Assert.Equal((HttpStatusCode.OK, first), (again.StatusCode, await again.Content.ReadFromJsonAsync<Guid>(Ct)));
+        Assert.Equal(1L, await Scalar("SELECT count(*) FROM product_type WHERE code = 's3-lamp'"));
+    }
+
+    [Fact(DisplayName = "ac236_4: thiếu quyền catalog.product.manage 403 khi tạo/sửa/xem sản phẩm quản trị; 401 khi chưa đăng nhập")]
+    public async Task ac236_4_product_writes_require_permission()
+    {
+        var id = await NewProduct("s4-den");
+        var p = await Product(id);
+        var other = AttributeManager;
+        var body = ProductBody(p.ProductTypeId, p.CategoryId, "s4-x", version: p.Version);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Client().PostAsJsonAsync("/admin/products", body, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PostAsJsonAsync("/admin/products", body, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PutAsJsonAsync($"/admin/products/{id}", body, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).GetAsync($"/admin/products/{id}", Ct)).StatusCode);
+        Assert.Equal(0L, await Scalar("SELECT count(*) FROM product_translation WHERE slug = 's4-x'"));
     }
 
     async Task<long> Scalar(string sql)

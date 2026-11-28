@@ -12,6 +12,12 @@ public interface IProductTypeRepository : IRepository<ProductType, Guid>
     /// <param name="cancellationToken">Huỷ thao tác.</param>
     /// <returns><c>true</c> nếu đã có.</returns>
     Task<bool> CodeTakenAsync(string code, CancellationToken cancellationToken = default);
+
+    /// <summary>Đọc các giá trị sản phẩm đang dùng thuộc tính của nhóm.</summary>
+    /// <param name="productTypeId">Nhóm.</param>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Cặp (thuộc tính, giá trị) không trùng.</returns>
+    Task<AttributeUsage[]> UsageAsync(Guid productTypeId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Nhóm sản phẩm kèm mọi bản dịch và bộ thuộc tính cho trang quản trị.</summary>

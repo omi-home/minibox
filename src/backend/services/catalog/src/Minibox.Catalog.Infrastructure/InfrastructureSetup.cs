@@ -23,5 +23,7 @@ public static class InfrastructureSetup
         .AddScoped<ITaxonRepository, TaxonRepository>()
         .AddScoped<ITaxonReadService, TaxonReadService>()
         .AddScoped<IProductTypeRepository, ProductTypeRepository>()
-        .AddScoped<IProductTypeReadService, ProductTypeReadService>();
+        .AddScoped<IProductTypeReadService, ProductTypeReadService>()
+        .AddScoped<IProductRepository, ProductRepository>()
+        .AddScoped<IProductReadService, ProductReadService>();
 }

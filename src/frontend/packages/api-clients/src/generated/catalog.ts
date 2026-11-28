@@ -708,6 +708,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateProductRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductAdminDetail"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProductRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -760,6 +861,14 @@ export interface components {
             sortOrder: number | string;
             translations: components["schemas"]["CategoryTranslationDto"][];
         };
+        CreateProductRequest: {
+            /** Format: uuid */
+            productTypeId: string;
+            /** Format: uuid */
+            categoryId: string;
+            translations: components["schemas"]["ProductTranslationDto"][];
+            attributes: components["schemas"]["ProductAttributeDto"][];
+        };
         CreateProductTypeRequest: {
             code: string;
             /** Format: int32 */
@@ -781,6 +890,32 @@ export interface components {
             parentId: null | string;
             /** Format: int64 */
             version: number | string;
+        };
+        ProductAdminDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            productTypeId: string;
+            /** Format: uuid */
+            categoryId: string;
+            status: string;
+            /** Format: int64 */
+            version: number | string;
+            translations: components["schemas"]["ProductTranslationDto"][];
+            attributes: components["schemas"]["ProductAttributeDto"][];
+            taxonIds: string[];
+        };
+        ProductAttributeDto: {
+            code: string;
+            values: string[];
+        };
+        ProductTranslationDto: {
+            locale: string;
+            name: string;
+            description: null | string;
+            slug: string;
+            seoTitle: null | string;
+            seoDescription: null | string;
         };
         ProductTypeAdminRow: {
             /** Format: uuid */
@@ -842,6 +977,16 @@ export interface components {
             /** Format: int32 */
             sortOrder: number | string;
             translations: components["schemas"]["CategoryTranslationDto"][];
+            /** Format: int64 */
+            version: number | string;
+        };
+        UpdateProductRequest: {
+            /** Format: uuid */
+            productTypeId: string;
+            /** Format: uuid */
+            categoryId: string;
+            translations: components["schemas"]["ProductTranslationDto"][];
+            attributes: components["schemas"]["ProductAttributeDto"][];
             /** Format: int64 */
             version: number | string;
         };

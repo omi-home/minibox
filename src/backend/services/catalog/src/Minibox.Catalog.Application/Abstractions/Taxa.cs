@@ -4,7 +4,7 @@ using Minibox.Catalog.Domain.Aggregates.Taxa;
 
 namespace Minibox.Catalog.Application.Abstractions;
 
-/// <summary>Repository của <see cref="Taxon"/> (bộ sưu tập/thẻ) và liên kết sản phẩm–taxon (<c>product_taxon</c>).</summary>
+/// <summary>Repository của <see cref="Taxon"/> (bộ sưu tập/thẻ).</summary>
 public interface ITaxonRepository : IRepository<Taxon, Guid>
 {
     /// <summary>Kiểm có slug nào trong <paramref name="texts"/> đã được taxon khác dùng ở cùng locale.</summary>
@@ -21,14 +21,12 @@ public interface ITaxonRepository : IRepository<Taxon, Guid>
     /// <returns>Số Id khớp.</returns>
     Task<int> CountActiveAsync(string kind, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 
-    /// <summary>Thay toàn bộ taxon loại <paramref name="kind"/> của sản phẩm bằng <paramref name="ids"/>; taxon loại khác và danh mục không đổi.</summary>
-    /// <param name="productId">Sản phẩm.</param>
-    /// <param name="kind">Loại được thay.</param>
-    /// <param name="ids">Taxon mới (đã kiểm đang hoạt động, đúng loại).</param>
+    /// <summary>Lọc các Id trong <paramref name="ids"/> là taxon thuộc <paramref name="kind"/> (kể cả đã xóa).</summary>
+    /// <param name="kind">Loại.</param>
+    /// <param name="ids">Id cần lọc.</param>
     /// <param name="cancellationToken">Huỷ thao tác.</param>
-    /// <returns>Tác vụ hoàn tất khi đã ghi trong transaction của command.</returns>
-    /// <remarks>Khoá theo sản phẩm tới hết transaction để hai lệnh song song không chồng nhau.</remarks>
-    Task ReplaceProductTaxaAsync(Guid productId, string kind, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
+    /// <returns>Id thuộc loại.</returns>
+    Task<Guid[]> OfKindAsync(string kind, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Taxon kèm mọi bản dịch cho trang quản trị.</summary>

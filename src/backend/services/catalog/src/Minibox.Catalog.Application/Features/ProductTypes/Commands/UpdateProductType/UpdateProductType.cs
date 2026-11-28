@@ -30,19 +30,21 @@ public sealed class UpdateProductTypeValidator : AbstractValidator<UpdateProduct
     }
 }
 
-/// <summary>Sửa <see cref="ProductType"/> qua aggregate.</summary>
+/// <summary>Sửa <see cref="ProductType"/> qua aggregate; không làm hỏng giá trị thuộc tính sản phẩm đang dùng.</summary>
 /// <param name="types">Repository nhóm sản phẩm.</param>
 /// <param name="time">Đồng hồ.</param>
 public sealed class UpdateProductTypeHandler(IProductTypeRepository types, TimeProvider time) : ICommandHandler<UpdateProductType>
 {
     /// <inheritdoc/>
-    /// <returns>Thành công; lỗi <see cref="ProductTypeErrors.NotFound"/>, lỗi của <see cref="ProductType.Update"/> hoặc xung đột phiên bản.</returns>
+    /// <returns>Thành công; lỗi <see cref="ProductTypeErrors.NotFound"/>, lỗi của <see cref="ProductType.Update"/> (gồm <see cref="ProductTypeErrors.AttributeInUse"/>) hoặc xung đột phiên bản.</returns>
+    /// <remarks>ponytail: đọc giá trị đang dùng không khoá; sản phẩm ghi song song có thể lọt (FK <c>attribute</c> vẫn chặn xóa thuộc tính).</remarks>
     public async ValueTask<Result> Handle(UpdateProductType command, CancellationToken cancellationToken)
     {
         var type = await types.GetAsync(command.Id, cancellationToken);
         if (type is null)
             return ProductTypeErrors.NotFound;
-        var updated = type.Update(command.SortOrder, AttributeDto.ToLabels(command.Names), AttributeDto.ToDomain(command.Attributes), time.GetUtcNow());
+        var updated = type.Update(command.SortOrder, AttributeDto.ToLabels(command.Names), AttributeDto.ToDomain(command.Attributes), time.GetUtcNow(),
+            await types.UsageAsync(type.Id, cancellationToken));
         if (updated.IsFailure)
             return updated;
         return await types.UpdateAsync(type, command.Version, cancellationToken);
