@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { POST as login } from "../app/api/auth/login/route";
 import { POST as logout } from "../app/api/auth/logout/route";
+import { POST as enroll } from "../app/api/auth/mfa/enroll/route";
+import { POST as confirmEnroll } from "../app/api/auth/mfa/enroll/confirm/route";
 import { POST as mfa } from "../app/api/auth/mfa/route";
 import { proxy } from "../proxy";
 import { type Session, SESSION_COOKIE, sealSession, unsealSession } from "./session";
@@ -111,7 +113,7 @@ test("Proxy làm mới access sắp hết hạn một lần cho các request đ�
   const fresh = tokens("new");
   fetchMock.mockResolvedValueOnce(Response.json(fresh));
 
-  const responses = await Promise.all([1, 2, 3].map(() => proxy(request("/", { method: "GET", session: old }))));
+  const responses = await Promise.all([1, 2, 3].map(() => proxy(request("/api/x", { method: "GET", session: old }))));
   expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(await call(0).json()).toEqual({ refreshToken: "refresh-old" });
   for (const res of responses) {
@@ -120,13 +122,14 @@ test("Proxy làm mới access sắp hết hạn một lần cho các request đ�
     expect(res.headers.get("x-middleware-request-cookie") ?? "").toContain(SESSION_COOKIE);
   }
 
-  expect((await proxy(request("/", { method: "GET", session: fresh }))).headers.get("set-cookie")).toBeNull();
+  expect((await proxy(request("/api/x", { method: "GET", session: fresh }))).headers.get("set-cookie")).toBeNull();
 });
 
 test("Proxy xóa cookie khi phiên hết hạn hoặc bị thu hồi", async () => {
   fetchMock.mockResolvedValueOnce(Response.json({ code: "Identity.InvalidRefreshToken" }, { status: 401 }));
   const res = await proxy(request("/", { method: "GET", session: tokens("revoked", 0) }));
   expect(res.headers.get("set-cookie")).toMatch(/Max-Age=0/i);
+  expect(res.headers.get("location")).toBe(ORIGIN + "/login");
 });
 
 test("Đăng xuất thu hồi phiên ở identity và xóa cookie", async () => {
@@ -136,4 +139,77 @@ test("Đăng xuất thu hồi phiên ở identity và xóa cookie", async () => 
   expect(call(0).url).toBe("http://identity:8080/auth/logout");
   expect(await call(0).json()).toEqual({ refreshToken: "refresh-a" });
   expect(res.headers.get("set-cookie")).toMatch(/Max-Age=0/i);
+});
+
+test("ac208_1 đăng ký MFA: BFF chuyển secret và mã khôi phục từ identity bằng access token của phiên, không lộ token", async () => {
+  const pwd = tokens("pwd");
+  fetchMock.mockResolvedValueOnce(Response.json({ secret: "ABC", otpauthUri: "otpauth://totp/Minibox:an?secret=ABC" }));
+  const begun = await enroll(request("/api/auth/mfa/enroll", { session: pwd }));
+  expect(begun.status).toBe(200);
+  expect(await begun.json()).toEqual({ secret: "ABC", otpauthUri: "otpauth://totp/Minibox:an?secret=ABC" });
+  expect(begun.headers.get("cache-control")).toBe("no-store");
+  expect(call(0).url).toBe("http://identity:8080/auth/mfa/enrollment");
+  expect(call(0).headers.get("authorization")).toBe("Bearer access-pwd");
+
+  fetchMock.mockResolvedValueOnce(Response.json(["a-b", "c-d"]));
+  const confirmed = await confirmEnroll(request("/api/auth/mfa/enroll/confirm", { body: { code: "123456" }, session: pwd }));
+  expect(await confirmed.json()).toEqual({ recoveryCodes: ["a-b", "c-d"] });
+  expect(await call(1).json()).toEqual({ code: "123456" });
+
+  fetchMock.mockResolvedValueOnce(Response.json({ code: "Identity.MfaAlreadyEnrolled" }, { status: 400 }));
+  const again = await enroll(request("/api/auth/mfa/enroll", { session: pwd }));
+  expect([again.status, await again.json()]).toEqual([400, { code: "Identity.MfaAlreadyEnrolled" }]);
+
+  expect((await enroll(request("/api/auth/mfa/enroll"))).status).toBe(401);
+  expect((await confirmEnroll(request("/api/auth/mfa/enroll/confirm", { body: {}, origin: "https://evil.test", session: pwd }))).status).toBe(403);
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});
+
+test("ac208_1 proxy dẫn trang theo phiên: chưa đăng nhập → /login, mới qua mật khẩu → /mfa, đủ MFA không vào lại /login", async () => {
+  const pwd = tokens("pwd");
+  const full = { ...tokens("mfa"), authMethods: ["pwd", "mfa"] };
+  const go = async (path: string, session?: Session) =>
+    (await proxy(request(path, { method: "GET", session }))).headers.get("location")?.replace(ORIGIN, "") ?? null;
+  expect(await go("/")).toBe("/login");
+  expect(await go("/orders")).toBe("/login");
+  expect(await go("/mfa")).toBe("/login");
+  expect(await go("/login")).toBeNull();
+  expect(await go("/", pwd)).toBe("/mfa");
+  expect(await go("/mfa", pwd)).toBeNull();
+  expect(await go("/", full)).toBeNull();
+  expect(await go("/login", full)).toBe("/");
+  expect(await go("/mfa", full)).toBe("/");
+  expect(await go("/api/auth/login")).toBeNull(); // Route Handler tự trả 401
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("ac208_2 identity trả step_up_required: BFF chuyển nguyên mã và giữ phiên (không xóa cookie như 401 khác)", async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ code: "step_up_required" }, { status: 401 }));
+  const res = await mfa(request("/api/auth/mfa", { body: { code: "1" }, session: tokens("a") }));
+  expect([res.status, await res.json()]).toEqual([401, { code: "step_up_required" }]);
+  expect(res.headers.get("set-cookie")).toBeNull();
+});
+
+test("208.1 proxy giữ phiên khi identity lỗi mạng/5xx (không đăng xuất oan), request sau thử làm mới lại", async () => {
+  const old = { ...tokens("flaky", 10_000), authMethods: ["pwd", "mfa"] };
+  fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+  const down = await proxy(request("/", { method: "GET", session: old }));
+  expect(down.headers.get("set-cookie")).toBeNull();
+  expect(down.headers.get("location")).toBeNull();
+
+  fetchMock.mockResolvedValueOnce(Response.json({ code: "x" }, { status: 503 }));
+  expect((await proxy(request("/", { method: "GET", session: old }))).headers.get("set-cookie")).toBeNull();
+
+  const fresh = tokens("new");
+  fetchMock.mockResolvedValueOnce(Response.json(fresh));
+  const ok = await proxy(request("/api/x", { method: "GET", session: old }));
+  expect(unsealSession(cookieValue(ok.headers.get("set-cookie") ?? ""))).toEqual(fresh);
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});
+
+test("208.3 ADMIN_ORIGIN bỏ trống thì so Origin với origin của request", async () => {
+  vi.stubEnv("ADMIN_ORIGIN", undefined);
+  expect((await login(request("/api/auth/login", { body: {}, origin: "https://evil.test" }))).status).toBe(403);
+  fetchMock.mockResolvedValueOnce(Response.json({ code: "Identity.InvalidCredentials" }, { status: 400 }));
+  expect((await login(request("/api/auth/login", { body: {} }))).status).toBe(400);
 });

@@ -9,6 +9,9 @@ export const APPS = { shop: "http://localhost:3100", admin: "http://localhost:31
 /** Stub service localization (e2e/localization-stub.mjs) mà BFF hai app gọi. */
 export const LOCALIZATION_STUB = "http://127.0.0.1:3102";
 
+/** Identity giả (e2e/fake-identity.mjs, dữ liệu trong bộ nhớ) mà BFF admin gọi khi đăng nhập/MFA. */
+export const IDENTITY_FAKE = "http://127.0.0.1:3103";
+
 // E2E (spec §9.3): mỗi app chạy next dev; test tự chọn app bằng URL tuyệt đối trong APPS.
 export default defineConfig({
   testDir: "e2e",
@@ -21,6 +24,8 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     { command: `node e2e/localization-stub.mjs ${new URL(LOCALIZATION_STUB).port}`, url: `${LOCALIZATION_STUB}/locales`, reuseExistingServer: !process.env.CI },
+    // Không dùng lại server cũ: tài khoản giả giữ trạng thái MFA trong bộ nhớ.
+    { command: "node e2e/fake-identity.mjs", port: Number(new URL(IDENTITY_FAKE).port), env: { PORT: new URL(IDENTITY_FAKE).port } },
     ...Object.entries(APPS).map(([app, url]) => ({
       command: `pnpm -C apps/${app} exec next dev -p ${new URL(url).port}`,
       url: `${url}/design`,
@@ -30,7 +35,7 @@ export default defineConfig({
       env: {
         LOCALIZATION_URL: LOCALIZATION_STUB,
         LOCALIZATION_CACHE_TTL_MS: "1",
-        ...(app === "admin" ? { ADMIN_SESSION_KEY: E2E_ADMIN_SESSION_KEY } : {}),
+        ...(app === "admin" ? { ADMIN_SESSION_KEY: E2E_ADMIN_SESSION_KEY, IDENTITY_URL: IDENTITY_FAKE, ADMIN_ORIGIN: url } : {}),
       },
     })),
   ],

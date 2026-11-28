@@ -22,8 +22,10 @@ export function acceptSteps(n) {
     { cmd: "node", args: ["--test", "--test-name-pattern", pat, "contracts/tests/*.test.mjs"], cwd: root },
     { cmd: "pnpm", args: ["-r", "test", "-t", pat, "--reporter=verbose"], cwd: frontend },
   ];
-  if (existsSync(join(frontend, "e2e")))
+  if (existsSync(join(frontend, "e2e"))) {
+    if (process.env.CI) steps.push({ cmd: "pnpm", args: ["exec", "playwright", "install", "--with-deps", "chromium"], cwd: frontend });
     steps.push({ cmd: "pnpm", args: ["exec", "playwright", "test", "-g", pat, "--reporter=list", "--pass-with-no-tests"], cwd: frontend });
+  }
   return steps;
 }
 

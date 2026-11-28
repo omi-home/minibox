@@ -73,6 +73,21 @@ public sealed class AuthApiTests : IAsyncLifetime
         Assert.Equal(2L, await _host.Scalar<long>($"SELECT count(*) FROM audit_log WHERE action = 'SessionRevoked' AND aggregate_id = '{_staff}'")); // mfa + logout
     }
 
+    [Fact(DisplayName = "ac208_1 Đăng ký MFA qua API: chưa đăng nhập 401; phiên pwd lấy secret → xác nhận → mã khôi phục; đăng ký lại trả Identity.MfaAlreadyEnrolled")]
+    public async Task ac208_1_mfa_enrollment()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/auth/mfa/enrollment", null)).StatusCode);
+        var login = await Ok<TokenResponse>(await Post("/auth/login", new LoginRequest("an@minibox.vn", Password, "10.0.0.1")));
+        var enrollment = await Ok<MfaEnrollment>(await Post("/auth/mfa/enrollment", null, login.AccessToken));
+        Assert.StartsWith("otpauth://totp/", enrollment.OtpauthUri);
+        var code = Totp.Code(MfaTests.Base32Decode(enrollment.Secret), Totp.StepAt(DateTimeOffset.UtcNow));
+        var codes = await Ok<string[]>(await Post("/auth/mfa/enrollment/confirm", new MfaConfirmRequest(code), login.AccessToken));
+        Assert.Equal(MfaPolicy.RecoveryCodeCount, codes.Length);
+
+        var again = await Post("/auth/mfa/enrollment", null, login.AccessToken);
+        Assert.Contains("Identity.MfaAlreadyEnrolled", await again.Content.ReadAsStringAsync(Ct));
+    }
+
     [Fact(DisplayName = "Sai mật khẩu và refresh token rỗng không trả token")]
     public async Task invalid_credentials_rejected()
     {

@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { requestLocale } from "../lib/i18n";
 import { THEME_COOKIE, themeOf } from "../lib/menu";
 import "./globals.css";
+import { StepUpProvider } from "./step-up";
 
 /** Viewport phủ cả tai thỏ/thanh home để component dùng env(safe-area-inset-*). */
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
@@ -31,7 +32,7 @@ const RootLayout = async ({ children }: { children: ReactNode }) => {
     // data-theme theo cookie để không nháy màu; trang /design và nút đổi giao diện đổi lại phía client nên bỏ cảnh báo lệch khi hydrate.
     <html lang={locale} className={fontVariables} data-theme={theme === "system" ? undefined : theme} suppressHydrationWarning>
       <body>
-        {children}
+        <StepUpProvider>{children}</StepUpProvider>
         <Toaster />
       </body>
     </html>
