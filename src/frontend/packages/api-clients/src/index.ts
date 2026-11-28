@@ -1,9 +1,13 @@
 import createClient, { type Client, type ClientOptions } from "openapi-fetch";
+import type { components as CatalogComponents, paths as CatalogPaths } from "./generated/catalog";
 import type { components as IdentityComponents, paths as IdentityPaths } from "./generated/identity";
 import type { components as LocalizationComponents, paths as LocalizationPaths } from "./generated/localization";
 
-export type { IdentityComponents, IdentityPaths, LocalizationComponents, LocalizationPaths };
+export type { CatalogComponents, CatalogPaths, IdentityComponents, IdentityPaths, LocalizationComponents, LocalizationPaths };
 export * from "./localization";
+
+/** Client có kiểu của service catalog, sinh từ `contracts/openapi/catalog.json`. */
+export type CatalogClient = Client<CatalogPaths>;
 
 /** Client có kiểu của service localization, sinh từ `contracts/openapi/localization.json`. */
 export type LocalizationClient = Client<LocalizationPaths>;
@@ -50,3 +54,13 @@ export const createIdentityClient = (baseUrl: string, options?: Omit<ClientOptio
  */
 export const createLocalizationClient = (baseUrl: string, options?: Omit<ClientOptions, "baseUrl">): LocalizationClient =>
   createApiClient<LocalizationPaths>(baseUrl, options);
+
+/**
+ * Tạo client cho service catalog.
+ *
+ * @param baseUrl - Gốc URL nội bộ của catalog.
+ * @param options - Tuỳ chọn openapi-fetch.
+ * @returns Client catalog có kiểu.
+ */
+export const createCatalogClient = (baseUrl: string, options?: Omit<ClientOptions, "baseUrl">): CatalogClient =>
+  createApiClient<CatalogPaths>(baseUrl, options);

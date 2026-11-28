@@ -15,6 +15,19 @@
     <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Web.Tests/Minibox.BuildingBlocks.Web.Tests.csproj" />
   </Folder>
   <Folder Name="/services/" />
+  <Folder Name="/services/catalog/" />
+  <Folder Name="/services/catalog/src/">
+    <Project Path="services/catalog/src/Minibox.Catalog.Api/Minibox.Catalog.Api.csproj" />
+    <Project Path="services/catalog/src/Minibox.Catalog.Application/Minibox.Catalog.Application.csproj" />
+    <Project Path="services/catalog/src/Minibox.Catalog.Contracts/Minibox.Catalog.Contracts.csproj" />
+    <Project Path="services/catalog/src/Minibox.Catalog.Domain/Minibox.Catalog.Domain.csproj" />
+    <Project Path="services/catalog/src/Minibox.Catalog.Infrastructure/Minibox.Catalog.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/catalog/tests/">
+    <Project Path="services/catalog/tests/Minibox.Catalog.ArchitectureTests/Minibox.Catalog.ArchitectureTests.csproj" />
+    <Project Path="services/catalog/tests/Minibox.Catalog.IntegrationTests/Minibox.Catalog.IntegrationTests.csproj" />
+    <Project Path="services/catalog/tests/Minibox.Catalog.UnitTests/Minibox.Catalog.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/services/identity/" />
   <Folder Name="/services/identity/src/">
     <Project Path="services/identity/src/Minibox.Identity.Api/Minibox.Identity.Api.csproj" />

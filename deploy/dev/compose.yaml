@@ -20,6 +20,21 @@ services:
   infra-seaweedfs:
     container_name: minibox-dev-infra-seaweedfs
     ports: ["127.0.0.1:${SEAWEEDFS_S3_PORT:-8333}:8333"]
+    # Tạo bucket qua filer nội bộ ngay sau khi container chạy, chờ filer tối đa 60 giây (201 mới tạo, 409 đã có).
+    # Service mới cần bucket thì thêm tên vào danh sách.
+    post_start:
+      - command:
+          - sh
+          - -c
+          - |
+            for b in catalog-files catalog-preview catalog-evidence; do
+              for i in $$(seq 60); do
+                code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8888/buckets/$$b/")
+                case $$code in 201|409) echo "bucket $$b: $$code"; continue 2 ;; esac
+                sleep 1
+              done
+              echo "bucket $$b: lỗi HTTP $$code" >&2; exit 1
+            done
 
   infra-clamav:
     container_name: minibox-dev-infra-clamav

@@ -50,6 +50,13 @@ services:
       Identity__Authority: http://backend-identity:8080
       OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4317
 
+  backend-catalog:
+    <<: *backend
+    image: ghcr.io/omi-home/minibox/backend-catalog:${MINIBOX_TAG:-latest}
+    environment:
+      Identity__Authority: http://backend-identity:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4317
+
   frontend-admin:
     <<: *frontend
     image: ghcr.io/omi-home/minibox/frontend-admin:${MINIBOX_TAG:-latest}

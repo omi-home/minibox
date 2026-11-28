@@ -23,6 +23,7 @@ jobs:
         include:
           - { name: backend-identity, file: src/backend/Dockerfile, args: "SERVICE=identity\nPROJECT=Identity" }
           - { name: backend-localization, file: src/backend/Dockerfile, args: "SERVICE=localization\nPROJECT=Localization" }
+          - { name: backend-catalog, file: src/backend/Dockerfile, args: "SERVICE=catalog\nPROJECT=Catalog" }
           - { name: frontend-admin, file: src/frontend/Dockerfile, args: "APP=admin" }
           - { name: frontend-shop, file: src/frontend/Dockerfile, args: "APP=shop" }
     steps:

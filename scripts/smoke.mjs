@@ -10,7 +10,7 @@ import { frontend, isMain, root } from "./run.mjs";
 
 const ENV = "ci";
 const PORT = process.env.SMOKE_ADMIN_PORT ?? "3201";
-const BACKENDS = ["identity", "localization"];
+const BACKENDS = ["identity", "localization", "catalog"];
 // ponytail: bỏ infra-clamav — lần đầu tải CSDL chữ ký mất ~6 phút (vượt ngân sách CI 15 phút) và chưa app nào dùng; thêm khi có service quét file.
 const SKIP = ["infra-clamav"];
 
@@ -46,7 +46,8 @@ export function smoke() {
     if (bootstrap(composePsql(ENV), secrets)) return 1;
     // bootstrap đã sinh/đọc mật khẩu role; ensurePasswords chỉ đọc lại.
     const { passwords } = ensurePasswords(secrets);
-    env = { ...env, IDENTITY_APP_CONNECTION: appConnection("identity", passwords), LOCALIZATION_APP_CONNECTION: appConnection("localization", passwords) };
+    env = { ...env, IDENTITY_APP_CONNECTION: appConnection("identity", passwords), LOCALIZATION_APP_CONNECTION: appConnection("localization", passwords),
+      CATALOG_APP_CONNECTION: appConnection("catalog", passwords) };
     for (const svc of BACKENDS) {
       const migrator = `Host=database-postgres;Database=minibox;Username=${svc}_migrator;Password=${passwords[`${svc}_migrator`]}`;
       if (run(["run", "--rm", "--no-deps", "-e", "MINIBOX_MIGRATOR_CONNECTION", `backend-${svc}`, "--migrate"], { MINIBOX_MIGRATOR_CONNECTION: migrator })) return 1;

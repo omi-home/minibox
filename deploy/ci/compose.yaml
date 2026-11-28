@@ -44,6 +44,14 @@ services:
       ConnectionStrings__App: ${LOCALIZATION_APP_CONNECTION:-}
       ConnectionStrings__RabbitMq: *amqp
 
+  backend-catalog:
+    extends: { file: apps.yaml, service: backend-catalog }
+    container_name: minibox-ci-backend-catalog
+    build: { context: .., dockerfile: src/backend/Dockerfile, args: { SERVICE: catalog, PROJECT: Catalog } }
+    environment:
+      ConnectionStrings__App: ${CATALOG_APP_CONNECTION:-}
+      ConnectionStrings__RabbitMq: *amqp
+
   frontend-admin:
     extends: { file: apps.yaml, service: frontend-admin }
     container_name: minibox-ci-frontend-admin

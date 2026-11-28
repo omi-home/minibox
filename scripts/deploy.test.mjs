@@ -29,7 +29,7 @@ for (const env of ENVS) {
 
   test(`ac220_1 ${env}: service app từ image theo MINIBOX_TAG; frontend trên mạng edge, backend thì không; health check`, () => {
     const c = config(env);
-    const apps = ["backend-identity", "backend-localization", "frontend-admin", "frontend-shop"];
+    const apps = ["backend-identity", "backend-localization", "backend-catalog", "frontend-admin", "frontend-shop"];
     for (const name of apps) {
       const s = c.services[name];
       assert.ok(s, `thiếu ${name}`);
@@ -42,7 +42,8 @@ for (const env of ENVS) {
       if (name.startsWith("backend-")) assert.ok(nets.includes("otel"), `${name} gửi OTLP qua mạng otel`);
     }
     assert.ok(Object.keys(c.services["backend-identity"].secrets.reduce((o, x) => ({ ...o, [x.target]: 1 }), {})).includes("Mfa__EncryptionKey"));
-    assert.deepEqual(c.services["backend-localization"].secrets.map((x) => x.target).sort(), ["ConnectionStrings__App", "ConnectionStrings__RabbitMq"]);
+    for (const name of ["backend-localization", "backend-catalog"])
+      assert.deepEqual(c.services[name].secrets.map((x) => x.target).sort(), ["ConnectionStrings__App", "ConnectionStrings__RabbitMq"]);
     assert.deepEqual(c.services["frontend-admin"].secrets.map((x) => x.target).sort(), ["ADMIN_SESSION_KEY", "RABBITMQ_URL"]);
   });
 
