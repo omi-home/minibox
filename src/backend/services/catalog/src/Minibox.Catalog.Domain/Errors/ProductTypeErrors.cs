@@ -34,6 +34,10 @@ public static class ProductTypeErrors
     public static readonly Error VariantRequiresSelect = Error.Validation("ProductType.VariantRequiresSelect",
         "Thuộc tính tạo biến thể phải có kiểu 'select' (giá trị rời rạc).");
 
+    /// <summary>Bỏ, đổi kiểu, chuyển sang tạo biến thể một thuộc tính đang có giá trị ở sản phẩm, hoặc bỏ giá trị cho phép đang được dùng.</summary>
+    public static readonly Error AttributeInUse = Error.Conflict("ProductType.AttributeInUse",
+        "Thuộc tính hoặc giá trị cho phép đang được sản phẩm dùng: không bỏ, đổi kiểu hay chuyển sang tạo biến thể được.");
+
     /// <summary>Đã xóa mềm, không sửa được.</summary>
     public static readonly Error Archived = Error.Failure("ProductType.Archived", "Nhóm sản phẩm đã bị xóa.");
 }

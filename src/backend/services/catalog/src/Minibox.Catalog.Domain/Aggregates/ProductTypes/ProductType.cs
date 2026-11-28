@@ -51,6 +51,11 @@ public sealed record AttributeValueSpec(string Code, IReadOnlyList<LocalizedLabe
 public sealed record AttributeSpec(string Code, string DataType, string? Unit, bool Required, bool Variant,
     IReadOnlyList<LocalizedLabel> Labels, IReadOnlyList<AttributeValueSpec> Values);
 
+/// <summary>Một giá trị sản phẩm đang dùng thuộc tính (đầu vào kiểm của <see cref="ProductType.Update"/>).</summary>
+/// <param name="AttributeId">Thuộc tính.</param>
+/// <param name="Value">Giá trị đã chuẩn hoá (mã giá trị với select/multi_select).</param>
+public sealed record AttributeUsage(Guid AttributeId, string Value);
+
 /// <summary>Nhóm sản phẩm (đèn, chậu, thủy sinh…) và bộ thuộc tính của nó (BRD BR-CAT-01/02): bảng <c>product_type</c>, thuộc tính ở <c>attribute</c>,
 /// giá trị cho phép ở <c>attribute_value</c>; nhãn theo locale ở các bảng <c>*_translation</c>.</summary>
 /// <remarks>Thứ tự thuộc tính/giá trị là thứ tự trong danh sách gửi lên. Thuộc tính và giá trị khớp theo mã khi sửa nên giữ nguyên Id
@@ -117,14 +122,26 @@ public sealed class ProductType : AggregateRoot<Guid>
     /// <param name="names">Tên mới theo locale (thay hết bộ cũ), bắt buộc có <c>vi</c>.</param>
     /// <param name="attributes">Bộ thuộc tính mới (thay hết bộ cũ).</param>
     /// <param name="now">Thời điểm sửa (sinh Id cho thuộc tính/giá trị mới).</param>
+    /// <param name="inUse">Giá trị sản phẩm đang dùng thuộc tính của nhóm; <c>null</c> = chưa dùng.</param>
     /// <returns>Thành công; lỗi <see cref="ProductTypeErrors.Archived"/>, <see cref="ProductTypeErrors.TranslationInvalid"/>,
-    /// <see cref="ProductTypeErrors.DefaultTranslationMissing"/>, <see cref="ProductTypeErrors.AttributeInvalid"/> hoặc
-    /// <see cref="ProductTypeErrors.VariantRequiresSelect"/>; lỗi thì không đổi gì.</returns>
-    /// <remarks>ponytail: cho đổi kiểu/bỏ thuộc tính tự do vì chưa có sản phẩm; task Product chặn khi đã có giá trị/biến thể dùng tới.</remarks>
-    public Result Update(int sortOrder, IReadOnlyCollection<LocalizedLabel> names, IReadOnlyCollection<AttributeSpec> attributes, DateTimeOffset now)
+    /// <see cref="ProductTypeErrors.DefaultTranslationMissing"/>, <see cref="ProductTypeErrors.AttributeInvalid"/>,
+    /// <see cref="ProductTypeErrors.VariantRequiresSelect"/> hoặc <see cref="ProductTypeErrors.AttributeInUse"/>; lỗi thì không đổi gì.</returns>
+    /// <remarks>ponytail: chỉ xét giá trị cấp sản phẩm; task biến thể bổ sung giá trị của thuộc tính tạo biến thể vào <paramref name="inUse"/>.</remarks>
+    public Result Update(int sortOrder, IReadOnlyCollection<LocalizedLabel> names, IReadOnlyCollection<AttributeSpec> attributes, DateTimeOffset now,
+        IReadOnlyCollection<AttributeUsage>? inUse = null)
     {
         if (IsArchived)
             return ProductTypeErrors.Archived;
+        foreach (var used in (inUse ?? []).GroupBy(u => u.AttributeId))
+        {
+            var current = _attributes.FirstOrDefault(a => a.Id == used.Key);
+            if (current is null)
+                continue;
+            var next = attributes.FirstOrDefault(a => a?.Code == current.Code);
+            if (next is null || next.DataType != current.DataType || next.Variant && !current.Variant
+                || AttributeTypes.HasValues(current.DataType) && used.Any(u => next.Values?.Any(v => v?.Code == u.Value) != true))
+                return ProductTypeErrors.AttributeInUse;
+        }
         var set = Set(sortOrder, names, attributes, now);
         if (set.IsFailure)
             return set.Error;

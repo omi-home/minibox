@@ -2,6 +2,7 @@ using FluentValidation;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Catalog.Application.Abstractions;
+using Minibox.Catalog.Domain.Aggregates.Products;
 using Minibox.Catalog.Domain.Errors;
 
 namespace Minibox.Catalog.Application.Features.Taxa.Commands.SetProductTaxa;
@@ -32,20 +33,25 @@ public sealed class SetProductTaxaValidator : AbstractValidator<SetProductTaxa>
     }
 }
 
-/// <summary>Kiểm mọi taxon đang hoạt động, đúng loại rồi thay liên kết của sản phẩm.</summary>
+/// <summary>Kiểm mọi taxon đang hoạt động, đúng loại rồi thay liên kết loại đó qua aggregate <see cref="Product"/> (ghi audit).</summary>
+/// <param name="products">Repository sản phẩm.</param>
 /// <param name="taxa">Repository taxon.</param>
-/// <remarks>ponytail: chưa có bảng <c>product</c> nên chưa kiểm sản phẩm tồn tại và không ghi audit; khi có aggregate Product,
-/// chuyển liên kết vào Product (FK <c>product_taxon.product_id</c> + sự kiện audit).</remarks>
-public sealed class SetProductTaxaHandler(ITaxonRepository taxa) : ICommandHandler<SetProductTaxa>
+/// <param name="time">Đồng hồ.</param>
+public sealed class SetProductTaxaHandler(IProductRepository products, ITaxonRepository taxa, TimeProvider time) : ICommandHandler<SetProductTaxa>
 {
     /// <inheritdoc/>
-    /// <returns>Thành công; lỗi <see cref="TaxonErrors.NotFound"/> nếu có Id không phải taxon đang hoạt động thuộc loại yêu cầu.</returns>
+    /// <returns>Thành công; lỗi <see cref="ProductErrors.NotFound"/>, <see cref="TaxonErrors.NotFound"/> nếu có Id không phải taxon đang hoạt động
+    /// thuộc loại yêu cầu, hoặc xung đột phiên bản khi sản phẩm vừa bị sửa song song.</returns>
     public async ValueTask<Result> Handle(SetProductTaxa command, CancellationToken cancellationToken)
     {
+        var product = await products.GetAsync(command.ProductId, cancellationToken);
+        if (product is null)
+            return ProductErrors.NotFound;
         var ids = command.TaxonIds.Distinct().ToArray();
         if (ids.Length > 0 && await taxa.CountActiveAsync(command.Kind, ids, cancellationToken) != ids.Length)
             return TaxonErrors.NotFound;
-        await taxa.ReplaceProductTaxaAsync(command.ProductId, command.Kind, ids, cancellationToken);
-        return Result.Success();
+        var sameKind = await taxa.OfKindAsync(command.Kind, product.TaxonIds, cancellationToken);
+        product.SetTaxa(product.TaxonIds.Except(sameKind).Concat(ids).ToArray(), time.GetUtcNow());
+        return await products.UpdateAsync(product, product.Version, cancellationToken);
     }
 }
