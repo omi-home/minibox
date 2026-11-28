@@ -24,3 +24,8 @@ test("ac174_4 tên dịch vụ theo layer <layer>-<tên>", () => {
   for (const svc of Object.keys(config("dev").services))
     assert.match(svc, /^(frontend|backend|database|infra|observability)-[a-z0-9-]+$/);
 });
+
+test("compose dev tạo bucket catalog-files/catalog-preview/catalog-evidence khi SeaweedFS khởi động", () => {
+  const hook = config("dev").services["infra-seaweedfs"].post_start?.map((h) => h.command.join(" ")).join("\n") ?? "";
+  for (const b of ["catalog-files", "catalog-preview", "catalog-evidence"]) assert.ok(hook.includes(` ${b}`), `thiếu bucket ${b}`);
+});

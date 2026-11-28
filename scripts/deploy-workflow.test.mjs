@@ -14,7 +14,7 @@ test("ac220_1 merge develop: build 4 image một lần, đẩy GHCR theo tag com
   const build = job("build");
   assert.match(build, /if: github\.ref == 'refs\/heads\/develop'/);
   assert.match(build, /packages: write/);
-  for (const name of ["backend-identity", "backend-localization", "frontend-admin", "frontend-shop"]) assert.match(build, new RegExp(`name: ${name},`));
+  for (const name of ["backend-identity", "backend-localization", "backend-catalog", "frontend-admin", "frontend-shop"]) assert.match(build, new RegExp(`name: ${name},`));
   assert.match(build, /push: true/);
   assert.match(build, /tags: \$\{\{ env\.REGISTRY \}\}\/\$\{\{ matrix\.name \}\}:\$\{\{ github\.sha \}\}/);
   assert.match(wf, /REGISTRY: ghcr\.io\/omi-home\/minibox/);

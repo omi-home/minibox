@@ -51,6 +51,14 @@ services:
       - { source: localization_app_connection, target: ConnectionStrings__App }
       - { source: backend_rabbitmq_uri, target: ConnectionStrings__RabbitMq }
 
+  backend-catalog:
+    extends: { file: apps.yaml, service: backend-catalog }
+    container_name: minibox-production-backend-catalog
+    networks: [default, otel]
+    secrets:
+      - { source: catalog_app_connection, target: ConnectionStrings__App }
+      - { source: backend_rabbitmq_uri, target: ConnectionStrings__RabbitMq }
+
   frontend-admin:
     extends: { file: apps.yaml, service: frontend-admin }
     container_name: minibox-production-frontend-admin
@@ -91,6 +99,8 @@ secrets:
     file: /srv/minibox/production/secrets/identity_app.connection
   localization_app_connection:
     file: /srv/minibox/production/secrets/localization_app.connection
+  catalog_app_connection:
+    file: /srv/minibox/production/secrets/catalog_app.connection
   backend_rabbitmq_uri:
     file: /srv/minibox/production/secrets/backend_rabbitmq.uri
   frontend_rabbitmq_url:

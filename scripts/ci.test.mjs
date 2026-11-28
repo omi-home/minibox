@@ -78,7 +78,7 @@ test("ac217_1 action ghim theo commit SHA, dependabot nâng github-actions", () 
 test("ac217_1 compose ci: image app build tại chỗ từ Dockerfile, chỉ admin mở cổng trên 127.0.0.1", () => {
   const c = JSON.parse(execFileSync("docker", [...composeArgs("ci"), "config", "--format", "json"], { cwd: root, encoding: "utf8" }));
   assert.equal(c.name, "minibox-ci");
-  for (const svc of ["backend-identity", "backend-localization", "frontend-admin", "frontend-shop"]) {
+  for (const svc of ["backend-identity", "backend-localization", "backend-catalog", "frontend-admin", "frontend-shop"]) {
     assert.match(c.services[svc].build?.dockerfile ?? "", /src\/(backend|frontend)\/Dockerfile$/, svc);
     assert.ok(c.services[svc].healthcheck?.test, `${svc} thiếu healthcheck`);
   }

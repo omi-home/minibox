@@ -13,7 +13,7 @@ const build = (name, dockerfile, args) => {
   return tag;
 };
 
-for (const [svc, project] of [["identity", "Identity"], ["localization", "Localization"]]) {
+for (const [svc, project] of [["identity", "Identity"], ["localization", "Localization"], ["catalog", "Catalog"]]) {
   test(`ac220_1 image backend-${svc}: user không phải root, không XML doc/pdb, health check`, () => {
     const image = build(`backend-${svc}`, "src/backend/Dockerfile", { SERVICE: svc, PROJECT: project });
     assert.notEqual(inImage(image, "id -u"), "0");
