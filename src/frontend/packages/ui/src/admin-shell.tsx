@@ -570,8 +570,14 @@ const THEMES: { value: ThemeMode; label: string; icon: ReactNode }[] = [
   { value: "system", label: "Theo hệ thống", icon: <DesktopIcon /> },
 ];
 
-/** Nút giao diện một chạm: mỗi lần bấm đổi vòng Sáng → Tối → Theo hệ thống; icon là chế độ đang dùng. */
-const ThemeToggle = ({ value, onChange, className, plain }: { value: ThemeMode; onChange: (m: ThemeMode) => void; className?: string; plain?: boolean }) => {
+/**
+ * Nút giao diện một chạm: mỗi lần bấm đổi vòng Sáng → Tối → Theo hệ thống; icon là chế độ đang dùng. Khung admin tự gắn;
+ * trang ngoài khung (đăng nhập) đặt riêng, thêm class `flex` để hiện.
+ *
+ * @param props - `value` chế độ hiện tại, `onChange` nhận chế độ kế tiếp; `plain` bỏ kiểu nút trên mảng thương hiệu (mobile).
+ * @returns Nút đổi giao diện có nhãn đọc chế độ hiện tại và chế độ kế tiếp.
+ */
+export const ThemeToggle = ({ value, onChange, className, plain }: { value: ThemeMode; onChange: (m: ThemeMode) => void; className?: string; plain?: boolean }) => {
   const i = Math.max(0, THEMES.findIndex((t) => t.value === value));
   const current = THEMES[i]!;
   const next = THEMES[(i + 1) % THEMES.length]!;
@@ -616,8 +622,14 @@ const RadioSection = ({ label, choice }: { label: string; choice: PreferenceChoi
   );
 };
 
-/** Nút vùng hiển thị: cờ + mã ngôn ngữ; menu gồm ngôn ngữ, múi giờ, tiền tệ hiển thị. */
-const RegionMenu = ({ locale, timezone, currency, className, plain }: RegionSettings & { className?: string; plain?: boolean }) => {
+/**
+ * Nút vùng hiển thị: cờ + mã ngôn ngữ; menu gồm ngôn ngữ, múi giờ, tiền tệ hiển thị (múi giờ, tiền tệ tùy chọn). Khung admin tự gắn;
+ * trang ngoài khung (đăng nhập) đặt riêng chỉ với `locale`, thêm class `flex` để hiện.
+ *
+ * @param props - {@link RegionSettings}; `plain` bỏ kiểu nút trên mảng thương hiệu (mobile).
+ * @returns Nút mở menu ngôn ngữ và vùng.
+ */
+export const RegionMenu = ({ locale, timezone, currency, className, plain }: RegionSettings & { className?: string; plain?: boolean }) => {
   const current = locale.options.find((o) => o.code === locale.value);
   const summary = [current?.label ?? locale.value, timezone && timezone.options.find((o) => o.value === timezone.value)?.label, currency?.value]
     .filter(Boolean)

@@ -9,7 +9,7 @@ import {
 import { cookies, headers } from "next/headers";
 
 const codes = (list: { code: string }[]) => list.map((l) => l.code);
-import { LOCALE_COOKIE } from "./menu";
+import { LOCALE_COOKIE, THEME_COOKIE, themeOf } from "./menu";
 import { SESSION_COOKIE, unsealSession } from "./session";
 
 // Gắn vào globalThis: instrumentation.ts (consumer sự kiện) và route được bundle riêng nên biến module không dùng chung.
@@ -64,4 +64,23 @@ export async function requestLocale(): Promise<string> {
  */
 export async function getTranslator(namespace = "admin"): Promise<ReturnType<typeof translator>> {
   return translator(await localization().messages(await requestLocale(), namespace));
+}
+
+/**
+ * Lựa chọn hiển thị cho trang ngoài khung admin (đăng nhập, MFA): giao diện từ cookie, ngôn ngữ của request và các ngôn ngữ đang bật.
+ *
+ * @returns `theme`, `locale`, `locales` để truyền cho nút đổi giao diện và menu ngôn ngữ.
+ */
+export async function displayPreferences() {
+  const [jar, locale, locales] = await Promise.all([cookies(), requestLocale(), localization().locales()]);
+  return { theme: themeOf(jar.get(THEME_COOKIE)?.value), locale, locales: locales.map(({ code, name }) => ({ code, name })) };
+}
+/**
+ * Chuỗi màn xác thực (`auth.*`, namespace `admin`) đã xuất bản của ngôn ngữ request, để client dịch đăng nhập, MFA và xác thực lại.
+ *
+ * @returns Bảng key → chuỗi; key thiếu thì client dùng bản tiếng Việt mặc định.
+ */
+export async function authMessages(): Promise<Record<string, string>> {
+  const all = await localization().messages(await requestLocale(), "admin");
+  return Object.fromEntries(Object.entries(all).filter(([key]) => key.startsWith("auth.")));
 }

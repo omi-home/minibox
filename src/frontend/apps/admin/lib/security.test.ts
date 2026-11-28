@@ -19,7 +19,7 @@ test("ac208_4 header CSP có nonce, HSTS, frame-ancestors 'none', noindex", () =
 
 test("ac208_4 proxy gắn header bảo mật với nonce mới mỗi request và chuyển nonce cho Next render", async () => {
   const csp = async () => {
-    const res = await proxy(new NextRequest("https://admin.minibox.test/"));
+    const res = await proxy(new NextRequest("https://admin.minibox.test/login"));
     const value = res.headers.get("content-security-policy") ?? "";
     // Next đọc CSP ở header request (x-middleware-request-*) để gắn nonce vào script của nó.
     expect(res.headers.get("x-middleware-request-content-security-policy")).toBe(value);

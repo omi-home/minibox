@@ -20,7 +20,7 @@ const reset = () => {
   const seed = {
     admin: {
       vi: { "dashboard.title": "Tổng quan", "dashboard.description": "Việc cần xử lý hôm nay theo quyền của bạn." },
-      en: { "dashboard.title": "Dashboard" },
+      en: { "dashboard.title": "Dashboard", "auth.login.title": "Sign in", "auth.login.submit": "Sign in", "auth.login.identifier": "Email or username" },
     },
     shop: {
       vi: { "home.title": "Chào mừng đến Minibox", "home.tagline": "Đồ in 3D theo yêu cầu", "home.languages": "Ngôn ngữ" },
