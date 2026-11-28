@@ -1,6 +1,14 @@
-import { createLocalizationClient, createMessagesCache, type MessagesCache, resolveLocale, translator } from "@minibox/api-clients";
+import {
+  createLocalizationClient,
+  createMessagesCache,
+  type LocalizationClient,
+  type MessagesCache,
+  resolveLocale,
+  translator,
+} from "@minibox/api-clients";
 import { cookies, headers } from "next/headers";
 import { LOCALE_COOKIE } from "./menu";
+import { SESSION_COOKIE, unsealSession } from "./session";
 
 // Gắn vào globalThis: instrumentation.ts (consumer sự kiện) và route được bundle riêng nên biến module không dùng chung.
 const shared = globalThis as { miniboxMessages?: MessagesCache };
@@ -16,6 +24,19 @@ export function localization(): MessagesCache {
   const base = process.env.LOCALIZATION_URL;
   if (!base) throw new Error("Thiếu LOCALIZATION_URL");
   return (shared.miniboxMessages = createMessagesCache(createLocalizationClient(base)));
+}
+
+/**
+ * Client localization gọi API quản trị (`/admin/*`) bằng access token của phiên hiện tại; API tự kiểm quyền.
+ *
+ * @returns Client có kiểu; request ghi tự kèm `Idempotency-Key`.
+ * @throws Error khi thiếu `LOCALIZATION_URL`.
+ */
+export async function localizationAdmin(): Promise<LocalizationClient> {
+  const base = process.env.LOCALIZATION_URL;
+  if (!base) throw new Error("Thiếu LOCALIZATION_URL");
+  const token = unsealSession((await cookies()).get(SESSION_COOKIE)?.value)?.accessToken;
+  return createLocalizationClient(base, token ? { headers: { authorization: `Bearer ${token}` } } : {});
 }
 
 /**
