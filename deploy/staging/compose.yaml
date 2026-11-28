@@ -33,6 +33,39 @@ services:
   infra-mailpit:
     container_name: minibox-staging-infra-mailpit
 
+  # Ứng dụng (deploy/apps.yaml): backend chỉ ở mạng nội bộ + otel; frontend (BFF) thêm mạng edge để Caddy route.
+  backend-identity:
+    extends: { file: apps.yaml, service: backend-identity }
+    container_name: minibox-staging-backend-identity
+    networks: [default, otel]
+    secrets:
+      - { source: identity_app_connection, target: ConnectionStrings__App }
+      - { source: backend_rabbitmq_uri, target: ConnectionStrings__RabbitMq }
+      - { source: identity_mfa_key, target: Mfa__EncryptionKey }
+
+  backend-localization:
+    extends: { file: apps.yaml, service: backend-localization }
+    container_name: minibox-staging-backend-localization
+    networks: [default, otel]
+    secrets:
+      - { source: localization_app_connection, target: ConnectionStrings__App }
+      - { source: backend_rabbitmq_uri, target: ConnectionStrings__RabbitMq }
+
+  frontend-admin:
+    extends: { file: apps.yaml, service: frontend-admin }
+    container_name: minibox-staging-frontend-admin
+    networks: [default, edge, otel]
+    secrets:
+      - { source: admin_session_key, target: ADMIN_SESSION_KEY }
+      - { source: frontend_rabbitmq_url, target: RABBITMQ_URL }
+
+  frontend-shop:
+    extends: { file: apps.yaml, service: frontend-shop }
+    container_name: minibox-staging-frontend-shop
+    networks: [default, edge, otel]
+    secrets:
+      - { source: frontend_rabbitmq_url, target: RABBITMQ_URL }
+
 volumes:
   pgbackrest-repo:
 
@@ -53,3 +86,16 @@ secrets:
     file: /srv/minibox/staging/secrets/rabbitmq.conf
   seaweedfs_s3:
     file: /srv/minibox/staging/secrets/seaweedfs_s3.json
+  # Sinh bởi scripts/deploy.mjs (appSecrets) từ mật khẩu bootstrap + rabbitmq.conf; chủ là uid của user trong image, quyền 400.
+  identity_app_connection:
+    file: /srv/minibox/staging/secrets/identity_app.connection
+  localization_app_connection:
+    file: /srv/minibox/staging/secrets/localization_app.connection
+  backend_rabbitmq_uri:
+    file: /srv/minibox/staging/secrets/backend_rabbitmq.uri
+  frontend_rabbitmq_url:
+    file: /srv/minibox/staging/secrets/frontend_rabbitmq.url
+  identity_mfa_key:
+    file: /srv/minibox/staging/secrets/identity_mfa.key
+  admin_session_key:
+    file: /srv/minibox/staging/secrets/admin_session.key

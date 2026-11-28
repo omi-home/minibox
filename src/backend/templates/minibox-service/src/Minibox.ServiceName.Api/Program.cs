@@ -1,3 +1,4 @@
+using JasperFx;
 using Minibox.BuildingBlocks.Application.Behaviors;
 using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
@@ -18,6 +19,8 @@ if (DbMigrator.RunIfRequested(args, "servicename", typeof(Program).Assembly,
 
 // Composition root (spec §5.2): chỉ đăng ký và map; endpoint nằm ở Endpoints/, xử lý ở Application/Features (StructureRules kiểm).
 var builder = WebApplication.CreateBuilder(args);
+// Staging/production: bí mật đọc từ Docker secret /run/secrets (ConnectionStrings__App, …), không qua biến môi trường.
+builder.Configuration.AddMiniboxSecrets();
 // Runtime dùng role servicename_app (chỉ DML): ConnectionStrings__App; RabbitMQ: ConnectionStrings__RabbitMq (amqp://…).
 // Lúc build sinh OpenAPI (contracts/openapi) host không có cấu hình: dùng giá trị giữ chỗ, không kết nối.
 var appConnection = builder.Configuration.RequiredConnectionString("App", "Host=openapi-build");
@@ -55,8 +58,8 @@ var app = builder.Build();
 app.UseMiniboxWeb();
 app.MapMiniboxHealthChecks();
 app.MapSampleEndpoints();
-app.Run();
-return 0;
+// Lệnh JasperFx: không tham số thì chạy host; `codegen write` sinh code Wolverine lúc build image (TypeLoadMode.Static).
+return await app.RunJasperFxCommands(args);
 
 /// <summary>Điểm vào của service servicename: Api, hoặc job migrate khi có cờ <c>--migrate</c>.</summary>
 public partial class Program

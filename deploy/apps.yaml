@@ -1,0 +1,73 @@
+# Service ứng dụng dùng chung staging/production (spec §8.2–§8.4), deploy/<env>/compose.yaml `extends` từng service rồi đặt
+# container_name, mạng và secret của môi trường. Image do CI build (src/backend/Dockerfile, src/frontend/Dockerfile) và đẩy GHCR
+# theo tag commit (#223); deploy.mjs đặt MINIBOX_TAG.
+# Bí mật chỉ qua Docker secret: backend đọc /run/secrets/<Khoá__Con> (AddKeyPerFile), frontend /run/secrets/<TÊN_BIẾN>
+# (docker-entrypoint.sh). File secret do deploy.mjs sinh từ mật khẩu bootstrap. Không cấp MINIBOX_MIGRATOR_CONNECTION ở đây:
+# chỉ job `run --migrate` của deploy.mjs nhận biến này (173.37).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    labels: com.docker.compose.project,com.docker.compose.service
+    max-size: 10m
+    max-file: "5"
+
+x-backend: &backend
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    database-postgres: { condition: service_healthy }
+    infra-rabbitmq: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
+
+x-frontend: &frontend
+  restart: unless-stopped
+  logging: *logging
+  healthcheck:
+    test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/design"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
+
+services:
+  backend-identity:
+    <<: *backend
+    image: ghcr.io/omi-home/minibox/backend-identity:${MINIBOX_TAG:-latest}
+    environment:
+      Jwt__Issuer: http://backend-identity:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4317
+
+  backend-localization:
+    <<: *backend
+    image: ghcr.io/omi-home/minibox/backend-localization:${MINIBOX_TAG:-latest}
+    environment:
+      Identity__Authority: http://backend-identity:8080
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4317
+
+  frontend-admin:
+    <<: *frontend
+    image: ghcr.io/omi-home/minibox/frontend-admin:${MINIBOX_TAG:-latest}
+    depends_on:
+      backend-identity: { condition: service_healthy }
+      backend-localization: { condition: service_healthy }
+    environment:
+      IDENTITY_URL: http://backend-identity:8080
+      LOCALIZATION_URL: http://backend-localization:8080
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4318
+
+  frontend-shop:
+    <<: *frontend
+    image: ghcr.io/omi-home/minibox/frontend-shop:${MINIBOX_TAG:-latest}
+    depends_on:
+      backend-localization: { condition: service_healthy }
+    environment:
+      LOCALIZATION_URL: http://backend-localization:8080
+      SHOP_PUBLIC_URL: ${SHOP_PUBLIC_URL:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://observability-otel-collector:4318
