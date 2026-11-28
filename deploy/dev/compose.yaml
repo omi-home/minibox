@@ -1,0 +1,32 @@
+# Môi trường dev (máy lập trình viên): `node scripts/dev.mjs`. Cổng chỉ mở trên 127.0.0.1.
+name: minibox-dev
+
+services:
+  database-postgres:
+    container_name: minibox-dev-database-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minibox} # chỉ dev; staging/production dùng Docker secret
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
+
+  infra-rabbitmq:
+    container_name: minibox-dev-infra-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-minibox}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-minibox}
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_UI_PORT:-15672}:15672" # giao diện quản trị
+
+  infra-seaweedfs:
+    container_name: minibox-dev-infra-seaweedfs
+    ports: ["127.0.0.1:${SEAWEEDFS_S3_PORT:-8333}:8333"]
+
+  infra-clamav:
+    container_name: minibox-dev-infra-clamav
+    ports: ["127.0.0.1:${CLAMAV_PORT:-3310}:3310"]
+
+  infra-mailpit:
+    container_name: minibox-dev-infra-mailpit
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025" # hộp thư web

@@ -1,0 +1,34 @@
+{
+  "name": "@minibox/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme.css": "./src/theme.css",
+    "./showcase": "./src/showcase.tsx",
+    "./fonts": "./src/fonts.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "2.1.10",
+    "cmdk": "1.1.1",
+    "radix-ui": "1.8.1",
+    "react-day-picker": "10.0.2"
+  },
+  "peerDependencies": {
+    "next": "^16.4.6",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@minibox/config": "workspace:*",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "catalog:"
+  }
+}

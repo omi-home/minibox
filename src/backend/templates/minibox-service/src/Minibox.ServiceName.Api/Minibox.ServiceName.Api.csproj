@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- Nhúng database/schemas/servicename/scripts/**/*.sql cho chế độ migrate (Directory.Build.props, spec §4.4). -->
+    <MiniboxService>servicename</MiniboxService>
+    <!-- Chỉ khi build template tại chỗ: script nằm trong templates/minibox-service/database/servicename/ (dotnet new chép ra database/schemas/<svc>/). -->
+    <MiniboxScripts Condition="Exists('$(MSBuildProjectDirectory)/../../database/servicename/scripts')">$(MSBuildProjectDirectory)/../../database/servicename/scripts</MiniboxScripts>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Mediator sinh mã đăng ký handler/pipeline tại composition root (spec §5.4). -->
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <!-- Wolverine Development sinh code lúc chạy (cần Roslyn); Release/production nạp code sinh sẵn (TypeLoadMode.Static, MessagingSetup). -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.ServiceName.Application/Minibox.ServiceName.Application.csproj" />
+    <ProjectReference Include="../Minibox.ServiceName.Infrastructure/Minibox.ServiceName.Infrastructure.csproj" />
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Web/Minibox.BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+</Project>

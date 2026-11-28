@@ -1,0 +1,15 @@
+# Context build image là gốc repo (src/backend/Dockerfile, src/frontend/Dockerfile): chỉ gửi mã nguồn cần build.
+**/bin/
+**/obj/
+**/TestResults/
+**/node_modules/
+**/.next/
+**/test-results/
+**/*.tsbuildinfo
+.git/
+.vs/
+.idea/
+.env
+**/secrets/
+deploy/
+docs/

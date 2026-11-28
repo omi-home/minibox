@@ -1,0 +1,24 @@
+{
+  "name": "@minibox/api-clients",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./events": "./src/events.ts"
+  },
+  "scripts": {
+    "gen": "node scripts/gen.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@minibox/config": "workspace:*",
+    "openapi-typescript": "7.13.0"
+  },
+  "dependencies": {
+    "amqplib": "2.4.2",
+    "openapi-fetch": "0.17.0"
+  }
+}

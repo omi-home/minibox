@@ -1,0 +1,6 @@
+.env
+.vs/
+.idea/
+deploy/*/secrets/
+# IDE tự sinh khi mở template; template không mang cổng/launchBrowser cố định
+src/backend/templates/minibox-service/src/Minibox.ServiceName.Api/Properties/launchSettings.json

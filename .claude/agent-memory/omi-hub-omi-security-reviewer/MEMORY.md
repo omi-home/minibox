@@ -1,0 +1,2 @@
+- Workflow deploy (#223): secret deploy (SSH key, Tailscale OAuth) phải nằm trong GitHub Environment, không để repo-level, nếu không người có quyền ghi vòng được bước duyệt production bằng workflow trên nhánh khác.
+- Deploy chạy root qua SSH trên homeserver: ưu tiên forced command / ACL tag:ci hẹp.

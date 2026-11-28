@@ -1,0 +1,41 @@
+name: "Non-Functional Requirement"
+description: "<Nhóm>: <chỉ số> <ngưỡng>"
+type: "Non-Functional Requirement"
+title: "[Non-Functional Requirement] "
+body:
+  - type: dropdown
+    id: s1
+    attributes:
+      label: "Nhóm"
+      options: ["Performance", "Security", "Reliability", "Usability", "Maintainability", "Compliance", "Observability", "Accessibility", "Capacity"]
+    validations:
+      required: true
+  - type: textarea
+    id: s2
+    attributes:
+      label: "Chỉ số và ngưỡng"
+      description: "Ví dụ: p95 < 300ms ở 100 RPS"
+    validations:
+      required: true
+  - type: textarea
+    id: s3
+    attributes:
+      label: "Cách đo"
+      description: "Công cụ/lệnh đo và môi trường"
+    validations:
+      required: true
+  - type: textarea
+    id: s4
+    attributes:
+      label: "Acceptance criteria"
+      description: "Mỗi dòng kiểm chứng được bằng test; không tự động được thì ghi [manual]"
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: textarea
+    id: s5
+    attributes:
+      label: "Tham chiếu"
+      description: "Mỗi dòng một docs/<file>.md#<mục>; context ghép đúng mục đó, không chép tài liệu vào đây"
+    validations:
+      required: false

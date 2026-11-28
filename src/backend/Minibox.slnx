@@ -1,0 +1,80 @@
+<Solution>
+  <Folder Name="/building-blocks/" />
+  <Folder Name="/building-blocks/src/">
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Architecture/Minibox.BuildingBlocks.Architecture.csproj" />
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Application/Minibox.BuildingBlocks.Application.csproj" />
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Domain/Minibox.BuildingBlocks.Domain.csproj" />
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
+    <Project Path="building-blocks/src/Minibox.BuildingBlocks.Web/Minibox.BuildingBlocks.Web.csproj" />
+  </Folder>
+  <Folder Name="/building-blocks/tests/">
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Architecture.Tests/Minibox.BuildingBlocks.Architecture.Tests.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Application.Tests/Minibox.BuildingBlocks.Application.Tests.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Domain.Tests/Minibox.BuildingBlocks.Domain.Tests.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Infrastructure.Tests/Minibox.BuildingBlocks.Infrastructure.Tests.csproj" />
+    <Project Path="building-blocks/tests/Minibox.BuildingBlocks.Web.Tests/Minibox.BuildingBlocks.Web.Tests.csproj" />
+  </Folder>
+  <Folder Name="/services/" />
+  <Folder Name="/services/identity/" />
+  <Folder Name="/services/identity/src/">
+    <Project Path="services/identity/src/Minibox.Identity.Api/Minibox.Identity.Api.csproj" />
+    <Project Path="services/identity/src/Minibox.Identity.Application/Minibox.Identity.Application.csproj" />
+    <Project Path="services/identity/src/Minibox.Identity.Contracts/Minibox.Identity.Contracts.csproj" />
+    <Project Path="services/identity/src/Minibox.Identity.Domain/Minibox.Identity.Domain.csproj" />
+    <Project Path="services/identity/src/Minibox.Identity.Infrastructure/Minibox.Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/identity/tests/">
+    <Project Path="services/identity/tests/Minibox.Identity.ArchitectureTests/Minibox.Identity.ArchitectureTests.csproj" />
+    <Project Path="services/identity/tests/Minibox.Identity.IntegrationTests/Minibox.Identity.IntegrationTests.csproj" />
+    <Project Path="services/identity/tests/Minibox.Identity.UnitTests/Minibox.Identity.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/services/localization/" />
+  <Folder Name="/services/localization/src/">
+    <Project Path="services/localization/src/Minibox.Localization.Api/Minibox.Localization.Api.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Application/Minibox.Localization.Application.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Contracts/Minibox.Localization.Contracts.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Domain/Minibox.Localization.Domain.csproj" />
+    <Project Path="services/localization/src/Minibox.Localization.Infrastructure/Minibox.Localization.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/localization/tests/">
+    <Project Path="services/localization/tests/Minibox.Localization.ArchitectureTests/Minibox.Localization.ArchitectureTests.csproj" />
+    <Project Path="services/localization/tests/Minibox.Localization.IntegrationTests/Minibox.Localization.IntegrationTests.csproj" />
+    <Project Path="services/localization/tests/Minibox.Localization.UnitTests/Minibox.Localization.UnitTests.csproj" />
+  </Folder>
+  <!-- Mã nguồn template dotnet new minibox-service: chỉ hiển thị để sửa, không build/test cùng solution (ac174_5 sinh service rồi mới build). -->
+  <Folder Name="/templates/" />
+  <Folder Name="/templates/minibox-service/">
+    <File Path="templates/minibox-service/.template.config/template.json" />
+  </Folder>
+  <Folder Name="/templates/minibox-service/src/">
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Api/Minibox.ServiceName.Api.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Application/Minibox.ServiceName.Application.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Contracts/Minibox.ServiceName.Contracts.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Domain/Minibox.ServiceName.Domain.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/src/Minibox.ServiceName.Infrastructure/Minibox.ServiceName.Infrastructure.csproj">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/templates/minibox-service/tests/">
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.ArchitectureTests/Minibox.ServiceName.ArchitectureTests.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.IntegrationTests/Minibox.ServiceName.IntegrationTests.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="templates/minibox-service/tests/Minibox.ServiceName.UnitTests/Minibox.ServiceName.UnitTests.csproj">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Minibox.Repo.Tests/Minibox.Repo.Tests.csproj" />
+  </Folder>
+</Solution>

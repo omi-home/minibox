@@ -1,0 +1,108 @@
+/* Tailwind v4 + token khối hộp dùng chung (packages/ui/src/theme.css). */
+@import "tailwindcss";
+@import "@minibox/ui/theme.css";
+
+/*
+ * Hệ hộp quay (panel thương hiệu trang đăng nhập, app/brand-art.tsx): mặt phẳng quỹ đạo nghiêng --tilt và ép dẹt --squash
+ * thành elip; mỗi hộp nằm trên một "cánh tay" quay quanh tâm, thân hộp quay ngược và giãn lại (--unsquash) để luôn đứng
+ * thẳng. Nửa gần (dưới) hộp to, rõ và nằm trước khối tâm; nửa xa nhỏ, mờ và lùi ra sau. Chỉ transform/opacity (z-index đổi
+ * bậc ở giữa vòng).
+ */
+@layer components {
+  .orbit-system {
+    --tilt: -12deg;
+    --unsquash: 2.5;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: rotate(var(--tilt)) scaleY(0.4);
+  }
+  .orbit-ring {
+    position: absolute;
+    left: calc(var(--r) * -1);
+    top: calc(var(--r) * -1);
+    width: calc(var(--r) * 2);
+    height: calc(var(--r) * 2);
+    border: 2px dashed color-mix(in oklab, var(--color-brand-foreground) 22%, transparent);
+    border-radius: 9999px;
+  }
+  .orbit-upright {
+    position: absolute;
+    z-index: 2;
+    transform: scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1));
+  }
+  /* Hộp tâm nhấp nhô nhẹ như đang lơ lửng. */
+  .orbit-float {
+    animation: orbit-float 6s ease-in-out infinite;
+  }
+  .orbit-arm,
+  .orbit-body {
+    position: absolute;
+    transform-origin: 0 0;
+    animation-duration: var(--period);
+    animation-delay: var(--phase);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .orbit-arm {
+    animation-name: orbit-spin, orbit-depth;
+  }
+  .orbit-body {
+    left: var(--r);
+    animation-name: orbit-counter;
+  }
+  /* Giảm chuyển động: các hộp đứng yên ở vị trí lệch pha của mình thay vì dồn về một chỗ (ghi đè luật chung của theme.css). */
+  @media (prefers-reduced-motion: reduce) {
+    .orbit-system .orbit-arm,
+    .orbit-system .orbit-body {
+      animation-duration: var(--period) !important;
+      animation-iteration-count: infinite !important;
+      animation-play-state: paused;
+    }
+  }
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-depth {
+  0%,
+  49.99% {
+    z-index: 3;
+  }
+  50%,
+  100% {
+    z-index: 1;
+  }
+}
+
+@keyframes orbit-counter {
+  0% {
+    transform: rotate(0deg) scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1)) scale(1);
+    opacity: 0.9;
+  }
+  25% {
+    transform: rotate(-90deg) scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1)) scale(1.15);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(-180deg) scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1)) scale(1);
+    opacity: 0.9;
+  }
+  75% {
+    transform: rotate(-270deg) scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1)) scale(0.75);
+    opacity: 0.5;
+  }
+  100% {
+    transform: rotate(-360deg) scaleY(var(--unsquash)) rotate(calc(var(--tilt) * -1)) scale(1);
+    opacity: 0.9;
+  }
+}
+@keyframes orbit-float {
+  50% {
+    transform: translateY(-6px);
+  }
+}

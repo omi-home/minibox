@@ -1,0 +1,31 @@
+{
+  "name": "@minibox/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@phosphor-icons/react": "2.1.10",
+    "@vercel/otel": "2.3.0",
+    "country-flag-icons": "1.6.20",
+    "next": "16.4.6",
+    "qrcode.react": "4.2.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@minibox/api-clients": "workspace:*",
+    "@minibox/config": "workspace:*",
+    "@minibox/ui": "workspace:*",
+    "@tailwindcss/postcss": "catalog:",
+    "tailwindcss": "catalog:"
+  }
+}

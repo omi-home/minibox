@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Wolverine outbox + RabbitMQ (spike #188, #429) -->
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <!-- Spike #429: outbox Wolverine dùng chung transaction với EF Core DbContext -->
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Minibox.BuildingBlocks.Infrastructure/Minibox.BuildingBlocks.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Cùng quy ước nhúng với service (Directory.Build.props): LogicalName scripts/<nhóm>/<file>.sql -->
+    <EmbeddedResource Include="scripts/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="scripts/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="scripts/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

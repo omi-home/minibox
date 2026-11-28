@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <!-- XML doc bắt buộc cho API public (spec §8.7): thiếu → CS1591, sai param/cref → CS1572/CS1573/CS1574; thành lỗi nhờ TreatWarningsAsErrors. -->
+  <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('Tests'))">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/schemas/<svc>/scripts/{pre-deployment,migrations,post-deployment}/*.sql
+       với LogicalName scripts/<nhóm>/<file>.sql cho DbMigrator (spec §4.4). File trạng thái đích (tables/, views/...) không nhúng.
+       <MiniboxScripts> đổi thư mục scripts (template build tại chỗ).
+       Item được đánh giá sau property nên đọc được giá trị của csproj. -->
+  <ItemGroup Condition="'$(MiniboxService)' != ''">
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" Link="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" Link="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" Link="scripts/post-deployment/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
