@@ -43,3 +43,13 @@ test("ac220_1 deploy vào tailnet bằng node Tailscale tạm thời có tag, ho
     assert.match(j, new RegExp(`concurrency: \\{ group: ${name}, cancel-in-progress: false \\}`));
   }
 });
+
+test("ac220_2 secret deploy chỉ dùng trong job có Environment (secret cấp Environment, branch policy chặn nhánh khác)", () => {
+  const jobs = wf.split(/\n  (?=[a-z-]+:\n)/).slice(1);
+  for (const j of jobs.filter((x) => /secrets\.(DEPLOY_SSH_KEY|TS_OAUTH)/.test(x)))
+    assert.match(j, /\n    environment: (staging|production)\n/, j.split("\n")[0]);
+  const doc = readFileSync(join(root, "docs", "deploy.md"), "utf8");
+  assert.match(doc, /`staging` \| chỉ `develop`/);
+  assert.match(doc, /`production` \| chỉ `main`/);
+  assert.match(doc, /không đặt ở cấp repo/);
+});

@@ -9,14 +9,24 @@ Job deploy vào tailnet, SSH vào homeserver, checkout commit trong `/srv/minibo
 
 ## GitHub (Settings của repo)
 
+Mọi secret và biến deploy đặt trong **Environment**, không đặt ở cấp repo. Secret cấp repo thì workflow trên bất kỳ nhánh nào cũng
+đọc được, nên bỏ qua được bước duyệt `production`. Mỗi Environment dùng khoá riêng (OAuth client và khoá SSH khác nhau).
+
+| Environment | Deployment branches | Người duyệt |
+|---|---|---|
+| `staging` | chỉ `develop` | không |
+| `production` | chỉ `main` | owner org (required reviewers) |
+
+Trong **mỗi** Environment:
+
 | Loại | Tên | Giá trị |
 |---|---|---|
 | Secret | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | OAuth client của Tailscale, scope `auth_keys`, gắn tag `tag:ci` |
-| Secret | `DEPLOY_SSH_KEY` | Khoá riêng SSH (ed25519) chỉ dùng cho deploy |
+| Secret | `DEPLOY_SSH_KEY` | Khoá riêng SSH (ed25519) chỉ dùng cho deploy môi trường đó |
 | Variable | `DEPLOY_SSH_TARGET` | `root@<tên máy trong tailnet>` |
 | Variable | `DEPLOY_KNOWN_HOSTS` | Kết quả `ssh-keyscan <tên máy trong tailnet>` (ghim host key) |
-| Environment | `staging` | Không cần người duyệt |
-| Environment | `production` | Required reviewers: owner org; chỉ cho nhánh `main` |
+
+Ở cấp repo không được có secret nào trong số này (Settings → Secrets and variables → Actions → Repository secrets phải trống).
 
 Package GHCR (`backend-*`, `frontend-*`) để Public sau lần build đầu (Package settings → Change visibility). Cách khác là `docker login ghcr.io` trên homeserver bằng PAT `read:packages`.
 

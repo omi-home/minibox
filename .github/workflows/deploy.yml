@@ -1,7 +1,7 @@
 # Deploy (spec §8.3): merge develop → build image một lần, tag theo commit, đẩy GHCR → deploy staging.
 # Release lên main (PR develop→main, merge commit) → deploy production đúng commit develop đã chạy staging (parent thứ hai của
 # merge commit), sau khi owner duyệt Environment `production`. deploy.sh trên homeserver kiểm tag + digest khớp staging.
-# Cấu hình một lần (người dùng): xem docs/deploy.md.
+# Secret deploy (Tailscale, SSH) đặt trong Environment staging/production, không ở cấp repo. Cấu hình một lần: docs/deploy.md.
 name: deploy
 on:
   push:
