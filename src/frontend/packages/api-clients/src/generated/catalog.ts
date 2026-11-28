@@ -588,10 +588,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/product-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ProductTypeAdminRow"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateProductTypeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": string;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/product-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProductTypeRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query: {
+                    version: number | string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AttributeDto: {
+            code: string;
+            dataType: string;
+            unit: null | string;
+            required: boolean;
+            variant: boolean;
+            labels: components["schemas"]["LabelDto"][];
+            values: components["schemas"]["AttributeValueDto"][];
+        };
+        AttributeValueDto: {
+            code: string;
+            labels: components["schemas"]["LabelDto"][];
+        };
         CategoryAdminNode: {
             /** Format: uuid */
             id: string;
@@ -627,16 +760,56 @@ export interface components {
             sortOrder: number | string;
             translations: components["schemas"]["CategoryTranslationDto"][];
         };
+        CreateProductTypeRequest: {
+            code: string;
+            /** Format: int32 */
+            sortOrder: number | string;
+            names: components["schemas"]["LabelDto"][];
+            attributes: components["schemas"]["AttributeDto"][];
+        };
         CreateTaxonRequest: {
             /** Format: int32 */
             sortOrder: number | string;
             translations: components["schemas"]["TaxonTranslationDto"][];
+        };
+        LabelDto: {
+            locale: string;
+            label: string;
         };
         MoveCategoryRequest: {
             /** Format: uuid */
             parentId: null | string;
             /** Format: int64 */
             version: number | string;
+        };
+        ProductTypeAdminRow: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            /** Format: int32 */
+            sortOrder: number | string;
+            archived: boolean;
+            /** Format: int64 */
+            version: number | string;
+            names: components["schemas"]["LabelDto"][];
+            attributes: components["schemas"]["ProductTypeAttributeRow"][];
+        };
+        ProductTypeAttributeRow: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            dataType: string;
+            unit: null | string;
+            required: boolean;
+            variant: boolean;
+            labels: components["schemas"]["LabelDto"][];
+            values: components["schemas"]["ProductTypeValueRow"][];
+        };
+        ProductTypeValueRow: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            labels: components["schemas"]["LabelDto"][];
         };
         SetProductTaxaRequest: {
             ids: string[];
@@ -669,6 +842,14 @@ export interface components {
             /** Format: int32 */
             sortOrder: number | string;
             translations: components["schemas"]["CategoryTranslationDto"][];
+            /** Format: int64 */
+            version: number | string;
+        };
+        UpdateProductTypeRequest: {
+            /** Format: int32 */
+            sortOrder: number | string;
+            names: components["schemas"]["LabelDto"][];
+            attributes: components["schemas"]["AttributeDto"][];
             /** Format: int64 */
             version: number | string;
         };

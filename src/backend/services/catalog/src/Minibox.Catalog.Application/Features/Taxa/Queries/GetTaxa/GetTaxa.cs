@@ -25,7 +25,7 @@ public sealed class GetTaxaValidator : AbstractValidator<GetTaxa>
     public GetTaxaValidator()
     {
         RuleFor(x => x.Kind).TaxonKind();
-        RuleFor(x => x.Locale).NotEmpty().MaximumLength(35).Matches("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$");
+        RuleFor(x => x.Locale).NotEmpty().MaximumLength(35).Matches(@"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*\z");
     }
 }
 
