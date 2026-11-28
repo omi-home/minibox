@@ -1,6 +1,8 @@
 import { createLocalizationClient, createMessagesCache, type MessagesCache, resolveLocale, translator } from "@minibox/api-clients";
 import { cookies, headers } from "next/headers";
 
+const codes = (list: { code: string }[]) => list.map((l) => l.code);
+
 /** Cookie locale khách đã chọn; chỉ dùng để gợi ý đổi ngôn ngữ, không đổi nội dung của URL. */
 export const LOCALE_COOKIE = "minibox_locale";
 
@@ -17,7 +19,9 @@ export function localization(): MessagesCache {
   if (shared.miniboxMessages) return shared.miniboxMessages;
   const base = process.env.LOCALIZATION_URL;
   if (!base) throw new Error("Thiếu LOCALIZATION_URL");
-  return (shared.miniboxMessages = createMessagesCache(createLocalizationClient(base)));
+  // LOCALIZATION_CACHE_TTL_MS: e2e đặt 1 để thấy ngay ngôn ngữ/chuỗi vừa đổi (không có RabbitMQ báo xuất bản).
+  const ttlMs = Number(process.env.LOCALIZATION_CACHE_TTL_MS) || undefined;
+  return (shared.miniboxMessages = createMessagesCache(createLocalizationClient(base), { ttlMs }));
 }
 
 /**
@@ -27,7 +31,7 @@ export function localization(): MessagesCache {
  * @returns Mã locale.
  */
 export async function pageLocale(urlLocale?: string): Promise<string> {
-  return urlLocale ? resolveLocale({ url: urlLocale }, await localization().locales()) : "vi";
+  return urlLocale ? resolveLocale({ url: urlLocale }, codes(await localization().locales())) : "vi";
 }
 
 /**
@@ -40,7 +44,7 @@ export async function suggestedLocale(urlLocale?: string): Promise<string> {
   const [jar, h] = await Promise.all([cookies(), headers()]);
   return resolveLocale(
     { url: urlLocale, cookie: jar.get(LOCALE_COOKIE)?.value, acceptLanguage: h.get("accept-language") ?? undefined },
-    await localization().locales(),
+    codes(await localization().locales()),
   );
 }
 

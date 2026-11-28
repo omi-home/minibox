@@ -1,14 +1,17 @@
-/**
- * Trang chủ app shop.
- *
- * @returns Nội dung trang chủ.
- */
-const Home = () => {
-  return (
-    <main>
-      <h1>Minibox</h1>
-    </main>
-  );
-};
+import { Home } from "./home";
 
-export default Home;
+/**
+ * Render mỗi request vì chuỗi lấy từ localization lúc chạy.
+ *
+ * @remarks ponytail: ISR làm mới khi xuất bản thuộc #397.
+ */
+export const dynamic = "force-dynamic";
+
+/**
+ * Trang chủ tiếng Việt ở gốc `/`.
+ *
+ * @returns Trang chủ locale `vi`.
+ */
+const Page = () => <Home locale="vi" />;
+
+export default Page;
