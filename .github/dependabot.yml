@@ -1,0 +1,7 @@
+# Đề xuất nâng action đã ghim SHA trong workflow (217.1).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

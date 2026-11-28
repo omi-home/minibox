@@ -15,6 +15,7 @@ export const IDENTITY_FAKE = "http://127.0.0.1:3103";
 // E2E (spec §9.3): mỗi app chạy next dev; test tự chọn app bằng URL tuyệt đối trong APPS.
 export default defineConfig({
   testDir: "e2e",
+  testIgnore: "smoke/**", // chạy trên stack Compose thật: node scripts/smoke.mjs (playwright.smoke.config.ts)
   timeout: 60_000,
   workers: 1,
   forbidOnly: !!process.env.CI,
