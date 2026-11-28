@@ -227,6 +227,8 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Equal(("en", "c5-lamps", "EN"), (en.Locale, en.Slug, en.Description));
         Assert.Equal(("vi", "c5-den-ngu"), (Assert.Single(en.Children).Locale, en.Children[0].Slug));
         Assert.Equal(HttpStatusCode.BadRequest, (await Client().GetAsync("/categories?locale=EN!", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Client().GetAsync("/categories?locale=vi%0A", Ct)).StatusCode); // 236.8
+        Assert.Equal(HttpStatusCode.BadRequest, (await Client().GetAsync("/tags?locale=vi%0A", Ct)).StatusCode);
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await client.DeleteAsync($"/admin/categories/{root}?version={(await Admin(root)).Version}", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/admin/categories/{child}?version={(await Admin(child)).Version}", Ct)).StatusCode);
@@ -315,6 +317,103 @@ public sealed class ApiHostTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/admin/tags/{tag}?version={await TaxonVersion("tags", tag)}", Ct)).StatusCode);
         Assert.DoesNotContain((await Client().GetFromJsonAsync<TaxonView[]>("/tags", Ct))!, v => v.Id == tag);
+    }
+
+    // ---- Nhóm sản phẩm và bộ thuộc tính (#486) ----
+
+    static readonly string AttributeManager = Token(CatalogPermissions.AttributeManage);
+
+    static object Lamp(string code, bool variant = false) => new
+    {
+        code,
+        sortOrder = 0,
+        names = new[] { new { locale = "vi", label = "Đèn" }, new { locale = "en", label = "Lamp" } },
+        attributes = new object[]
+        {
+            new
+            {
+                code = "power-source", dataType = "select", required = true, variant,
+                labels = new[] { new { locale = "vi", label = "Nguồn điện" } },
+                values = new[]
+                {
+                    new { code = "usb", labels = new[] { new { locale = "vi", label = "USB" } } },
+                    new { code = "battery", labels = new[] { new { locale = "vi", label = "Pin" }, new { locale = "en", label = "Battery" } } },
+                },
+            },
+            new { code = "wattage", dataType = "number", unit = "W", required = false, variant = false, labels = new[] { new { locale = "vi", label = "Công suất" } }, values = Array.Empty<object>() },
+        },
+    };
+
+    async Task<ProductTypeAdminRow> ProductType(Guid id) =>
+        (await Client(AttributeManager).GetFromJsonAsync<ProductTypeAdminRow[]>("/admin/product-types", Ct))!.Single(r => r.Id == id);
+
+    [Fact(DisplayName = "Nhóm sản phẩm: tạo bộ thuộc tính (kiểu, đơn vị, giá trị cho phép, bắt buộc, tạo biến thể) có nhãn dịch; mã trùng 409; biến thể không phải select 400; sửa giữ Id theo mã; xóa mềm")]
+    public async Task product_type_attribute_set()
+    {
+        var client = Client(AttributeManager);
+        var created = await client.PostAsJsonAsync("/admin/product-types", Lamp("p1-lamp", variant: true), Ct);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var id = await created.Content.ReadFromJsonAsync<Guid>(Ct);
+
+        var row = await ProductType(id);
+        Assert.Equal(["power-source", "wattage"], row.Attributes.Select(a => a.Code));
+        var power = row.Attributes[0];
+        Assert.Equal(("select", true, true), (power.DataType, power.Required, power.Variant));
+        Assert.Equal(["usb", "battery"], power.Values.Select(v => v.Code));
+        Assert.Equal("Battery", power.Values[1].Labels.Single(l => l.Locale == "en").Label);
+        Assert.Equal(("W", false), (row.Attributes[1].Unit, row.Attributes[1].Variant));
+
+        Assert.Equal(HttpStatusCode.Conflict, (await Client(AttributeManager).PostAsJsonAsync("/admin/product-types", Lamp("p1-lamp"), Ct)).StatusCode);
+        var badVariant = new { code = "p1-pot", sortOrder = 0, names = new[] { new { locale = "vi", label = "Chậu" } },
+            attributes = new[] { new { code = "height", dataType = "number", required = false, variant = true, labels = new[] { new { locale = "vi", label = "Cao" } }, values = Array.Empty<object>() } } };
+        Assert.Equal(HttpStatusCode.BadRequest, (await Client(AttributeManager).PostAsJsonAsync("/admin/product-types", badVariant, Ct)).StatusCode);
+
+        // Sửa: bỏ wattage, thêm drainage, đổi thứ tự giá trị — power-source và usb giữ Id.
+        var update = new
+        {
+            sortOrder = 1,
+            names = new[] { new { locale = "vi", label = "Đèn trang trí" } },
+            attributes = new object[]
+            {
+                new { code = "drainage", dataType = "boolean", required = true, variant = false, labels = new[] { new { locale = "vi", label = "Thoát nước" } }, values = Array.Empty<object>() },
+                new
+                {
+                    code = "power-source", dataType = "select", required = false, variant = true,
+                    labels = new[] { new { locale = "vi", label = "Nguồn" } },
+                    values = new[] { new { code = "solar", labels = new[] { new { locale = "vi", label = "Mặt trời" } } }, new { code = "usb", labels = new[] { new { locale = "vi", label = "USB" } } } },
+                },
+            },
+            version = row.Version,
+        };
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync($"/admin/product-types/{id}", update, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/admin/product-types/{id}", update, Ct)).StatusCode);
+        var after = await ProductType(id);
+        Assert.Equal(["drainage", "power-source"], after.Attributes.Select(a => a.Code));
+        Assert.Equal(power.Id, after.Attributes[1].Id);
+        Assert.Equal(["solar", "usb"], after.Attributes[1].Values.Select(v => v.Code));
+        Assert.Equal(power.Values[0].Id, after.Attributes[1].Values[1].Id);
+        Assert.Equal(0L, await Scalar($"SELECT count(*) FROM attribute_value_translation t JOIN attribute_value v ON v.id = t.attribute_value_id WHERE v.code = 'battery' AND v.attribute_id = '{power.Id}'"));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM audit_log WHERE action = 'ProductTypeUpdated' AND aggregate_id = '{id}'"));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsJsonAsync($"/admin/product-types/{Guid.CreateVersion7()}", update, Ct)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/admin/product-types/{id}?version={after.Version}", Ct)).StatusCode);
+        Assert.True((await ProductType(id)).Archived);
+    }
+
+    [Fact(DisplayName = "ac236_4: thiếu quyền catalog.attribute.manage 403 cho mọi thao tác ghi nhóm sản phẩm và danh sách quản trị; 401 khi chưa đăng nhập")]
+    public async Task ac236_4_product_type_writes_require_permission()
+    {
+        var created = await Client(AttributeManager).PostAsJsonAsync("/admin/product-types", Lamp("p4-lamp"), Ct);
+        var id = await created.Content.ReadFromJsonAsync<Guid>(Ct);
+        var other = Curator; // có catalog.collection.manage nhưng không có catalog.attribute.manage
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Client().PostAsJsonAsync("/admin/product-types", Lamp("p4-x"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PostAsJsonAsync("/admin/product-types", Lamp("p4-x"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PutAsJsonAsync($"/admin/product-types/{id}",
+            new { sortOrder = 0, names = new[] { new { locale = "vi", label = "X" } }, attributes = Array.Empty<object>(), version = 0 }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).DeleteAsync($"/admin/product-types/{id}?version=0", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).GetAsync("/admin/product-types", Ct)).StatusCode);
+        Assert.Equal(0L, await Scalar("SELECT count(*) FROM product_type WHERE code = 'p4-x'"));
+        Assert.Equal(2L, await Scalar($"SELECT count(*) FROM attribute WHERE product_type_id = '{id}'"));
     }
 
     async Task<long> Scalar(string sql)

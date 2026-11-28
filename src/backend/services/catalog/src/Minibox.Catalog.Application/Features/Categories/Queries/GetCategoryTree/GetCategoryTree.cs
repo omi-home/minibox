@@ -22,7 +22,7 @@ public sealed record CategoryTreeNode(Guid Id, string Locale, string Name, strin
 public sealed class GetCategoryTreeValidator : AbstractValidator<GetCategoryTree>
 {
     /// <summary>Khai báo luật: locale không rỗng, tối đa 35 ký tự, dạng BCP 47.</summary>
-    public GetCategoryTreeValidator() => RuleFor(x => x.Locale).NotEmpty().MaximumLength(35).Matches("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$");
+    public GetCategoryTreeValidator() => RuleFor(x => x.Locale).NotEmpty().MaximumLength(35).Matches(@"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*\z");
 }
 
 /// <summary>Dựng chuỗi fallback, đọc bản dịch của danh mục đang hoạt động, chọn bản tốt nhất mỗi danh mục rồi dựng cây.</summary>

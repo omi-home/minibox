@@ -5,6 +5,7 @@ using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
 using Minibox.Catalog.Api.Endpoints.Categories;
+using Minibox.Catalog.Api.Endpoints.ProductTypes;
 using Minibox.Catalog.Api.Endpoints.Taxa;
 using Minibox.Catalog.Application;
 using Minibox.Catalog.Infrastructure;
@@ -66,6 +67,7 @@ app.UseMiniboxWeb();
 app.MapMiniboxHealthChecks();
 app.MapCategoryEndpoints();
 app.MapTaxonEndpoints();
+app.MapProductTypeEndpoints();
 // `codegen write`: sinh code Wolverine lúc build image (TypeLoadMode.Static, src/backend/Dockerfile).
 if (args is ["codegen", ..])
     return await app.RunJasperFxCommands(args);
