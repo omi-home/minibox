@@ -3,7 +3,7 @@ import Link from "next/link";
 import { baseMetadata, Shell } from "./shell";
 
 /** Metadata trang 404 (Next tự thêm noindex). */
-export const metadata: Metadata = { ...baseMetadata(), title: "Không tìm thấy trang — Minibox" };
+export const metadata: Metadata = { ...baseMetadata(), title: "Không tìm thấy trang | Minibox" };
 
 /**
  * Trang 404 cho URL không khớp route nào (app có hai root layout `(vi)` và `[locale]` nên không có layout chung).
