@@ -1,3 +1,4 @@
+import { displayPreferences } from "../../lib/i18n";
 import { AuthCard, MfaStep } from "../auth-forms";
 
 /**
@@ -5,8 +6,8 @@ import { AuthCard, MfaStep } from "../auth-forms";
  *
  * @returns Trang xác thực hai lớp.
  */
-const MfaPage = () => (
-  <AuthCard title="Xác thực hai lớp" description="Bảo vệ tài khoản quản trị bằng mã từ ứng dụng xác thực trên điện thoại.">
+const MfaPage = async () => (
+  <AuthCard preferences={await displayPreferences()} title="auth.mfa.title" description="auth.mfa.description">
     <MfaStep />
   </AuthCard>
 );

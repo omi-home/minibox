@@ -83,3 +83,16 @@ test("sai mật khẩu báo lỗi, ở lại trang đăng nhập", async ({ page
   await expect(page.getByText("Sai email/tên đăng nhập hoặc mật khẩu.")).toBeVisible();
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test("ac208_1 trang đăng nhập đổi ngôn ngữ và giao diện: chuỗi theo bản dịch đã xuất bản, thiếu key thì dùng tiếng Việt", async ({ page }) => {
+  await page.goto(`${APPS.admin}/login`);
+  await page.getByRole("button", { name: /^Ngôn ngữ và vùng/ }).click();
+  await page.getByRole("menuitemradio", { name: /English/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+  await expect(page.getByLabel("Email or username")).toBeVisible();
+  await expect(page.getByLabel("Mật khẩu")).toBeVisible(); // stub chưa có bản en của key này
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+  await page.getByRole("button", { name: /^Giao diện:/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", /light|dark/);
+});

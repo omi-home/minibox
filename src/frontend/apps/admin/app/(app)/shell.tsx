@@ -42,8 +42,8 @@ import {
 } from "../../lib/menu";
 import type { Notification } from "../../lib/notifications";
 
-/** Cờ cho locale có sẵn hình; locale admin thêm sau hiện mã. */
-const FLAGS: Record<string, ReactNode> = { vi: <VN title="" />, en: <GB title="" /> };
+/** Cờ cho locale có sẵn hình; locale admin thêm sau hiện mã (dùng chung với màn đăng nhập). */
+export const FLAGS: Record<string, ReactNode> = { vi: <VN title="" />, en: <GB title="" /> };
 
 const NOTIFICATION_ICONS: Record<Notification["kind"], ReactNode> = {
   order: <ReceiptIcon />,

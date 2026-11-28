@@ -4,41 +4,28 @@ import {
   CopyIcon,
   DeviceMobileIcon,
   DownloadSimpleIcon,
-  FactoryIcon,
   KeyIcon,
   LockKeyIcon,
+  PrinterIcon,
   ReceiptIcon,
   ShieldCheckIcon,
   WarehouseIcon,
 } from "@phosphor-icons/react";
-import { Button, Checkbox, Input, Logo } from "@minibox/ui";
+import { Box, BrandScene, Button, Checkbox, Input, Logo, RegionMenu, type ThemeMode, ThemeToggle } from "@minibox/ui";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { BrandArt } from "./brand-art";
+import { LOCALE_COOKIE, THEME_COOKIE } from "../lib/menu";
+import { FLAGS } from "./(app)/shell";
+import { type AuthTextKey, useAuthText } from "./auth-text";
+import { BrandArt, OrbitStage } from "./brand-art";
 
+/** Ba mảng việc chính của hệ thống, theo luồng một đơn hàng in 3D (BRD §6, §9). */
 const highlights = [
-  { icon: WarehouseIcon, text: "Tồn kho theo từng kho, nhập xuất và kiểm kê" },
-  { icon: ReceiptIcon, text: "Đơn hàng, thanh toán và giao vận" },
-  { icon: FactoryIcon, text: "Kế hoạch sản xuất và kiểm tra chất lượng" },
-];
-
-const messages: Record<string, string> = {
-  "Identity.InvalidCredentials": "Sai email/tên đăng nhập hoặc mật khẩu. Kiểm tra lại rồi thử lần nữa.",
-  "Identity.LoginThrottled": "Nhập sai nhiều lần. Vui lòng đợi ít phút rồi thử lại.",
-  "Identity.InvalidMfaCode": "Mã xác thực không đúng hoặc đã được dùng.",
-  "Identity.MfaNotEnrolled": "Tài khoản chưa bật xác thực hai lớp. Bấm “Thiết lập ứng dụng xác thực” bên dưới.",
-  "Identity.MfaAlreadyEnrolled": "Tài khoản đã bật xác thực hai lớp. Nhập mã từ ứng dụng xác thực hoặc mã khôi phục.",
-  unauthenticated: "Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.",
-};
-
-/**
- * Đổi mã lỗi BFF thành câu tiếng Việt cho người dùng.
- *
- * @param code - Mã lỗi `{ code }` từ BFF.
- * @returns Thông báo lỗi.
- */
-export const errorText = (code: unknown) => messages[String(code)] ?? "Có lỗi xảy ra. Vui lòng thử lại.";
+  { icon: ReceiptIcon, key: "auth.brand.orders" },
+  { icon: PrinterIcon, key: "auth.brand.production" },
+  { icon: WarehouseIcon, key: "auth.brand.warehouse" },
+] as const;
 
 /**
  * Gửi JSON tới Route Handler của BFF (cùng origin, kèm cookie phiên).
@@ -53,53 +40,128 @@ export const postJson = async <T = Record<string, unknown>,>(url: string, body: 
   return { ok: res.ok, data };
 };
 
+/** Lựa chọn hiển thị đọc ở server (`displayPreferences` ở lib/i18n): giao diện, ngôn ngữ hiện tại và các ngôn ngữ đang bật. */
+export type AuthPreferences = {
+  theme: ThemeMode;
+  locale: string;
+  locales: { code: string; name: string }[];
+};
+
+const remember = (name: string, value: string) => {
+  document.cookie = `${name}=${value}; Path=/; Max-Age=31536000; SameSite=Lax`;
+};
+
 /**
- * Khung màn hình xác thực: panel thương hiệu bên trái (từ 1024px), form bên phải; mobile một cột có logo trên đầu.
+ * Nút đổi giao diện và chọn ngôn ngữ ở góc trang xác thực, cùng cookie với thanh đầu khung admin nên lựa chọn giữ sau khi đăng nhập.
+ * Đổi ngôn ngữ thì server render lại trang với chuỗi của ngôn ngữ mới.
  *
- * @param props - `title` là tiêu đề trang (h1), `description` là câu dẫn dưới tiêu đề, `children` là nội dung.
+ * @param props - {@link AuthPreferences}.
+ * @returns Thanh công cụ nhỏ trên thẻ bề mặt.
+ */
+const AuthToolbar = ({ theme: initialTheme, locale: initialLocale, locales }: AuthPreferences) => {
+  const router = useRouter();
+  const [theme, setTheme] = useState(initialTheme);
+  const [locale, setLocale] = useState(initialLocale);
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1 shadow-box-1">
+      <ThemeToggle
+        plain
+        className="flex"
+        value={theme}
+        onChange={(mode) => {
+          setTheme(mode);
+          remember(THEME_COOKIE, mode);
+          if (mode === "system") delete document.documentElement.dataset.theme;
+          else document.documentElement.dataset.theme = mode;
+        }}
+      />
+      <RegionMenu
+        plain
+        className="flex"
+        locale={{
+          value: locale,
+          options: locales.map((l) => ({ code: l.code, label: l.name, flag: FLAGS[l.code] })),
+          onChange: (code) => {
+            setLocale(code);
+            remember(LOCALE_COOKIE, code);
+            router.refresh();
+          },
+        }}
+      />
+    </div>
+  );
+};
+
+/**
+ * Khung màn hình xác thực: panel thương hiệu với hệ hộp quay bên trái (từ 1024px); bên phải là cảnh nền rừng thông của
+ * design system, form đặt trên thẻ bề mặt để chữ không nằm trực tiếp trên cảnh. Mobile một cột, logo trên thẻ.
+ *
+ * @param props - `title`, `description` là key chuỗi của tiêu đề trang (h1) và câu dẫn; `preferences` cho nút giao diện/ngôn ngữ;
+ * `children` là nội dung.
  * @returns Trang xác thực.
  */
-export const AuthCard = ({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) => (
-  <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-    <aside className="relative hidden overflow-hidden p-12 text-brand-foreground lg:flex lg:flex-col lg:justify-between xl:p-16">
-      <BrandArt />
-      <div className="relative">
-        <Logo tone="inverse" className="text-2xl" />
-      </div>
-      <div className="relative max-w-md space-y-6">
-        <p className="text-4xl leading-tight font-bold tracking-tight text-balance">Quản lý kho, đơn hàng và sản xuất ở một nơi.</p>
-        <ul className="space-y-3 text-sm">
-          {highlights.map(({ icon: Icon, text }) => (
-            <li key={text} className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-box bg-brand-foreground/12 text-highlight">
-                <Icon aria-hidden className="size-4.5" />
-              </span>
-              {text}
-            </li>
-          ))}
-        </ul>
-        <p className="flex items-center gap-2 border-t border-brand-border pt-5 text-xs text-brand-muted">
-          <LockKeyIcon aria-hidden className="size-4" />
-          Chỉ dành cho nhân viên Minibox. Mọi lần đăng nhập và thao tác nhạy cảm đều được ghi nhận.
-        </p>
-      </div>
-    </aside>
-    <main className="relative flex flex-col items-center justify-center px-4 py-10 sm:px-8">
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(var(--color-border)_1px,transparent_1.5px)] bg-size-[22px_22px] [mask-image:radial-gradient(60%_50%_at_50%_50%,transparent_40%,black)] lg:hidden" />
-      <div className="relative w-full max-w-sm space-y-8">
-        <div className="lg:hidden">
-          <Logo className="text-2xl" />
+export const AuthCard = ({
+  title,
+  description,
+  preferences,
+  children,
+}: {
+  title: AuthTextKey;
+  description: AuthTextKey;
+  preferences: AuthPreferences;
+  children: ReactNode;
+}) => {
+  const t = useAuthText();
+  return (
+    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      <BrandScene />
+      <aside className="relative hidden overflow-hidden px-12 py-10 text-brand-foreground lg:flex lg:flex-col lg:gap-6 xl:px-16">
+        <BrandArt />
+        <div className="relative">
+          <Logo tone="inverse" className="text-2xl" />
         </div>
-        <header className="space-y-1.5">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {description && <p className="text-sm text-muted">{description}</p>}
-        </header>
-        {children}
-        <p className="pt-4 text-center text-xs text-muted lg:text-left">© {new Date().getFullYear()} Minibox · Cần hỗ trợ? Liên hệ quản trị hệ thống.</p>
-      </div>
-    </main>
-  </div>
-);
+        <OrbitStage />
+        <div className="relative max-w-md space-y-6">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold tracking-widest text-brand-muted uppercase">{t("auth.brand.eyebrow")}</p>
+            <p className="text-4xl leading-tight font-bold tracking-tight text-balance">{t("auth.brand.title")}</p>
+            <p className="text-sm text-brand-muted">{t("auth.brand.lead")}</p>
+          </div>
+          <ul className="space-y-3 text-sm">
+            {highlights.map(({ icon: Icon, key }) => (
+              <li key={key} className="flex items-center gap-3">
+                <span className="grid size-8 shrink-0 place-items-center rounded-box bg-brand-foreground/12">
+                  <Icon aria-hidden className="size-4.5" />
+                </span>
+                {t(key)}
+              </li>
+            ))}
+          </ul>
+          <p className="flex items-center gap-2 border-t border-brand-border pt-5 text-xs text-brand-muted">
+            <LockKeyIcon aria-hidden className="size-4 shrink-0" />
+            {t("auth.brand.notice")}
+          </p>
+        </div>
+      </aside>
+      <main className="relative flex flex-col items-center justify-center px-4 pt-20 pb-10 sm:px-8">
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <AuthToolbar {...preferences} />
+        </div>
+        <Box depth={2} className="w-full max-w-md space-y-8 p-6 sm:p-8">
+          <div className="lg:hidden">
+            <Logo className="text-2xl" />
+          </div>
+          <header className="space-y-1.5">
+            <h1 className="text-2xl font-bold tracking-tight">{t(title)}</h1>
+            <p className="text-sm text-muted">{t(description)}</p>
+          </header>
+          {children}
+          <p className="border-t border-border pt-5 text-center text-xs text-muted">{t("auth.footer", { year: new Date().getFullYear() })}</p>
+        </Box>
+      </main>
+    </div>
+  );
+};
 
 /**
  * Form đăng nhập bằng email/tên đăng nhập và mật khẩu; thành công thì sang bước MFA.
@@ -107,6 +169,7 @@ export const AuthCard = ({ title, description, children }: { title: string; desc
  * @returns Form đăng nhập.
  */
 export const LoginForm = () => {
+  const t = useAuthText();
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -117,14 +180,14 @@ export const LoginForm = () => {
     const { ok, data } = await postJson("/api/auth/login", { identifier: form.get("identifier"), password: form.get("password") });
     if (ok) return router.replace("/mfa");
     setBusy(false);
-    setError(errorText(data.code));
+    setError(t.error(data.code));
   };
   return (
     <form onSubmit={submit} className="space-y-5">
-      <Input label="Email hoặc tên đăng nhập" name="identifier" autoComplete="username" autoFocus required />
-      <Input label="Mật khẩu" name="password" type="password" autoComplete="current-password" required error={error} />
+      <Input label={t("auth.login.identifier")} name="identifier" autoComplete="username" autoFocus required />
+      <Input label={t("auth.login.password")} name="password" type="password" autoComplete="current-password" required error={error} />
       <Button type="submit" loading={busy} className="w-full">
-        Đăng nhập
+        {t("auth.login.submit")}
       </Button>
     </form>
   );
@@ -135,10 +198,11 @@ const codeInput = "h-14 text-center font-mono text-2xl tracking-[0.3em] placehol
 /**
  * Form nhập mã TOTP 6 số hoặc mã khôi phục để xác minh MFA (sau mật khẩu hoặc khi xác thực lại).
  *
- * @param props - `onDone` chạy khi xác minh thành công (phiên đã được thay bằng phiên có MFA); `submitLabel` là chữ trên nút.
+ * @param props - `onDone` chạy khi xác minh thành công (phiên đã được thay bằng phiên có MFA); `submitLabel` là key chữ trên nút.
  * @returns Form nhập mã.
  */
-export const MfaVerifyForm = ({ onDone, submitLabel = "Xác minh" }: { onDone: () => void; submitLabel?: string }) => {
+export const MfaVerifyForm = ({ onDone, submitLabel = "auth.mfa.verify" }: { onDone: () => void; submitLabel?: AuthTextKey }) => {
+  const t = useAuthText();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -148,14 +212,14 @@ export const MfaVerifyForm = ({ onDone, submitLabel = "Xác minh" }: { onDone: (
     const { ok, data } = await postJson("/api/auth/mfa", { code: new FormData(e.currentTarget).get("code") });
     if (ok) return onDone();
     setBusy(false);
-    setError(errorText(data.code));
+    setError(t.error(data.code));
   };
   return (
     <form onSubmit={submit} className="space-y-5">
       <Input
-        label="Mã xác thực"
+        label={t("auth.mfa.code")}
         name="code"
-        hint="6 chữ số trong ứng dụng xác thực, hoặc một mã khôi phục."
+        hint={t("auth.mfa.codeHint")}
         autoComplete="one-time-code"
         placeholder="000000"
         autoFocus
@@ -164,30 +228,34 @@ export const MfaVerifyForm = ({ onDone, submitLabel = "Xác minh" }: { onDone: (
         className={codeInput}
       />
       <Button type="submit" loading={busy} className="w-full">
-        {submitLabel}
+        {t(submitLabel)}
       </Button>
     </form>
   );
 };
 
-const steps = ["Quét mã", "Lưu mã khôi phục", "Xác minh"];
+const steps = ["auth.enroll.stepScan", "auth.enroll.stepSave", "auth.enroll.stepVerify"] as const;
 
 /** Thanh tiến trình 3 bước đăng ký MFA. */
-const Stepper = ({ current }: { current: number }) => (
-  <ol aria-label="Các bước thiết lập" className="grid grid-cols-3 gap-2">
-    {steps.map((s, i) => (
-      <li key={s} aria-current={i === current ? "step" : undefined} className="space-y-1.5">
-        <div className={`h-1.5 rounded-full ${i <= current ? "bg-primary" : "bg-border"}`} />
-        <p className={`text-xs ${i === current ? "font-semibold text-foreground" : "text-muted"}`}>
-          {i + 1}. {s}
-        </p>
-      </li>
-    ))}
-  </ol>
-);
+const Stepper = ({ current }: { current: number }) => {
+  const t = useAuthText();
+  return (
+    <ol aria-label={t("auth.enroll.steps")} className="grid grid-cols-3 gap-2">
+      {steps.map((s, i) => (
+        <li key={s} aria-current={i === current ? "step" : undefined} className="space-y-1.5">
+          <div className={`h-1.5 rounded-full ${i <= current ? "bg-primary" : "bg-border"}`} />
+          <p className={`text-xs ${i === current ? "font-semibold text-foreground" : "text-muted"}`}>
+            {i + 1}. {t(s)}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+};
 
 /** Nút sao chép văn bản, đổi nhãn khi đã chép. */
-const CopyButton = ({ text, label }: { text: string; label: string }) => {
+const CopyButton = ({ text, label }: { text: string; label: AuthTextKey }) => {
+  const t = useAuthText();
   const [done, setDone] = useState(false);
   return (
     <Button
@@ -200,7 +268,7 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
       }}
     >
       {done ? <CheckCircleIcon aria-hidden /> : <CopyIcon aria-hidden />}
-      {done ? "Đã sao chép" : label}
+      {done ? t("auth.recovery.copied") : t(label)}
     </Button>
   );
 };
@@ -213,6 +281,7 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
  * @returns Các bước đăng ký MFA.
  */
 export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: string }) => {
+  const t = useAuthText();
   const router = useRouter();
   const [codes, setCodes] = useState<string[]>();
   const [saved, setSaved] = useState(false);
@@ -227,14 +296,14 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
     });
     setBusy(false);
     if (ok) setCodes(data.recoveryCodes);
-    else setError(errorText(data.code));
+    else setError(t.error(data.code));
   };
 
   if (codes && next)
     return (
       <div className="space-y-6">
         <Stepper current={2} />
-        <p className="text-sm">Nhập mã mới trong ứng dụng xác thực (đợi mã đổi) hoặc một mã khôi phục để hoàn tất đăng nhập.</p>
+        <p className="text-sm">{t("auth.enroll.finish")}</p>
         <MfaVerifyForm onDone={() => router.replace("/")} />
       </div>
     );
@@ -246,11 +315,9 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
         <Stepper current={1} />
         <div className="flex gap-3 rounded-box border border-warning/40 bg-warning/10 p-3 text-sm">
           <KeyIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-warning" />
-          <p>
-            Mỗi mã khôi phục dùng được <strong>một lần</strong> khi mất điện thoại. Mã chỉ hiện lần này, hãy lưu ở nơi an toàn.
-          </p>
+          <p>{t("auth.recovery.warning")}</p>
         </div>
-        <ul aria-label="Mã khôi phục" className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-box bg-surface-sunken p-4 font-mono text-sm shadow-inset">
+        <ul aria-label={t("auth.recovery.list")} className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-box bg-surface-sunken p-4 font-mono text-sm shadow-inset">
           {codes.map((c) => (
             <li key={c} className="tabular-nums">
               {c}
@@ -258,17 +325,17 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
           ))}
         </ul>
         <div className="flex gap-3">
-          <CopyButton text={text} label="Sao chép" />
+          <CopyButton text={text} label="auth.recovery.copy" />
           <Button variant="secondary" className="flex-1" asChild>
-            <a href={`data:text/plain;charset=utf-8,${encodeURIComponent(text + "\n")}`} download="minibox-ma-khoi-phuc.txt">
+            <a href={`data:text/plain;charset=utf-8,${encodeURIComponent(text + "\n")}`} download="minibox-recovery-codes.txt">
               <DownloadSimpleIcon aria-hidden />
-              Tải xuống
+              {t("auth.recovery.download")}
             </a>
           </Button>
         </div>
-        <Checkbox label="Tôi đã lưu mã khôi phục ở nơi an toàn" checked={saved} onCheckedChange={(v) => setSaved(v === true)} />
+        <Checkbox label={t("auth.recovery.saved")} checked={saved} onCheckedChange={(v) => setSaved(v === true)} />
         <Button className="w-full" disabled={!saved} onClick={() => setNext(true)}>
-          Tiếp tục
+          {t("auth.recovery.continue")}
         </Button>
       </div>
     );
@@ -280,31 +347,31 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
         {/* QR luôn đen trên trắng (kể cả dark mode) để ứng dụng quét được. */}
         <div className="shrink-0 rounded-lg border border-border bg-white p-3 shadow-box-1">
-          <QRCodeSVG value={otpauthUri} size={152} marginSize={0} title="Mã QR thiết lập ứng dụng xác thực" />
+          <QRCodeSVG value={otpauthUri} size={152} marginSize={0} title={t("auth.enroll.qr")} />
         </div>
         <ol className="space-y-2 text-sm">
           <li className="flex gap-2">
             <DeviceMobileIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
-            Mở ứng dụng xác thực (Google Authenticator, Microsoft Authenticator…) trên điện thoại.
+            {t("auth.enroll.openApp")}
           </li>
           <li className="flex gap-2">
             <ShieldCheckIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
-            Quét mã QR, rồi nhập mã 6 số ứng dụng hiển thị.
+            {t("auth.enroll.scanQr")}
           </li>
         </ol>
       </div>
       <details className="group rounded-box border border-border px-3 py-2 text-sm">
-        <summary className="cursor-pointer py-1 font-medium">Không quét được? Nhập khóa thủ công</summary>
+        <summary className="cursor-pointer py-1 font-medium">{t("auth.enroll.manual")}</summary>
         <div className="mt-2 flex items-center gap-2">
-          <code aria-label="Khóa thiết lập" className="flex-1 font-mono text-sm break-all tabular-nums">
+          <code aria-label={t("auth.enroll.key")} className="flex-1 font-mono text-sm break-all tabular-nums">
             {secret.match(/.{1,4}/g)?.join(" ")}
           </code>
-          <CopyButton text={secret} label="Chép" />
+          <CopyButton text={secret} label="auth.enroll.copyKey" />
         </div>
       </details>
       <form onSubmit={confirm} className="space-y-5">
         <Input
-          label="Mã 6 số từ ứng dụng"
+          label={t("auth.enroll.code")}
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -315,7 +382,7 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
           className={codeInput}
         />
         <Button type="submit" loading={busy} className="w-full">
-          Bật xác thực hai lớp
+          {t("auth.enroll.enable")}
         </Button>
       </form>
     </div>
@@ -330,6 +397,7 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
  * @returns Form xác minh kèm nút thiết lập, hoặc các bước đăng ký MFA sau khi bấm.
  */
 export const MfaStep = () => {
+  const t = useAuthText();
   const router = useRouter();
   const [enrollment, setEnrollment] = useState<{ secret: string; otpauthUri: string }>();
   const [error, setError] = useState<string>();
@@ -339,13 +407,13 @@ export const MfaStep = () => {
     const { ok, data } = await postJson<{ secret: string; otpauthUri: string }>("/api/auth/mfa/enroll");
     setBusy(false);
     if (ok) setEnrollment(data);
-    else setError(errorText(data.code));
+    else setError(t.error(data.code));
   };
   if (enrollment)
     return (
       <section aria-labelledby="enroll-title" className="space-y-4">
         <h2 id="enroll-title" className="text-lg font-semibold">
-          Thiết lập ứng dụng xác thực
+          {t("auth.mfa.setup")}
         </h2>
         <MfaEnroll secret={enrollment.secret} otpauthUri={enrollment.otpauthUri} />
       </section>
@@ -354,12 +422,12 @@ export const MfaStep = () => {
     <div className="space-y-6">
       <MfaVerifyForm onDone={() => router.replace("/")} />
       <div className="relative text-center text-xs text-muted before:absolute before:inset-x-0 before:top-1/2 before:border-t before:border-border">
-        <span className="relative bg-background px-3">Lần đầu đăng nhập?</span>
+        <span className="relative bg-surface px-3">{t("auth.mfa.firstTime")}</span>
       </div>
       <div className="space-y-2">
         <Button variant="secondary" loading={busy} className="w-full" onClick={start}>
           <DeviceMobileIcon aria-hidden />
-          Thiết lập ứng dụng xác thực
+          {t("auth.mfa.setup")}
         </Button>
         {error && (
           <p role="alert" className="text-sm text-danger">

@@ -3,6 +3,7 @@ import { Sheet, SheetContent } from "@minibox/ui";
 import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from "react";
 import { withStepUp } from "../lib/step-up";
 import { MfaVerifyForm } from "./auth-forms";
+import { useAuthText } from "./auth-text";
 
 const StepUp = createContext<(send: () => Promise<Response>) => Promise<Response>>((send) => send());
 
@@ -13,6 +14,7 @@ const StepUp = createContext<(send: () => Promise<Response>) => Promise<Response
  * @returns Provider kèm sheet xác thực lại.
  */
 export const StepUpProvider = ({ children }: { children: ReactNode }) => {
+  const t = useAuthText();
   const [open, setOpen] = useState(false);
   const resolve = useRef<(ok: boolean) => void>(undefined);
   const finish = (ok: boolean) => {
@@ -32,8 +34,8 @@ export const StepUpProvider = ({ children }: { children: ReactNode }) => {
     <StepUp.Provider value={call}>
       {children}
       <Sheet open={open} onOpenChange={(o) => !o && finish(false)}>
-        <SheetContent title="Xác thực lại" description="Thao tác này cần xác thực hai lớp gần đây. Nhập mã để tiếp tục.">
-          <MfaVerifyForm onDone={() => finish(true)} submitLabel="Xác thực và tiếp tục" />
+        <SheetContent title={t("auth.stepUp.title")} description={t("auth.stepUp.description")}>
+          <MfaVerifyForm onDone={() => finish(true)} submitLabel="auth.stepUp.submit" />
         </SheetContent>
       </Sheet>
     </StepUp.Provider>
