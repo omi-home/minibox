@@ -27,6 +27,33 @@ for (const env of ENVS) {
     assert.equal(c.services["database-postgres"].environment.POSTGRES_PASSWORD_FILE, "/run/secrets/postgres_admin");
   });
 
+  test(`ac220_1 ${env}: service app từ image theo MINIBOX_TAG; frontend trên mạng edge, backend thì không; health check`, () => {
+    const c = config(env);
+    const apps = ["backend-identity", "backend-localization", "frontend-admin", "frontend-shop"];
+    for (const name of apps) {
+      const s = c.services[name];
+      assert.ok(s, `thiếu ${name}`);
+      assert.match(s.image, new RegExp(`^ghcr\.io/omi-home/minibox/${name}:`));
+      assert.equal(s.build, undefined, `${name} không build trên homeserver`);
+      assert.equal(s.restart, "unless-stopped");
+      assert.ok(s.healthcheck?.test?.join(" ").includes(name.startsWith("backend-") ? ":8080/health/ready" : ":3000/"), `${name} healthcheck`);
+      const nets = Object.keys(s.networks ?? {});
+      assert.equal(nets.includes("edge"), name.startsWith("frontend-"), `${name}: ${nets}`);
+      if (name.startsWith("backend-")) assert.ok(nets.includes("otel"), `${name} gửi OTLP qua mạng otel`);
+    }
+    assert.ok(Object.keys(c.services["backend-identity"].secrets.reduce((o, x) => ({ ...o, [x.target]: 1 }), {})).includes("Mfa__EncryptionKey"));
+    assert.deepEqual(c.services["backend-localization"].secrets.map((x) => x.target).sort(), ["ConnectionStrings__App", "ConnectionStrings__RabbitMq"]);
+    assert.deepEqual(c.services["frontend-admin"].secrets.map((x) => x.target).sort(), ["ADMIN_SESSION_KEY", "RABBITMQ_URL"]);
+  });
+
+  test(`ac220_4 ${env}: container runtime không nhận chuỗi migrator hay bí mật dạng biến môi trường (173.37)`, () => {
+    for (const [name, s] of Object.entries(config(env).services)) {
+      const keys = Object.keys(s.environment ?? {});
+      assert.ok(!keys.includes("MINIBOX_MIGRATOR_CONNECTION"), `${name} có MINIBOX_MIGRATOR_CONNECTION`);
+      for (const key of keys) assert.doesNotMatch(key, /^ConnectionStrings__|EncryptionKey|SESSION_KEY|RABBITMQ_URL/, `${name}: ${key} phải là Docker secret`);
+    }
+  });
+
   test(`ac220_4 ${env}: không dịch vụ nào publish cổng (chỉ Caddy chung ra ngoài)`, () => {
     for (const [name, s] of Object.entries(config(env).services)) assert.equal(s.ports, undefined, `${name} publish cổng`);
   });

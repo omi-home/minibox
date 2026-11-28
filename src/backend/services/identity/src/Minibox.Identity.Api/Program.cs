@@ -1,3 +1,4 @@
+using JasperFx;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Minibox.BuildingBlocks.Application.Behaviors;
@@ -24,6 +25,8 @@ if (DbMigrator.RunIfRequested(args, "identity", typeof(Program).Assembly,
 
 // Composition root (spec §5.2): chỉ đăng ký và map; endpoint ở Endpoints/, xử lý ở Application/Features (StructureRules kiểm).
 var builder = WebApplication.CreateBuilder(args);
+// Staging/production: bí mật đọc từ Docker secret /run/secrets (ConnectionStrings__App, …), không qua biến môi trường.
+builder.Configuration.AddMiniboxSecrets();
 // Runtime dùng role identity_app (chỉ DML): ConnectionStrings__App; RabbitMQ: ConnectionStrings__RabbitMq (amqp://…).
 // Lúc build sinh OpenAPI (contracts/openapi) host không có cấu hình: dùng giá trị giữ chỗ, không kết nối.
 var appConnection = builder.Configuration.RequiredConnectionString("App", "Host=openapi-build");
@@ -75,6 +78,9 @@ app.MapAuthEndpoints();
 app.MapAssignmentEndpoints();
 app.MapMeEndpoints();
 app.MapWellKnownEndpoints();
+// `codegen write`: sinh code Wolverine lúc build image (TypeLoadMode.Static, src/backend/Dockerfile).
+if (args is ["codegen", ..])
+    return await app.RunJasperFxCommands(args);
 app.Run();
 return 0;
 
