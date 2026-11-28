@@ -34,7 +34,6 @@ import {
   CURRENCIES,
   CURRENCY_COOKIE,
   LOCALE_COOKIE,
-  LOCALES,
   type MenuItem,
   SIDEBAR_COOKIE,
   THEME_COOKIE,
@@ -43,7 +42,8 @@ import {
 } from "../../lib/menu";
 import type { Notification } from "../../lib/notifications";
 
-const FLAGS = { VN: <VN title="" />, GB: <GB title="" /> };
+/** Cờ cho locale có sẵn hình; locale admin thêm sau hiện mã. */
+const FLAGS: Record<string, ReactNode> = { vi: <VN title="" />, en: <GB title="" /> };
 
 const NOTIFICATION_ICONS: Record<Notification["kind"], ReactNode> = {
   order: <ReceiptIcon />,
@@ -79,12 +79,15 @@ const ICONS: Record<string, ReactNode> = {
 /**
  * Khung admin phía client: gắn icon, đánh dấu trang hiện tại, chuyển trang bằng router, nhớ sidebar thu gọn vào cookie.
  *
- * @param props - `items` là menu đã lọc theo quyền ở server; `collapsed`, `theme`, `locale`, `timezone`, `currency` là lựa
- * chọn đọc từ cookie; `notifications` là thông báo của người dùng; `children` là nội dung trang.
+ * @param props - `items` là menu đã lọc theo quyền ở server; `homeLabel` nhãn mục tổng quan đã dịch; `locales` ngôn ngữ đang
+ * bật (từ localization); `collapsed`, `theme`, `locale`, `timezone`, `currency` là lựa chọn đọc từ cookie; `notifications` là
+ * thông báo của người dùng; `children` là nội dung trang.
  * @returns Khung trang admin.
  */
 export const Shell = ({
   items,
+  homeLabel,
+  locales,
   collapsed,
   theme: initialTheme,
   locale: initialLocale,
@@ -94,6 +97,8 @@ export const Shell = ({
   children,
 }: {
   items: MenuItem[];
+  homeLabel: string;
+  locales: { code: string; name: string }[];
   collapsed: boolean;
   theme: ThemeMode;
   locale: string;
@@ -120,7 +125,7 @@ export const Shell = ({
     router.replace("/");
     router.refresh();
   };
-  const nav = [{ href: "/", label: "Tổng quan" }, ...items].map((i) => ({
+  const nav = [{ href: "/", label: homeLabel }, ...items].map((i) => ({
     ...i,
     icon: ICONS[i.href],
     current: i.href === "/" ? path === "/" : path === i.href || path.startsWith(`${i.href}/`),
@@ -140,14 +145,15 @@ export const Shell = ({
           else document.documentElement.dataset.theme = mode;
         },
       }}
-      // ponytail: mới lưu lựa chọn; chuỗi, giờ và tiền chưa đổi theo tới khi admin lấy từ service localization (CR #387).
+      // ponytail: đổi ngôn ngữ thì server render lại chuỗi; giờ và tiền mới lưu lựa chọn, chưa đổi hiển thị.
       region={{
         locale: {
           value: locale,
-          options: LOCALES.map((l) => ({ ...l, flag: FLAGS[l.flag] })),
+          options: locales.map((l) => ({ code: l.code, label: l.name, flag: FLAGS[l.code] })),
           onChange: (code) => {
             setLocale(code);
             remember(LOCALE_COOKIE, code);
+            router.refresh();
           },
         },
         timezone: {

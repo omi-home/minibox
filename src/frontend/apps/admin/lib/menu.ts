@@ -27,16 +27,10 @@ export const TIMEZONE_COOKIE = "minibox_timezone";
 export const CURRENCY_COOKIE = "minibox_currency";
 
 /**
- * Ngôn ngữ chọn được ở admin; `flag` là mã quốc gia của cờ hiển thị.
+ * Múi giờ hiển thị chọn được; mặc định giờ Việt Nam.
  *
- * @remarks ponytail: danh sách cố định cho ngôn ngữ, múi giờ, tiền tệ; đọc từ service localization (CR #387) khi có.
+ * @remarks ponytail: danh sách cố định cho múi giờ, tiền tệ (ngôn ngữ đọc từ localization).
  */
-export const LOCALES = [
-  { code: "vi", label: "Tiếng Việt", flag: "VN" },
-  { code: "en", label: "English", flag: "GB" },
-] as const;
-
-/** Múi giờ hiển thị chọn được; mặc định giờ Việt Nam. */
 export const TIMEZONES = [
   { value: "Asia/Ho_Chi_Minh", label: "Việt Nam", hint: "GMT+7" },
   { value: "Asia/Singapore", label: "Singapore", hint: "GMT+8" },

@@ -1,10 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { SESSION_COOKIE, sealSession } from "../apps/admin/lib/session";
-import { APPS, E2E_ADMIN_SESSION_KEY } from "../playwright.config";
-
-// sealSession đọc khóa lúc gọi; cùng khóa với admin `next dev` trong webServer.
-process.env.ADMIN_SESSION_KEY = E2E_ADMIN_SESSION_KEY;
+import { APPS } from "../playwright.config";
+import { signIn as signInWith } from "./session";
 
 // 4 nhóm thiết bị của spec §6.4: <640, 640–1023, 1024–1535, ≥1536.
 const breakpoints = [
@@ -14,19 +11,9 @@ const breakpoints = [
   { name: "desktop", width: 1680, height: 1000 },
 ] as const;
 
-/** Đăng nhập giả: cookie phiên mang access token có quyền ở vài vùng (chữ ký không kiểm ở BFF, chỉ dùng lọc menu). */
-const signIn = async (page: Page) => {
-  const perms = { "*": ["report.dashboard.read", "order.order.confirm", "identity.role.manage", "ops.error.read"], "wh:2": ["inventory.receipt.create"] };
-  const far = new Date(Date.now() + 36e5).toISOString();
-  const value = sealSession({
-    accessToken: `h.${Buffer.from(JSON.stringify({ sub: "e2e", perms })).toString("base64url")}.s`,
-    accessTokenExpiresAt: far,
-    refreshToken: "e2e",
-    refreshTokenExpiresAt: far,
-    authMethods: ["pwd", "mfa"],
-  });
-  await page.context().addCookies([{ name: SESSION_COOKIE, value, domain: "localhost", path: "/", secure: true, httpOnly: true }]);
-};
+/** Quyền ở vài vùng để kiểm menu lọc theo quyền. */
+const signIn = (page: Page) =>
+  signInWith(page, { "*": ["report.dashboard.read", "order.order.confirm", "identity.role.manage", "ops.error.read"], "wh:2": ["inventory.receipt.create"] });
 
 for (const bp of breakpoints) {
   for (const colorScheme of ["light", "dark"] as const) {

@@ -49,6 +49,27 @@ test("localization lỗi: giữ bản cũ nếu có, chưa có thì trả rỗng
   expect(await cache.messages("en", "shop")).toEqual({ a: "1" });
 });
 
+test("locales(): mã và tên theo thứ tự localization, cache trong TTL; lỗi mạng chưa có bản cũ thì chỉ vi", async () => {
+  const { fetchMock, cache, tick } = setup();
+  fetchMock.mockRejectedValueOnce(new Error("down"));
+  expect(await cache.locales()).toEqual([{ code: "vi", name: "Tiếng Việt" }]);
+  const list = [{ code: "vi", name: "Tiếng Việt", fallbackCode: null }, { code: "ja", name: "日本語", fallbackCode: "en" }];
+  fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(list), { status: 200, headers: { "content-type": "application/json" } }));
+  expect(await cache.locales()).toEqual([{ code: "vi", name: "Tiếng Việt" }, { code: "ja", name: "日本語" }]);
+  fetchMock.mockRejectedValueOnce(new Error("down"));
+  tick(500);
+  expect(await cache.locales()).toHaveLength(2);
+  tick(1001);
+  expect(await cache.locales()).toHaveLength(2);
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+});
+
+test("304 khi chưa có bản cache: trả rỗng, không ném", async () => {
+  const { fetchMock, cache } = setup();
+  fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+  expect(await cache.messages("en", "shop")).toEqual({});
+});
+
 test("Chọn locale: URL → cookie → Accept-Language (theo q, khớp ngôn ngữ gốc) → vi; bỏ locale không bật", () => {
   const enabled = ["vi", "en", "ja"];
   expect(resolveLocale({ url: "en", cookie: "ja", acceptLanguage: "ja" }, enabled)).toBe("en");

@@ -3,6 +3,9 @@ import type { LocalizationClient } from "./index";
 /** Locale mặc định và fallback cuối (spec §6.6). */
 export const DEFAULT_LOCALE = "vi";
 
+/** Ngôn ngữ đang bật: mã BCP 47 và tên theo chính ngôn ngữ đó. */
+export type LocaleOption = { code: string; name: string };
+
 /** Thân sự kiện `localization.MessagesPublished.v1` (contracts/events). */
 export type MessagesPublished = { locale: string; namespace: string; keys: string[] };
 
@@ -10,8 +13,8 @@ export type MessagesPublished = { locale: string; namespace: string; keys: strin
 export type MessagesCache = {
   /** Chuỗi đã xuất bản của (locale, namespace), đã áp chuỗi fallback phía localization; lỗi mạng mà chưa có bản cũ thì rỗng. */
   messages(locale: string, namespace: string): Promise<Record<string, string>>;
-  /** Mã các locale đang bật; lỗi mạng mà chưa có bản cũ thì chỉ `vi`. */
-  locales(): Promise<string[]>;
+  /** Các locale đang bật theo thứ tự của localization; lỗi mạng mà chưa có bản cũ thì chỉ `vi`. */
+  locales(): Promise<LocaleOption[]>;
   /** Xử lý `MessagesPublished`: bỏ cache namespace đó ở mọi locale (locale khác có thể rơi về locale vừa xuất bản). */
   onMessagesPublished(event: MessagesPublished): void;
 };
@@ -29,7 +32,7 @@ type Entry<T> = { value: T; etag?: string; at: number };
 export function createMessagesCache(client: LocalizationClient, options: { ttlMs?: number; now?: () => number } = {}): MessagesCache {
   const { ttlMs = 60_000, now = Date.now } = options;
   const messages = new Map<string, Entry<Record<string, string>>>();
-  let locales: Entry<string[]> | undefined;
+  let locales: Entry<LocaleOption[]> | undefined;
 
   return {
     async messages(locale, namespace) {
@@ -52,11 +55,11 @@ export function createMessagesCache(client: LocalizationClient, options: { ttlMs
       if (locales && now() - locales.at < ttlMs) return locales.value;
       try {
         const { data } = await client.GET("/locales");
-        if (data) locales = { value: data.map((l) => l.code), at: now() };
+        if (data) locales = { value: data.map(({ code, name }) => ({ code, name })), at: now() };
       } catch {
         // Giữ bản cũ.
       }
-      return locales?.value ?? [DEFAULT_LOCALE];
+      return locales?.value ?? [{ code: DEFAULT_LOCALE, name: "Tiếng Việt" }];
     },
     onMessagesPublished({ namespace }) {
       for (const key of messages.keys()) if (key.endsWith(`\n${namespace}`)) messages.delete(key);
