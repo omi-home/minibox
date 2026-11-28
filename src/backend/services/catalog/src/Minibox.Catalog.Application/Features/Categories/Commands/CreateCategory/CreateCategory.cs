@@ -22,8 +22,8 @@ public sealed record CreateCategory(Guid? ParentId, int SortOrder, CategoryTrans
 /// <summary>Kiểm dữ liệu vào trước khi mở transaction (chi tiết bản dịch do aggregate kiểm).</summary>
 public sealed class CreateCategoryValidator : AbstractValidator<CreateCategory>
 {
-    /// <summary>Khai báo luật: có ít nhất một bản dịch.</summary>
-    public CreateCategoryValidator() => RuleFor(x => x.Translations).NotEmpty();
+    /// <summary>Khai báo luật: có 1..50 bản dịch.</summary>
+    public CreateCategoryValidator() => RuleFor(x => x.Translations).NotEmpty().Must(x => x.Length <= 50);
 }
 
 /// <summary>Tạo <see cref="Category"/> dưới cha đang hoạt động, slug không trùng; transaction/audit/idempotency do pipeline lo.</summary>

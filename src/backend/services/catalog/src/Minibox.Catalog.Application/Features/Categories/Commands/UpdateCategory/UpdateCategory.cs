@@ -21,8 +21,8 @@ public sealed record UpdateCategory(Guid Id, int SortOrder, CategoryTranslationD
 /// <summary>Kiểm dữ liệu vào trước khi mở transaction.</summary>
 public sealed class UpdateCategoryValidator : AbstractValidator<UpdateCategory>
 {
-    /// <summary>Khai báo luật: có ít nhất một bản dịch.</summary>
-    public UpdateCategoryValidator() => RuleFor(x => x.Translations).NotEmpty();
+    /// <summary>Khai báo luật: có 1..50 bản dịch.</summary>
+    public UpdateCategoryValidator() => RuleFor(x => x.Translations).NotEmpty().Must(x => x.Length <= 50);
 }
 
 /// <summary>Sửa <see cref="Category"/> qua aggregate, kiểm slug không trùng danh mục khác.</summary>
