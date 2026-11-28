@@ -1,5 +1,6 @@
 using JasperFx;
 using Minibox.BuildingBlocks.Application.Behaviors;
+using Minibox.BuildingBlocks.Infrastructure.Localization;
 using Minibox.BuildingBlocks.Infrastructure.Messaging;
 using Minibox.BuildingBlocks.Infrastructure.Migrations;
 using Minibox.BuildingBlocks.Web;
@@ -30,9 +31,10 @@ builder.AddMiniboxObservability("catalog");
 if (!MiniboxConfiguration.IsGeneratingOpenApi)
     builder.Host.UseWolverine(o =>
     {
-        o.UseMiniboxMessaging(appConnection, CatalogDbContext.Schema, new Uri(rabbitMq));
-        // Handler nghiệp vụ đi qua Mediator; tắt quét quy ước để Wolverine không nhận nhầm *Handler. Consumer khai báo tường minh khi có.
+        // Handler nghiệp vụ đi qua Mediator; tắt quét quy ước để Wolverine không nhận nhầm *Handler. Consumer khai báo tường minh.
         o.Discovery.DisableConventionalDiscovery();
+        o.UseMiniboxMessaging(appConnection, CatalogDbContext.Schema, new Uri(rabbitMq))
+            .ReceiveLocaleChanges(o, CatalogDbContext.Schema);
     });
 builder.Services
     .AddMiniboxWeb()
