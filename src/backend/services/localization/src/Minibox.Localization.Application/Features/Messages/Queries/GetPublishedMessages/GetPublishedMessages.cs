@@ -57,19 +57,10 @@ public sealed class GetPublishedMessagesHandler(ILocaleReadService locales, IUiM
                     ?? [query.Locale, Domain.Aggregates.Locales.Locale.Default];
         var rows = await messages.ListPublishedAsync(query.Namespace, chain, cancellationToken);
 
-        var resolved = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        foreach (var row in rows.OrderByDescending(r => IndexOf(chain, r.LocaleCode)))
-            resolved[row.Key] = row.Text; // ưu tiên cao ghi sau, đè bản fallback
+        var resolved = new SortedDictionary<string, string>(
+            LocaleChain.PickPerKey(rows, r => r.Key, r => r.LocaleCode, chain).ToDictionary(p => p.Key, p => p.Value.Text), StringComparer.Ordinal);
         var body = new PublishedMessagesDto(query.Locale, query.Namespace, resolved);
         var hash = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(body));
         return new PublishedMessages(body, $"\"{Convert.ToHexStringLower(hash.AsSpan(0, 16))}\"");
-    }
-
-    static int IndexOf(IReadOnlyList<string> chain, string code)
-    {
-        for (var i = 0; i < chain.Count; i++)
-            if (chain[i] == code)
-                return i;
-        return chain.Count;
     }
 }

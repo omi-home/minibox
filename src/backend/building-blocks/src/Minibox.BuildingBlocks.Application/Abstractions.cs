@@ -115,3 +115,15 @@ public interface IIdempotencyStore
     /// <returns>Task hoàn tất khi đã ghi (chưa commit).</returns>
     ValueTask CompleteAsync<TResponse>(string key, TResponse response, CancellationToken cancellationToken = default) where TResponse : Result;
 }
+
+/// <summary>Port đọc bản sao danh sách locale của service (nhận qua <c>localization.LocaleChanged.v1</c>) để truy vấn bảng
+/// <c>*_translation</c> theo chuỗi fallback (spec §6.6).</summary>
+public interface ILocaleReplica
+{
+    /// <summary>Dựng chuỗi fallback của <paramref name="locale"/> theo bản sao locale.</summary>
+    /// <param name="locale">Locale của request (đã chọn ở BFF).</param>
+    /// <param name="cancellationToken">Huỷ thao tác.</param>
+    /// <returns>Chuỗi mã theo thứ tự ưu tiên, luôn kết thúc bằng <c>vi</c>; locale không có hoặc đang tắt thì chỉ <c>vi</c>.
+    /// Dùng với <c>LocaleChain.PickPerKey</c> sau khi lọc <c>locale = ANY(chain)</c> ở DB.</returns>
+    Task<IReadOnlyList<string>> ChainAsync(string locale, CancellationToken cancellationToken = default);
+}
