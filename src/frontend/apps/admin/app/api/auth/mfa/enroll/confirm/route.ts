@@ -13,5 +13,6 @@ export async function POST(request: NextRequest) {
   const session = readSession(request);
   if (!session) return NextResponse.json({ code: "unauthenticated" }, { status: 401 });
   const { code } = (await request.json().catch(() => ({}))) as { code?: string };
-  return jsonResponse(await identity(session.accessToken).POST("/auth/mfa/enroll/confirm", { body: { code: code ?? "" } }));
+  const result = await identity(session.accessToken).POST("/auth/mfa/enrollment/confirm", { body: { code: code ?? "" } });
+  return jsonResponse({ ...result, data: result.data && { recoveryCodes: result.data } });
 }

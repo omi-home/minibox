@@ -15,11 +15,10 @@
   <!-- Service đặt <MiniboxService>order</MiniboxService> ở project Api → nhúng database/schemas/<svc>/scripts/{pre-deployment,migrations,post-deployment}/*.sql
        với LogicalName scripts/<nhóm>/<file>.sql cho DbMigrator (spec §4.4). File trạng thái đích (tables/, views/...) không nhúng.
        <MiniboxScripts> đổi thư mục scripts (template build tại chỗ).
-       Item được đánh giá sau property nên đọc được giá trị của csproj.
-       Link gom file vào thư mục ảo Database/ trong Solution Explorer; file thật vẫn ở database/schemas/<svc>/. -->
+       Item được đánh giá sau property nên đọc được giá trị của csproj. -->
   <ItemGroup Condition="'$(MiniboxService)' != ''">
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" Link="Database/pre-deployment/%(Filename)%(Extension)" />
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" Link="Database/migrations/%(Filename)%(Extension)" />
-    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" Link="Database/post-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/pre-deployment/*.sql" LogicalName="scripts/pre-deployment/%(Filename)%(Extension)" Link="scripts/pre-deployment/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/migrations/*.sql" LogicalName="scripts/migrations/%(Filename)%(Extension)" Link="scripts/migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$([MSBuild]::ValueOrDefault('$(MiniboxScripts)', '$(MSBuildThisFileDirectory)../../database/schemas/$(MiniboxService)/scripts'))/post-deployment/*.sql" LogicalName="scripts/post-deployment/%(Filename)%(Extension)" Link="scripts/post-deployment/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

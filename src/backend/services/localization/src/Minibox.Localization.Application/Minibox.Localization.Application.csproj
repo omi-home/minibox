@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Minibox.Localization.Domain/Minibox.Localization.Domain.csproj" />
+    <ProjectReference Include="../../../../building-blocks/src/Minibox.BuildingBlocks.Application/Minibox.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -208,7 +208,7 @@ src/backend/services/<svc>/
   tests/{UnitTests, IntegrationTests, ArchitectureTests}/
 ```
 
-Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới: 5 project + 3 project test, `DbContext`/`Configurations/`/repository EF/read service LINQ mẫu (`Sample`), và `database/schemas/<svc>/` kiểu SSDT với migration mẫu.
+Service khác chỉ được tham chiếu `*.Contracts`. `ArchitectureTests` (NetArchTest) kiểm luật phụ thuộc giữa layer và giữa service; vi phạm làm CI fail. Template `dotnet new minibox-service` (trong `src/backend/templates/`) sinh đủ khung cho service mới theo §5.2: 5 project + 3 project test, mẫu `Sample` đi trọn đường (endpoint ở `Api/Endpoints/` → command/query qua pipeline Mediator đủ behavior §5.4 → handler ở `Application/Features/` → repository EF/read service LINQ ở `Infrastructure/Persistence/`), Wolverine outbox, và `database/schemas/<svc>/` kiểu SSDT với migration mẫu + bảng `audit_log`, `idempotency_key`, outbox Wolverine. `ArchitectureTests` gọi `DependencyRules` (phụ thuộc giữa layer/service) và `StructureRules` (cấu trúc trong layer §5.2).
 
 ### 5.2 Bên trong layer
 
@@ -261,7 +261,7 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
 
 ### 6.4 Design system (`packages/ui`)
 
-- Token CSS variables (màu, chữ, khoảng cách, bo góc, độ sâu/bóng) với Tailwind CSS v4 và primitive Radix. Bảng màu/font tạm, chờ OPEN-08.
+- Token CSS variables (màu, chữ, khoảng cách, bo góc, độ sâu/bóng) với Tailwind CSS v4 và primitive Radix. Bộ nhận diện "Rừng sâu" (OPEN-08 đã chốt): xanh rừng + xương lạnh, tiêu đề Space Grotesk, chữ thường Be Vietnam Pro, mono JetBrains Mono, logo khối chữ M "Minibox.vn". Quy tắc dùng: `docs/design-system.md`.
 - Breakpoint: mobile < 640, tablet 640–1023, laptop 1024–1535, desktop lớn ≥ 1536; giới hạn độ dài dòng ~75 ký tự. Mobile có điều hướng dưới, safe area, sheet cho biến thể/bộ lọc (BRD §5.2).
 - Không dùng Storybook; mỗi app có route `/design` làm trang demo component và responsive.
 - 3D: three.js qua react-three-fiber, tải lười, chỉ ở trang chủ, bộ sưu tập và viewer sản phẩm; luôn có ảnh/video dự phòng; lỗi 3D không chặn mua hàng (BRD §5.1). Cảnh 3D thật ở M6.
@@ -293,7 +293,7 @@ Domain riêng, `noindex`. Menu ba vùng theo BRD §13, lọc theo `perms` (chỉ
   - `hreflang` cho mọi locale đã xuất bản + `x-default` (trỏ bản `vi`); `canonical` tự trỏ chính nó theo locale. Chỉ locale có bản dịch đã xuất bản vào `hreflang`/sitemap; trang đang hiển thị fallback đặt `noindex`.
   - Sitemap theo locale kèm `xhtml:link` alternate; `og:locale`/`og:locale:alternate`; JSON-LD (Product, Article, BreadcrumbList) dịch theo locale, `priceCurrency` VND.
   - Test tự động: hreflang hai chiều, canonical, sitemap hợp lệ, `noindex` trang fallback; ngưỡng LCP/INP/CLS của shop (§10) giữ nguyên.
-- **Mốc**: M0 hạ tầng locale/timezone/currency + chuỗi UI từ DB cho shop/admin; M1 dịch nội dung `catalog`; M6 bài viết/banner/menu (`content`).
+- **Mốc**: M0 hạ tầng locale/timezone/currency + chuỗi UI từ DB cho shop/admin + tùy chọn locale/múi giờ của tài khoản (`identity`, `GET|PUT /me/preferences`) và `GET /currencies` (tỷ giá hiện hành); M1 dịch nội dung `catalog`; M6 bài viết/banner/menu (`content`).
 
 ## 7. File, tìm kiếm, tích hợp ngoài
 

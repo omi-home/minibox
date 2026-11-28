@@ -1,59 +1,39 @@
-using Minibox.Identity.Domain.Accounts;
-using Minibox.Identity.Infrastructure;
-using Minibox.Identity.Infrastructure.Accounts;
-using Minibox.Identity.Infrastructure.Tokens;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Minibox.BuildingBlocks.Domain;
+using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Application.Features.Sessions;
+using Minibox.Identity.Application.Features.Sessions.Commands.RefreshSession;
 using Npgsql;
-using Testcontainers.PostgreSql;
 
 namespace Minibox.Identity.IntegrationTests;
 
 /// <summary>Mô hình quyền/vai trò/phân công phạm vi và seed vai trò mẫu sau khi migrate (spec §3.6, BRD §3).</summary>
-[Collection(MigrateCollection.Name)]
 public sealed class PermissionModelTests : IAsyncLifetime
 {
-    readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
     readonly Guid _staff = Guid.CreateVersion7();
-    NpgsqlDataSource _db = null!;
+    IdentityHost _host = null!;
+    WebApplicationFactory<Program> _api = null!;
 
     static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public async ValueTask InitializeAsync()
     {
-        await _pg.StartAsync(Ct);
-        // Superuser của container tạm chỉ dùng trong test; môi trường thật dùng role identity_app.
-        _db = NpgsqlDataSource.Create(_pg.GetConnectionString() + ";Search Path=identity");
-        await Exec("CREATE SCHEMA identity; CREATE ROLE identity_app");
-        Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, _pg.GetConnectionString() + ";Search Path=identity");
-        try
-        {
-            Assert.Equal(0, (int)typeof(Program).Assembly.EntryPoint!.Invoke(null, [new[] { "--migrate" }])!);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
-        }
+        _host = await IdentityHost.StartAsync();
         await Exec($"INSERT INTO account (id, kind, email) VALUES ('{_staff}', 'staff', 'kho@minibox.vn')");
+        _api = _host.CreateApi();
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await _db.DisposeAsync();
-        await _pg.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => _host.DisposeAsync();
 
-    async Task Exec(string sql)
-    {
-        await using var cmd = _db.CreateCommand(sql);
-        await cmd.ExecuteNonQueryAsync(Ct);
-    }
+    Task Exec(string sql) => _host.Exec(sql);
 
-    async Task<List<string>> Strings(string sql)
+    Task<List<string>> Strings(string sql) => _host.Strings(sql);
+
+    async Task<IReadOnlyDictionary<string, IReadOnlyCollection<string>>> PermissionsOf(Guid account)
     {
-        await using var cmd = _db.CreateCommand(sql);
-        await using var reader = await cmd.ExecuteReaderAsync(Ct);
-        var result = new List<string>();
-        while (await reader.ReadAsync(Ct)) result.Add(reader.GetString(0));
-        return result;
+        await using var scope = _api.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IPermissionReadService>().ForAccountAsync(account, Ct);
     }
 
     [Fact(DisplayName = "ac203_6: seed đủ 11 vai trò mẫu theo BRD §3")]
@@ -104,10 +84,7 @@ public sealed class PermissionModelTests : IAsyncLifetime
                 Exec($"INSERT INTO role_assignment (account_id, role_id, scope) SELECT '{_staff}', id, '{bad}' FROM role WHERE code = 'qc'"));
     }
 
-    sealed class FixedTime : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow;
-    }
+    Task<Result<TokenResponse>> Rotate(string token) => IdentityHost.Send<Result<TokenResponse>>(_api, new RefreshSession(token));
 
     async Task<Guid> NewStaff(string email)
     {
@@ -131,7 +108,7 @@ public sealed class PermissionModelTests : IAsyncLifetime
         var other = await NewStaff("khac@minibox.vn");
         await Assign(other, "finance", "*");
 
-        var perms = await new PostgresPermissions(IdentityDbContext.Factory(_db)).ForAccountAsync(_staff, Ct);
+        var perms = await PermissionsOf(_staff);
 
         async Task<List<string>> Of(string role) =>
             await Strings($"SELECT permission_code FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}' ORDER BY permission_code COLLATE \"C\"");
@@ -140,21 +117,20 @@ public sealed class PermissionModelTests : IAsyncLifetime
         Assert.Equal(await Of("warehouse"), perms["wh:2"]);
         Assert.Equal(await Of("production"), perms["farm:3"]);
         Assert.Equal(await Of("content"), perms["*"]);
-        Assert.Empty(await new PostgresPermissions(IdentityDbContext.Factory(_db)).ForAccountAsync(Guid.CreateVersion7(), Ct));
+        Assert.Empty(await PermissionsOf(Guid.CreateVersion7()));
     }
 
     [Fact(DisplayName = "ac203_4: thêm/sửa/xóa phân công hoặc đổi quyền của vai trò thu hồi refresh token của người bị ảnh hưởng")]
     public async Task ac203_4_permission_change_revokes_refresh_tokens()
     {
-        var tokens = new PostgresRefreshTokens(IdentityDbContext.Factory(_db), new FixedTime());
         var bystander = await NewStaff("ngoai@minibox.vn");
-        var bystanderSession = await tokens.IssueAsync(bystander, AccountKind.Staff, ["pwd", "mfa"], Ct);
+        var bystanderSession = await IdentityHost.OpenSession(_api, bystander, "pwd", "mfa");
 
         async Task AssertRevoked(Func<Task> change)
         {
-            var session = await tokens.IssueAsync(_staff, AccountKind.Staff, ["pwd", "mfa"], Ct);
+            var session = await IdentityHost.OpenSession(_api, _staff, "pwd", "mfa");
             await change();
-            Assert.False((await tokens.RotateAsync(session.Token, Ct)).IsSuccess);
+            Assert.False((await Rotate(session.RefreshToken)).IsSuccess);
         }
 
         await AssertRevoked(() => Assign(_staff, "warehouse", "wh:1"));
@@ -163,6 +139,6 @@ public sealed class PermissionModelTests : IAsyncLifetime
         await AssertRevoked(() => Exec("DELETE FROM role_permission WHERE permission_code = 'inventory.issue.create' AND role_id = (SELECT id FROM role WHERE code = 'warehouse')"));
         await AssertRevoked(() => Exec($"DELETE FROM role_assignment WHERE account_id = '{_staff}'"));
 
-        Assert.True((await tokens.RotateAsync(bystanderSession.Token, Ct)).IsSuccess); // người không bị đổi quyền giữ phiên
+        Assert.True((await Rotate(bystanderSession.RefreshToken)).IsSuccess); // người không bị đổi quyền giữ phiên
     }
 }

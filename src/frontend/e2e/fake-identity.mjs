@@ -1,5 +1,5 @@
 // Identity giả cho e2e admin: cùng hợp đồng HTTP với contracts/openapi/identity.json (/auth/*), dữ liệu trong bộ nhớ.
-// ponytail: thay bằng identity thật khi compose dev chạy được backend (#424); hành vi thật đã có AuthApiTests phía .NET.
+// ponytail: thay bằng identity thật khi e2e chạy trên stack Compose (#219); hành vi thật đã có AuthApiTests ac208_1 phía .NET.
 import { randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { base32, totp } from "./totp.mjs";
@@ -37,17 +37,17 @@ const routes = {
     const a = accounts[String(b.identifier).toLowerCase()];
     return a && b.password === PASSWORD ? [200, tokens(a, ["pwd"])] : [400, { code: "Identity.InvalidCredentials" }];
   },
-  "/auth/mfa/enroll": (_, a) => {
+  "/auth/mfa/enrollment": (_, a) => {
     if (a.confirmed) return [400, { code: "Identity.MfaAlreadyEnrolled" }];
     a.secret = base32(randomBytes(20));
     return [200, { secret: a.secret, otpauthUri: `otpauth://totp/Minibox:x?secret=${a.secret}&issuer=Minibox` }];
   },
-  "/auth/mfa/enroll/confirm": (b, a) => {
+  "/auth/mfa/enrollment/confirm": (b, a) => {
     if (!a.secret || a.confirmed) return [400, { code: "Identity.MfaNotEnrolled" }];
     const step = matchStep(a, b.code);
     if (step === undefined) return [400, { code: "Identity.InvalidMfaCode" }];
     Object.assign(a, { confirmed: true, lastStep: step, recovery: Array.from({ length: 10 }, () => randomBytes(5).toString("hex")) });
-    return [200, { recoveryCodes: [...a.recovery] }];
+    return [200, [...a.recovery]];
   },
   "/auth/mfa/verify": (b, a) => {
     if (!a.confirmed) return [400, { code: "Identity.MfaNotEnrolled" }];
@@ -70,7 +70,7 @@ const routes = {
     return [204];
   },
 };
-const needsBearer = new Set(["/auth/mfa/enroll", "/auth/mfa/enroll/confirm", "/auth/mfa/verify"]);
+const needsBearer = new Set(["/auth/mfa/enrollment", "/auth/mfa/enrollment/confirm", "/auth/mfa/verify"]);
 
 createServer(async (req, res) => {
   let raw = "";

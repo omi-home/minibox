@@ -8,7 +8,7 @@
   "identity": "Minibox.Templates.Service",
   "name": "Minibox service",
   "shortName": "minibox-service",
-  "description": "Khung service Clean Architecture (spec §5.1) + database/schemas/<svc>/ kiểu SSDT (spec §4.4). Chạy trong src/backend: dotnet new minibox-service -n Order -o services/order",
+  "description": "Khung service Clean Architecture (spec §5.1–§5.4: Endpoints → Mediator pipeline → Features, Wolverine outbox) + database/schemas/<svc>/ kiểu SSDT (spec §4.4). Chạy trong src/backend: dotnet new minibox-service -n Order -o services/order",
   "tags": {
     "language": "C#",
     "type": "project"

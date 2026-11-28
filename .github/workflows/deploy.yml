@@ -1,0 +1,99 @@
+# Deploy (spec §8.3): merge develop → build image một lần, tag theo commit, đẩy GHCR → deploy staging.
+# Release lên main (PR develop→main, merge commit) → deploy production đúng commit develop đã chạy staging (parent thứ hai của
+# merge commit), sau khi owner duyệt Environment `production`. deploy.sh trên homeserver kiểm tag + digest khớp staging.
+# Secret deploy (Tailscale, SSH) đặt trong Environment staging/production, không ở cấp repo. Cấu hình một lần: docs/deploy.md.
+name: deploy
+on:
+  push:
+    branches: [develop, main]
+permissions:
+  contents: read
+env:
+  REGISTRY: ghcr.io/omi-home/minibox
+jobs:
+  build:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { name: backend-identity, file: src/backend/Dockerfile, args: "SERVICE=identity\nPROJECT=Identity" }
+          - { name: backend-localization, file: src/backend/Dockerfile, args: "SERVICE=localization\nPROJECT=Localization" }
+          - { name: frontend-admin, file: src/frontend/Dockerfile, args: "APP=admin" }
+          - { name: frontend-shop, file: src/frontend/Dockerfile, args: "APP=shop" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.args }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/develop'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    concurrency: { group: deploy-staging, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+      # Vào tailnet bằng node tạm thời (OAuth client, tag:ci), SSH bằng khoá deploy; host key ghim trong biến DEPLOY_KNOWN_HOSTS.
+      - uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # Repo trên homeserver ở /srv/minibox/repo: checkout đúng commit (compose/script khớp image) rồi chạy deploy.sh.
+      - run: ssh -i ~/.ssh/id_deploy "${{ vars.DEPLOY_SSH_TARGET }}" "cd /srv/minibox/repo && git fetch -q origin ${{ github.sha }} && git checkout -q --detach ${{ github.sha }} && deploy/deploy.sh staging ${{ github.sha }}"
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Required reviewers (owner org) đặt ở Settings → Environments → production; job chờ duyệt trước khi chạy.
+    environment: production
+    concurrency: { group: deploy-production, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: staged
+        # Merge commit của PR develop→main: parent thứ hai là commit develop đã build và chạy staging.
+        run: echo "sha=$(git rev-parse --verify HEAD^2)" >> "$GITHUB_OUTPUT"
+      # Vào tailnet bằng node tạm thời (OAuth client, tag:ci), SSH bằng khoá deploy; host key ghim trong biến DEPLOY_KNOWN_HOSTS.
+      - uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # Repo trên homeserver ở /srv/minibox/repo: checkout đúng commit (compose/script khớp image) rồi chạy deploy.sh.
+      - run: ssh -i ~/.ssh/id_deploy "${{ vars.DEPLOY_SSH_TARGET }}" "cd /srv/minibox/repo && git fetch -q origin ${{ steps.staged.outputs.sha }} && git checkout -q --detach ${{ steps.staged.outputs.sha }} && deploy/deploy.sh production ${{ steps.staged.outputs.sha }}"

@@ -148,10 +148,10 @@ test("ac208_1 đăng ký MFA: BFF chuyển secret và mã khôi phục từ iden
   expect(begun.status).toBe(200);
   expect(await begun.json()).toEqual({ secret: "ABC", otpauthUri: "otpauth://totp/Minibox:an?secret=ABC" });
   expect(begun.headers.get("cache-control")).toBe("no-store");
-  expect(call(0).url).toBe("http://identity:8080/auth/mfa/enroll");
+  expect(call(0).url).toBe("http://identity:8080/auth/mfa/enrollment");
   expect(call(0).headers.get("authorization")).toBe("Bearer access-pwd");
 
-  fetchMock.mockResolvedValueOnce(Response.json({ recoveryCodes: ["a-b", "c-d"] }));
+  fetchMock.mockResolvedValueOnce(Response.json(["a-b", "c-d"]));
   const confirmed = await confirmEnroll(request("/api/auth/mfa/enroll/confirm", { body: { code: "123456" }, session: pwd }));
   expect(await confirmed.json()).toEqual({ recoveryCodes: ["a-b", "c-d"] });
   expect(await call(1).json()).toEqual({ code: "123456" });

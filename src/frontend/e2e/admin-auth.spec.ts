@@ -1,11 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
+import { APPS } from "../playwright.config";
 import { totp } from "./totp.mjs";
 
 const PASSWORD = "Mat-khau-du-dai-1";
 const step = () => Math.floor(Date.now() / 30_000);
 
 const login = async (page: Page, identifier: string, password = PASSWORD) => {
-  await page.goto("/");
+  await page.goto(`${APPS.admin}/`);
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Email hoặc tên đăng nhập").fill(identifier);
   await page.getByLabel("Mật khẩu").fill(password);
@@ -41,7 +42,7 @@ test("ac208_1 nhân viên mới: đăng nhập → đăng ký MFA → lưu mã k
   await page.getByLabel(/Mã xác thực/).fill(code);
   await page.getByRole("button", { name: "Xác minh" }).click();
 
-  await expect(page.getByRole("heading", { name: "Bảng điều khiển" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tổng quan" })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
 
   const cookies = await context.cookies();
@@ -57,7 +58,7 @@ test("ac208_1 nhân viên đã bật MFA: đăng nhập → mã TOTP → bảng 
   await expect(page.getByRole("heading", { name: "Xác thực hai lớp" })).toBeVisible();
   await page.getByRole("button", { name: "Thiết lập ứng dụng xác thực" }).click();
   await expect(page.getByText(/đã bật xác thực hai lớp/)).toBeVisible();
-  await page.goto("/");
+  await page.goto(`${APPS.admin}/`);
   await expect(page).toHaveURL(/\/mfa$/);
 
   await page.getByLabel(/Mã xác thực/).fill("000000");
@@ -66,13 +67,14 @@ test("ac208_1 nhân viên đã bật MFA: đăng nhập → mã TOTP → bảng 
 
   await page.getByLabel(/Mã xác thực/).fill(totp("JBSWY3DPEHPK3PXP", step()));
   await page.getByRole("button", { name: "Xác minh" }).click();
-  await expect(page.getByRole("heading", { name: "Bảng điều khiển" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tổng quan" })).toBeVisible();
 
-  await page.goto("/login");
+  await page.goto(`${APPS.admin}/login`);
   await expect(page).toHaveURL(/\/$/);
-  await page.getByRole("button", { name: "Đăng xuất" }).click();
+  await page.getByRole("button", { name: /^Tài khoản/ }).click();
+  await page.getByRole("menuitem", { name: "Đăng xuất" }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/");
+  await page.goto(`${APPS.admin}/`);
   await expect(page).toHaveURL(/\/login$/);
 });
 

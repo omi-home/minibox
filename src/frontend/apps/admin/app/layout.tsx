@@ -1,13 +1,15 @@
+import { Toaster } from "@minibox/ui";
+import { fontVariables } from "@minibox/ui/fonts";
 import type { Metadata, Viewport } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
+import { cookies } from "next/headers";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
+import { requestLocale } from "../lib/i18n";
+import { THEME_COOKIE, themeOf } from "../lib/menu";
 import "./globals.css";
 import { StepUpProvider } from "./step-up";
 
-/** Font thương hiệu (tạm, OPEN-08) như app shop: next/font tự host, không gọi Google Fonts lúc chạy. */
-const brand = Be_Vietnam_Pro({ subsets: ["vietnamese", "latin"], weight: ["400", "500", "600", "700"], variable: "--font-brand", display: "swap" });
-
-/** Viewport phủ tai thỏ/thanh home cho component dùng env(safe-area-inset-*). */
+/** Viewport phủ cả tai thỏ/thanh home để component dùng env(safe-area-inset-*). */
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 /** Metadata mặc định của app quản trị cho nhân viên; chặn bot index. */
@@ -17,16 +19,21 @@ export const metadata: Metadata = {
 };
 
 /**
- * Layout gốc của app admin: khung HTML tiếng Việt bao mọi trang.
+ * Layout gốc của app admin: khung HTML theo locale của request bao mọi trang, gắn biến font tự host.
  *
  * @param props - Thuộc tính layout; `children` là nội dung trang hiện tại.
  * @returns Khung HTML của trang.
+ * @remarks Mọi trang render động để Next gắn nonce CSP của request (proxy.ts) vào script; trang tĩnh build sẵn không có nonce.
  */
-const RootLayout = ({ children }: { children: ReactNode }) => {
+const RootLayout = async ({ children }: { children: ReactNode }) => {
+  await connection();
+  const [theme, locale] = [themeOf((await cookies()).get(THEME_COOKIE)?.value), await requestLocale()];
   return (
-    <html lang="vi" className={brand.variable}>
+    // data-theme theo cookie để không nháy màu; trang /design và nút đổi giao diện đổi lại phía client nên bỏ cảnh báo lệch khi hydrate.
+    <html lang={locale} className={fontVariables} data-theme={theme === "system" ? undefined : theme} suppressHydrationWarning>
       <body>
         <StepUpProvider>{children}</StepUpProvider>
+        <Toaster />
       </body>
     </html>
   );

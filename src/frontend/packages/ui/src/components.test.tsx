@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, expect, test } from "vitest";
-import { BottomNav, Box, Button, DataTable, Input, Sheet, SheetContent, SheetTrigger } from ".";
+import { afterEach, expect, test, vi } from "vitest";
+import { BottomNav, Box, Button, CubeLoader, DataTable, Input, Sheet, SheetContent, SheetTrigger } from ".";
 
 afterEach(cleanup);
 
@@ -15,7 +15,7 @@ test("ac231_2 nút: mặc định type=button, asChild giữ phần tử con", (
   );
   expect(screen.getByRole("button", { name: "Mua" }).getAttribute("type")).toBe("button");
   const link = screen.getByRole("link", { name: "Giỏ" });
-  expect(link.className).toContain("h-11");
+  expect(link.className).toContain("h-(--control-h)");
 });
 
 test("ac231_2 ô nhập gắn nhãn, gợi ý và lỗi", () => {
@@ -30,7 +30,7 @@ test("ac231_2 ô nhập gắn nhãn, gợi ý và lỗi", () => {
 
 test("ac231_2 thẻ hộp theo tầng độ sâu", () => {
   render(<Box depth={3}>Hộp</Box>);
-  expect(screen.getByText("Hộp").className).toMatch(/rounded-lg.*shadow-box-3/);
+  expect(screen.getByText("Hộp").className).toMatch(/chamfer.*rounded-lg.*shadow-box-3/);
 });
 
 test("ac231_2 sheet mở bằng trigger, có tiêu đề và nút đóng", () => {
@@ -94,4 +94,33 @@ test("ac231_2 nút loading bị khoá và aria-busy", () => {
   const b = screen.getByRole("button", { name: "Lưu" }) as HTMLButtonElement;
   expect(b.disabled).toBe(true);
   expect(b.getAttribute("aria-busy")).toBe("true");
+});
+
+test("ac231_2 nút asChild khi loading/disabled: aria-disabled, aria-busy, chặn click và tab (finding 231.4)", () => {
+  const onClick = vi.fn();
+  render(
+    <Button asChild loading>
+      <a href="#luu" onClick={onClick}>
+        Lưu
+      </a>
+    </Button>,
+  );
+  const link = screen.getByRole("link", { name: "Lưu" });
+  expect(link.getAttribute("aria-disabled")).toBe("true");
+  expect(link.getAttribute("aria-busy")).toBe("true");
+  expect(link.getAttribute("tabindex")).toBe("-1");
+  fireEvent.click(link);
+  expect(onClick).not.toHaveBeenCalled();
+});
+
+test("ac231_2 nút loading hiện khối quay và aria-busy", () => {
+  render(<Button loading>Lưu</Button>);
+  const btn = screen.getByRole("button", { name: /Lưu/ });
+  expect(btn.getAttribute("aria-busy")).toBe("true");
+  expect(btn.querySelector("svg")).not.toBeNull();
+});
+
+test("ac231_2 khối quay CubeLoader có role status và nhãn", () => {
+  render(<CubeLoader label="Đang tải sản phẩm" />);
+  expect(screen.getByRole("status", { name: "Đang tải sản phẩm" })).toBeTruthy();
 });

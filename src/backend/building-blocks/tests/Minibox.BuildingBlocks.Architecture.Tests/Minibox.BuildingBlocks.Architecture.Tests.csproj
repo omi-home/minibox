@@ -10,6 +10,7 @@
     <ProjectReference Include="../../src/Minibox.BuildingBlocks.Architecture/Minibox.BuildingBlocks.Architecture.csproj" />
     <ProjectReference Include="../fixtures/Minibox.Bad.Domain/Minibox.Bad.Domain.csproj" />
     <ProjectReference Include="../fixtures/Minibox.Bad.Infrastructure/Minibox.Bad.Infrastructure.csproj" />
+    <ProjectReference Include="../fixtures/Minibox.Messy.Api/Minibox.Messy.Api.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

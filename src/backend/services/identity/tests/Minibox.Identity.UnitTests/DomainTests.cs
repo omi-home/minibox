@@ -1,4 +1,6 @@
-using Minibox.Identity.Domain.Accounts;
+using Minibox.Identity.Domain.Aggregates.Accounts;
+using Minibox.Identity.Domain.Aggregates.LoginThrottles;
+using Minibox.Identity.Domain.Errors;
 
 namespace Minibox.Identity.UnitTests;
 
@@ -10,7 +12,7 @@ public class DomainTests
     [InlineData("Ab1!xyz")]
     [InlineData("9chars!!X")]
     public void short_password_rejected(string password) =>
-        Assert.Equal(PasswordPolicy.TooShortCode, PasswordPolicy.Validate(password).Error.Code);
+        Assert.Equal(IdentityErrors.PasswordTooShort.Code, PasswordPolicy.Validate(password).Error.Code);
 
     [Theory(DisplayName = "Mật khẩu nằm trong danh sách phổ biến (offline, không phân biệt hoa thường) bị từ chối")]
     [InlineData("1234567890")]
@@ -18,7 +20,7 @@ public class DomainTests
     [InlineData("QWERTYUIOP")]
     [InlineData("anhyeuem123")]
     public void common_password_rejected(string password) =>
-        Assert.Equal(PasswordPolicy.CommonCode, PasswordPolicy.Validate(password).Error.Code);
+        Assert.Equal(IdentityErrors.PasswordTooCommon.Code, PasswordPolicy.Validate(password).Error.Code);
 
     [Fact(DisplayName = "Mật khẩu đủ dài và không phổ biến được chấp nhận")]
     public void strong_password_accepted() => Assert.True(PasswordPolicy.Validate("tra-sua-tran-chau-42").IsSuccess);
@@ -36,7 +38,7 @@ public class DomainTests
 
     [Fact(DisplayName = "Tài khoản phải có email hoặc username")]
     public void register_requires_login() =>
-        Assert.Equal(Account.LoginRequiredCode, Account.Register(AccountKind.Customer, null, " ", "$argon2id$hash").Error.Code);
+        Assert.Equal(IdentityErrors.LoginRequired.Code, Account.Register(AccountKind.Customer, null, " ", "$argon2id$hash").Error.Code);
 
     [Theory(DisplayName = "Email hoặc username sai định dạng bị từ chối")]
     [InlineData("khong-co-a-cong", null)]

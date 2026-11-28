@@ -29,12 +29,24 @@ public sealed class CreateItemHandler(Log log) : ICommandHandler<CreateItem, Gui
         {
             "boom" => throw new InvalidOperationException("lỗi sau khi ghi"),
             "reject" => ValueTask.FromResult<Result<Guid>>(Error.Failure("Item.Rejected", "từ chối")),
+            "reject-keep" => ValueTask.FromResult<Result<Guid>>(Error.Failure("Item.Throttled", "khoá tạm").WithCommit()),
             _ => ValueTask.FromResult<Result<Guid>>(Guid.NewGuid()),
         };
     }
 }
 
 public sealed record DeleteItem(Guid Id) : ICommand;
+
+public sealed record CountFailure(string Name) : ICommand;
+
+public sealed class CountFailureHandler(Log log) : ICommandHandler<CountFailure>
+{
+    public ValueTask<Result> Handle(CountFailure command, CancellationToken cancellationToken)
+    {
+        log.Add("handler");
+        return ValueTask.FromResult<Result>(Error.Failure("Item.Throttled", "khoá tạm").WithCommit());
+    }
+}
 
 public sealed class DeleteItemHandler(Log log) : ICommandHandler<DeleteItem>
 {
@@ -159,6 +171,23 @@ public sealed class PipelineTests
         var result = await Send(new CreateItem("reject"));
 
         Assert.Equal("Item.Rejected", result.Error.Code);
+        Assert.Equal(["begin", "handler", "rollback"], _log);
+    }
+
+    [Fact(DisplayName = "Lỗi WithCommit → commit thay đổi (bộ đếm sai, thu hồi phiên) rồi vẫn trả lỗi")]
+    public async Task failure_with_commit_commits()
+    {
+        var result = await Send(new CountFailure("x"));
+
+        Assert.Equal("Item.Throttled", result.Error.Code);
+        Assert.True(result.Error.CommitChanges);
+        Assert.Equal(["begin", "handler", "commit"], _log);
+    }
+
+    [Fact(DisplayName = "Lệnh idempotent trả lỗi WithCommit vẫn rollback (không giữ khoá idempotency chưa hoàn tất)")]
+    public async Task idempotent_failure_with_commit_rolls_back()
+    {
+        Assert.Equal("Item.Throttled", (await Send(new CreateItem("reject-keep"))).Error.Code);
         Assert.Equal(["begin", "handler", "rollback"], _log);
     }
 

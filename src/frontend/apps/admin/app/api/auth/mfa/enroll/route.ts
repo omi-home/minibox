@@ -13,5 +13,5 @@ export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) return NextResponse.json({ code: "bad_origin" }, { status: 403 });
   const session = readSession(request);
   if (!session) return NextResponse.json({ code: "unauthenticated" }, { status: 401 });
-  return jsonResponse(await identity(session.accessToken).POST("/auth/mfa/enroll"));
+  return jsonResponse(await identity(session.accessToken).POST("/auth/mfa/enrollment"));
 }

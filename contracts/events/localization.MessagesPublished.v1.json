@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minibox.vn/contracts/events/localization.MessagesPublished.v1.json",
+  "title": "localization.MessagesPublished.v1",
+  "description": "Chuỗi giao diện của (locale, namespace) vừa được xuất bản. BFF làm mới cache namespace đó cho locale này và các locale rơi về nó. Không mang nội dung chuỗi: nạp lại qua GET /messages/{locale}/{namespace}.",
+  "type": "object",
+  "required": ["locale", "namespace", "keys"],
+  "additionalProperties": false,
+  "properties": {
+    "locale": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$", "description": "Mã locale BCP 47." },
+    "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,63}$", "description": "Nhóm chuỗi (shop, admin, common…)." },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,200}$" },
+      "description": "Các key vừa xuất bản."
+    }
+  }
+}

@@ -41,6 +41,8 @@ public static class DbMigrator
             .WithScriptsEmbeddedInAssembly(scripts, Under(PostDeploymentPrefix), new SqlScriptOptions { ScriptType = ScriptType.RunAlways, RunGroupOrder = 3 })
             .JournalToPostgresqlTable(schema, "schema_versions")
             .WithTransactionPerScript()
+            // Không dùng biến $name$ của DbUp: chúng nuốt dollar-quote của PostgreSQL ($body$, $tran$ trong DDL Wolverine).
+            .WithVariablesDisabled()
             .LogToConsole()
             .Build()
             .PerformUpgrade();

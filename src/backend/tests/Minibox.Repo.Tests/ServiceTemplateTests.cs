@@ -21,8 +21,8 @@ public class ServiceTemplateTests
         Assert.True(p.ExitCode == 0, $"dotnet {string.Join(' ', args)} → {p.ExitCode}\n{stdout.Result}\n{stderr.Result}");
     }
 
-    [Fact(DisplayName = "ac174_5 ac193_3 dotnet new minibox-service -n Demo sinh 5 project + 3 project test, build và test pass")]
-    public void ac174_5_ac193_3_template_generates_buildable_service()
+    [Fact(DisplayName = "ac174_5 ac193_3 ac455_1 dotnet new minibox-service -n Demo sinh 5 project + 3 project test theo khung §5.2, build và test pass")]
+    public void ac174_5_ac193_3_ac455_1_template_generates_buildable_service()
     {
         var hive = Directory.CreateTempSubdirectory("minibox-hive").FullName; // không đụng danh sách template của máy
         var repo = Directory.CreateTempSubdirectory("minibox-template").FullName;
@@ -38,6 +38,23 @@ public class ServiceTemplateTests
                 new[] { "Api", "Application", "ArchitectureTests", "Contracts", "Domain", "Infrastructure", "IntegrationTests", "UnitTests" }
                     .Select(n => $"Minibox.Demo.{n}"),
                 projects);
+
+            // Khung bên trong layer spec §5.2 + migration hạ tầng (audit, Idempotency-Key, outbox Wolverine) cho pipeline Mediator.
+            foreach (var path in new[]
+            {
+                "src/Minibox.Demo.Domain/Aggregates/Samples/Sample.cs",
+                "src/Minibox.Demo.Domain/Errors/SampleErrors.cs",
+                "src/Minibox.Demo.Application/Abstractions/ISampleReadService.cs",
+                "src/Minibox.Demo.Application/Features/Samples/Commands/CreateSample/CreateSample.cs",
+                "src/Minibox.Demo.Application/Features/Samples/Queries/ListSamples/ListSamples.cs",
+                "src/Minibox.Demo.Infrastructure/Persistence/Configurations/SampleConfiguration.cs",
+                "src/Minibox.Demo.Api/Endpoints/Samples/SampleEndpoints.cs",
+                "tests/Minibox.Demo.ArchitectureTests/StructureRulesTests.cs",
+                "../../../../database/schemas/demo/scripts/migrations/0002_audit-log.sql",
+                "../../../../database/schemas/demo/scripts/migrations/0003_idempotency-key.sql",
+                "../../../../database/schemas/demo/scripts/migrations/0004_wolverine.sql",
+            })
+                Assert.True(File.Exists(Path.Combine(outDir, path)), $"Thiếu {path}");
 
             Run(outDir, "new", "sln", "-n", "Demo", "--format", "slnx");
             Run(outDir, ["sln", "Demo.slnx", "add", .. Directory.GetFiles(outDir, "*.csproj", SearchOption.AllDirectories)]);

@@ -1,5 +1,5 @@
-using Minibox.Identity.Application.Accounts;
-using Minibox.Identity.Infrastructure.Accounts;
+using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Infrastructure.Security;
 
 namespace Minibox.Identity.UnitTests;
 

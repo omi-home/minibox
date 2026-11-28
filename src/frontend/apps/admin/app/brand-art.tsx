@@ -1,4 +1,4 @@
-// Minh họa panel thương hiệu: khối hộp isometric xếp chồng (SVG thuần, màu theo currentColor), thay ảnh khi có bộ nhận diện (#448).
+// Minh họa panel thương hiệu (#448): khối hộp isometric xếp chồng như hộp Minibox, SVG thuần màu theo currentColor trên mảng bg-brand.
 
 const K = Math.sqrt(3) / 2;
 
@@ -39,13 +39,13 @@ const cubes = [
 ];
 
 /**
- * Nền panel thương hiệu: chuyển màu primary, lưới chấm và chồng hộp isometric; thuần trang trí (ẩn với trình đọc màn hình).
+ * Nền panel thương hiệu: mảng xanh rừng `bg-brand` có quầng hổ phách, lưới chấm và chồng hộp isometric; thuần trang trí (ẩn với trình đọc màn hình).
  *
  * @returns Lớp nền tuyệt đối phủ panel.
  */
 export const BrandArt = () => (
   <div aria-hidden className="pointer-events-none absolute inset-0">
-    <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_0%_0%,color-mix(in_oklch,var(--color-primary)_70%,white)_0%,transparent_55%),linear-gradient(160deg,var(--color-primary)_0%,var(--color-primary-edge)_100%)]" />
+    <div className="absolute inset-0 bg-brand bg-[radial-gradient(90%_70%_at_100%_0%,color-mix(in_oklch,var(--color-highlight)_22%,transparent)_0%,transparent_60%),linear-gradient(160deg,var(--color-brand-active)_0%,var(--color-brand)_70%)]" />
     <div className="absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1.5px)] bg-size-[22px_22px] opacity-[0.12] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]" />
     <svg viewBox="40 40 520 340" className="absolute top-[10%] right-[-6%] w-[85%] max-w-none">
       {cubes.map((c, i) => (

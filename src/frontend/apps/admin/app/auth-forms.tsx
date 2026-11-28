@@ -7,13 +7,11 @@ import {
   FactoryIcon,
   KeyIcon,
   LockKeyIcon,
-  PackageIcon,
   ReceiptIcon,
   ShieldCheckIcon,
-  SignOutIcon,
   WarehouseIcon,
 } from "@phosphor-icons/react";
-import { Box, Button, Checkbox, Input } from "@minibox/ui";
+import { Button, Checkbox, Input, Logo } from "@minibox/ui";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { type FormEvent, type ReactNode, useState } from "react";
@@ -55,24 +53,6 @@ export const postJson = async <T = Record<string, unknown>,>(url: string, body: 
   return { ok: res.ok, data };
 };
 
-/** Logo chữ của app admin: khối hộp + tên. */
-const Brand = ({ inverted }: { inverted?: boolean }) => (
-  <div className="flex items-center gap-2.5">
-    <span
-      className={
-        inverted
-          ? "grid size-10 place-items-center rounded-box bg-primary-foreground text-primary shadow-box-1"
-          : "grid size-10 place-items-center rounded-box bg-primary text-primary-foreground shadow-key [--key-edge:var(--color-primary-edge)]"
-      }
-    >
-      <PackageIcon aria-hidden weight="fill" className="size-6" />
-    </span>
-    <span className="text-lg font-bold tracking-tight">
-      Minibox <span className="font-medium opacity-80">Admin</span>
-    </span>
-  </div>
-);
-
 /**
  * Khung màn hình xác thực: panel thương hiệu bên trái (từ 1024px), form bên phải; mobile một cột có logo trên đầu.
  *
@@ -81,24 +61,24 @@ const Brand = ({ inverted }: { inverted?: boolean }) => (
  */
 export const AuthCard = ({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) => (
   <div className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-    <aside className="relative hidden overflow-hidden p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between xl:p-16">
+    <aside className="relative hidden overflow-hidden p-12 text-brand-foreground lg:flex lg:flex-col lg:justify-between xl:p-16">
       <BrandArt />
       <div className="relative">
-        <Brand inverted />
+        <Logo tone="inverse" className="text-2xl" />
       </div>
       <div className="relative max-w-md space-y-6">
         <p className="text-4xl leading-tight font-bold tracking-tight text-balance">Quản lý kho, đơn hàng và sản xuất ở một nơi.</p>
         <ul className="space-y-3 text-sm">
           {highlights.map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-box bg-primary-foreground/15 backdrop-blur-sm">
+              <span className="grid size-8 shrink-0 place-items-center rounded-box bg-brand-foreground/12 text-highlight">
                 <Icon aria-hidden className="size-4.5" />
               </span>
               {text}
             </li>
           ))}
         </ul>
-        <p className="flex items-center gap-2 border-t border-primary-foreground/20 pt-5 text-xs opacity-80">
+        <p className="flex items-center gap-2 border-t border-brand-border pt-5 text-xs text-brand-muted">
           <LockKeyIcon aria-hidden className="size-4" />
           Chỉ dành cho nhân viên Minibox. Mọi lần đăng nhập và thao tác nhạy cảm đều được ghi nhận.
         </p>
@@ -108,7 +88,7 @@ export const AuthCard = ({ title, description, children }: { title: string; desc
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(var(--color-border)_1px,transparent_1.5px)] bg-size-[22px_22px] [mask-image:radial-gradient(60%_50%_at_50%_50%,transparent_40%,black)] lg:hidden" />
       <div className="relative w-full max-w-sm space-y-8">
         <div className="lg:hidden">
-          <Brand />
+          <Logo className="text-2xl" />
         </div>
         <header className="space-y-1.5">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
@@ -267,7 +247,7 @@ export const MfaEnroll = ({ secret, otpauthUri }: { secret: string; otpauthUri: 
         <div className="flex gap-3 rounded-box border border-warning/40 bg-warning/10 p-3 text-sm">
           <KeyIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-warning" />
           <p>
-            Mỗi mã khôi phục dùng được <strong>một lần</strong> khi mất điện thoại. Mã chỉ hiện lần này — hãy lưu ở nơi an toàn.
+            Mỗi mã khôi phục dùng được <strong>một lần</strong> khi mất điện thoại. Mã chỉ hiện lần này, hãy lưu ở nơi an toàn.
           </p>
         </div>
         <ul aria-label="Mã khôi phục" className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-box bg-surface-sunken p-4 font-mono text-sm shadow-inset">
@@ -390,54 +370,3 @@ export const MfaStep = () => {
     </div>
   );
 };
-
-/**
- * Nút đăng xuất: thu hồi phiên ở BFF rồi về trang đăng nhập.
- *
- * @returns Nút đăng xuất.
- */
-export const LogoutButton = () => {
-  const router = useRouter();
-  return (
-    <Button
-      variant="ghost"
-      onClick={async () => {
-        await postJson("/api/auth/logout");
-        router.replace("/login");
-      }}
-    >
-      <SignOutIcon aria-hidden />
-      Đăng xuất
-    </Button>
-  );
-};
-
-/**
- * Thanh trên cùng của app admin: logo và nút đăng xuất.
- *
- * @returns Header app.
- */
-export const AppHeader = () => (
-  <header className="border-b border-border bg-surface">
-    <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-      <Brand />
-      <LogoutButton />
-    </div>
-  </header>
-);
-
-/**
- * Trạng thái rỗng có biểu tượng hộp, dùng cho bảng điều khiển chưa có dữ liệu.
- *
- * @param props - `title` và `children` (mô tả).
- * @returns Hộp trạng thái rỗng.
- */
-export const EmptyState = ({ title, children }: { title: string; children: ReactNode }) => (
-  <Box className="flex flex-col items-center gap-3 py-12 text-center">
-    <span className="grid size-14 place-items-center rounded-lg bg-accent text-primary">
-      <PackageIcon aria-hidden className="size-8" />
-    </span>
-    <h2 className="text-lg font-semibold">{title}</h2>
-    <p className="max-w-sm text-sm text-muted">{children}</p>
-  </Box>
-);

@@ -41,10 +41,170 @@
         }
       }
     },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mfa/enrollment": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollment"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mfa/enrollment/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/admin/accounts/{accountId}/assignments": {
       "post": {
         "tags": [
-          "Minibox.Identity.Api"
+          "Assignments"
         ],
         "parameters": [
           {
@@ -77,7 +237,7 @@
     "/admin/accounts/{accountId}/assignments/{role}/{scope}": {
       "delete": {
         "tags": [
-          "Minibox.Identity.Api"
+          "Assignments"
         ],
         "parameters": [
           {
@@ -113,68 +273,10 @@
         }
       }
     },
-    "/auth/login": {
-      "post": {
+    "/me/preferences": {
+      "get": {
         "tags": [
-          "Minibox.Identity.Api"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/mfa/verify": {
-      "post": {
-        "tags": [
-          "Minibox.Identity.Api"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MfaVerifyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/mfa/enroll": {
-      "post": {
-        "tags": [
-          "Minibox.Identity.Api"
+          "Me"
         ],
         "responses": {
           "200": {
@@ -182,82 +284,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MfaEnrollmentResponse"
+                  "$ref": "#/components/schemas/PreferencesDto"
                 }
               }
             }
           }
         }
-      }
-    },
-    "/auth/mfa/enroll/confirm": {
-      "post": {
+      },
+      "put": {
         "tags": [
-          "Minibox.Identity.Api"
+          "Me"
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MfaCodeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RecoveryCodesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/refresh": {
-      "post": {
-        "tags": [
-          "Minibox.Identity.Api"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/logout": {
-      "post": {
-        "tags": [
-          "Minibox.Identity.Api"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshRequest"
+                "$ref": "#/components/schemas/PreferencesRequest"
               }
             }
           },
@@ -328,7 +370,7 @@
           }
         }
       },
-      "MfaCodeRequest": {
+      "MfaConfirmRequest": {
         "required": [
           "code"
         ],
@@ -339,7 +381,7 @@
           }
         }
       },
-      "MfaEnrollmentResponse": {
+      "MfaEnrollment": {
         "required": [
           "secret",
           "otpauthUri"
@@ -371,17 +413,39 @@
           }
         }
       },
-      "RecoveryCodesResponse": {
+      "PreferencesDto": {
         "required": [
-          "recoveryCodes"
+          "locale",
+          "timeZone"
         ],
         "type": "object",
         "properties": {
-          "recoveryCodes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "locale": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeZone": {
+            "type": "string"
+          }
+        }
+      },
+      "PreferencesRequest": {
+        "required": [
+          "locale",
+          "timeZone"
+        ],
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeZone": {
+            "type": "string"
           }
         }
       },
@@ -433,6 +497,15 @@
   "tags": [
     {
       "name": "Minibox.Identity.Api"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Assignments"
+    },
+    {
+      "name": "Me"
     }
   ]
 }

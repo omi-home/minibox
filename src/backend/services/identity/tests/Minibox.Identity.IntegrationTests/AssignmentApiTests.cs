@@ -1,70 +1,39 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Minibox.Identity.Application.Tokens;
-using Minibox.Identity.Domain.Accounts;
-using Minibox.Identity.Infrastructure;
-using Minibox.Identity.Infrastructure.Tokens;
-using Npgsql;
-using Testcontainers.PostgreSql;
+using Minibox.BuildingBlocks.Domain;
+using Minibox.Identity.Api.Endpoints.Assignments;
+using Minibox.Identity.Application.Abstractions;
+using Minibox.Identity.Application.Features.Assignments;
+using Minibox.Identity.Application.Features.Sessions;
+using Minibox.Identity.Application.Features.Sessions.Commands.RefreshSession;
 
 namespace Minibox.Identity.IntegrationTests;
 
 /// <summary>API quản trị phân công trên Api thật + PostgreSQL tạm, gọi bằng access token JWT thật.</summary>
-[Collection(MigrateCollection.Name)]
 public sealed class AssignmentApiTests : IAsyncLifetime
 {
-    readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
     readonly Guid _admin = Guid.CreateVersion7();
     readonly Guid _staff = Guid.CreateVersion7();
-    NpgsqlDataSource _db = null!;
+    IdentityHost _host = null!;
     WebApplicationFactory<Program> _api = null!;
 
     static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public async ValueTask InitializeAsync()
     {
-        await _pg.StartAsync(Ct);
-        // Superuser của container tạm chỉ dùng trong test; môi trường thật dùng role identity_app.
-        var conn = _pg.GetConnectionString() + ";Search Path=identity";
-        _db = NpgsqlDataSource.Create(conn);
-        await Exec("CREATE SCHEMA identity; CREATE ROLE identity_app");
-        Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, conn);
-        try
-        {
-            Assert.Equal(0, (int)typeof(Program).Assembly.EntryPoint!.Invoke(null, [new[] { "--migrate" }])!);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(Program.MigratorConnectionVariable, null);
-        }
+        _host = await IdentityHost.StartAsync();
         await Exec($"INSERT INTO account (id, kind, email) VALUES ('{_admin}', 'staff', 'admin@minibox.vn'), ('{_staff}', 'staff', 'kho@minibox.vn')");
-        _api = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
-            .UseSetting("ConnectionStrings:App", conn)
-            .UseSetting("Jwt:Issuer", "http://localhost"));
+        _api = _host.CreateApi();
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await _api.DisposeAsync();
-        await _db.DisposeAsync();
-        await _pg.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => _host.DisposeAsync();
 
-    async Task Exec(string sql)
-    {
-        await using var cmd = _db.CreateCommand(sql);
-        await cmd.ExecuteNonQueryAsync(Ct);
-    }
+    Task Exec(string sql) => _host.Exec(sql);
 
-    async Task<T> Scalar<T>(string sql)
-    {
-        await using var cmd = _db.CreateCommand(sql);
-        return (T)(await cmd.ExecuteScalarAsync(Ct))!;
-    }
+    Task<T> Scalar<T>(string sql) => _host.Scalar<T>(sql);
 
     string Token(Dictionary<string, IReadOnlyCollection<string>> perms, TimeSpan? authAge = null) =>
         _api.Services.GetRequiredService<IAccessTokenIssuer>()
@@ -74,8 +43,8 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     /// <summary>Quyền quản trị phân công + quyền của <paramref name="role"/> (mặc định owner: mọi quyền) trong <paramref name="scope"/>.</summary>
     async Task<Dictionary<string, IReadOnlyCollection<string>>> Manager(string scope, string role = "owner")
     {
-        await using var cmd = _db.CreateCommand($"SELECT array_agg(permission_code) FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}'");
-        return new() { [scope] = [.. (string[])(await cmd.ExecuteScalarAsync(Ct))!, Program.AssignmentPermission] };
+        var perms = await Scalar<string[]>($"SELECT array_agg(permission_code) FROM role_permission rp JOIN role r ON r.id = rp.role_id WHERE r.code = '{role}'");
+        return new() { [scope] = [.. perms, AssignmentAccess.ManagePermission] };
     }
 
     async Task<string> Owner(TimeSpan? authAge = null) => Token(await Manager("*"), authAge);
@@ -89,7 +58,7 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     }
 
     async Task<HttpStatusCode> Grant(string token, string role, string scope, Guid? account = null) =>
-        (await Client(token).PostAsJsonAsync($"/admin/accounts/{account ?? _staff}/assignments", new Program.AssignmentRequest(role, scope), Ct)).StatusCode;
+        (await Client(token).PostAsJsonAsync($"/admin/accounts/{account ?? _staff}/assignments", new AssignmentRequest(role, scope), Ct)).StatusCode;
 
     async Task<HttpStatusCode> Revoke(string token, string role, string scope) =>
         (await Client(token).DeleteAsync($"/admin/accounts/{_staff}/assignments/{role}/{Uri.EscapeDataString(scope)}", Ct)).StatusCode;
@@ -121,10 +90,9 @@ public sealed class AssignmentApiTests : IAsyncLifetime
     [Fact(DisplayName = "ac203_4 Gán phân công qua API thu hồi refresh token của người được gán")]
     public async Task ac203_4_grant_revokes_sessions()
     {
-        var tokens = new PostgresRefreshTokens(IdentityDbContext.Factory(_db), TimeProvider.System);
-        var session = await tokens.IssueAsync(_staff, AccountKind.Staff, ["pwd", "mfa"], Ct);
+        var session = await IdentityHost.OpenSession(_api, _staff, "pwd", "mfa");
         Assert.Equal(HttpStatusCode.NoContent, await Grant(await Owner(), "warehouse", "wh:1"));
-        Assert.False((await tokens.RotateAsync(session.Token, Ct)).IsSuccess);
+        Assert.False((await IdentityHost.Send<Result<TokenResponse>>(_api, new RefreshSession(session.RefreshToken))).IsSuccess);
     }
 
     [Fact(DisplayName = "ac203_2 ac203_3 Thiếu quyền quản trị phân công hoặc sai phạm vi kho → 403, đúng kho → 204")]
@@ -161,7 +129,7 @@ public sealed class AssignmentApiTests : IAsyncLifetime
         var anonymous = _api.CreateClient();
         anonymous.DefaultRequestHeaders.Add("Idempotency-Key", Guid.NewGuid().ToString());
         Assert.Equal(HttpStatusCode.Unauthorized,
-            (await anonymous.PostAsJsonAsync($"/admin/accounts/{_staff}/assignments", new Program.AssignmentRequest("qc", "*"), Ct)).StatusCode);
+            (await anonymous.PostAsJsonAsync($"/admin/accounts/{_staff}/assignments", new AssignmentRequest("qc", "*"), Ct)).StatusCode);
     }
 
     [Fact(DisplayName = "Phạm vi sai dạng hoặc vai trò khách cho nhân viên → 400; vai trò/tài khoản/phân công không có → 404")]

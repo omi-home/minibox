@@ -37,3 +37,20 @@ jobs:
           cache-dependency-path: src/frontend/pnpm-lock.yaml
       - run: node scripts/test.mjs
       - run: node scripts/e2e.mjs
+      # Ảnh chụp /design 4 breakpoint (bằng chứng nghiệm thu #231) và trace khi lỗi.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: src/frontend/test-results/
+          if-no-files-found: ignore
+  images:
+    # Build image app như lúc deploy (src/backend/Dockerfile, src/frontend/Dockerfile) và kiểm nội dung (#424, 220.1).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: node --test scripts/images.docker-test.mjs
