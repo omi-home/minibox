@@ -2,14 +2,18 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Minibox.BuildingBlocks.Application;
+using Minibox.BuildingBlocks.Infrastructure.Localization;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
+using Wolverine;
 using Wolverine.Persistence.Durability;
+using Wolverine.RabbitMQ;
 
 namespace Minibox.Catalog.IntegrationTests;
 
-/// <summary>Api thật trên PostgreSQL + RabbitMQ tạm: --migrate, health, bảng Wolverine khớp cấu hình.</summary>
+/// <summary>Api thật trên PostgreSQL + RabbitMQ tạm: --migrate, health, bảng Wolverine khớp cấu hình, bản sao locale.</summary>
 public sealed class ApiHostTests : IAsyncLifetime
 {
     readonly PostgreSqlContainer _pg = new PostgreSqlBuilder("postgres:18-alpine").WithDatabase("minibox").Build();
@@ -34,7 +38,10 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Equal(0, Migrate());
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseSetting("ConnectionStrings:App", Connection)
-            .UseSetting("ConnectionStrings:RabbitMq", _mq.GetConnectionString()));
+            .UseSetting("ConnectionStrings:RabbitMq", _mq.GetConnectionString())
+            // Thay localization phát sự kiện: cùng exchange fanout mà localization dùng thật.
+            .ConfigureServices(s => s.ConfigureWolverine(o => o.PublishMessage<LocaleChangedMessage>()
+                .ToRabbitExchange(LocaleReplicaSetup.LocaleChangedExchange, e => e.ExchangeType = ExchangeType.Fanout))));
     }
 
     public async ValueTask DisposeAsync()
@@ -70,5 +77,27 @@ public sealed class ApiHostTests : IAsyncLifetime
     {
         var store = (Weasel.Core.Migrations.IDatabase)_factory.Services.GetRequiredService<IMessageStore>();
         await store.AssertDatabaseMatchesConfigurationAsync(Ct);
+    }
+
+    async Task<IReadOnlyList<string>> Chain(string locale)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ILocaleReplica>().ChainAsync(locale, Ct);
+    }
+
+    [Fact(DisplayName = "#483: catalog có bản sao locale seed vi/en, cập nhật khi nhận localization.LocaleChanged.v1")]
+    public async Task locale_replica_follows_locale_changed()
+    {
+        Assert.Equal(["en", "vi"], await Chain("en"));
+        Assert.Equal(["vi"], await Chain("ja"));
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IMessageBus>().PublishAsync(new LocaleChangedMessage("ja", "日本語", true, 2, "en"));
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        IReadOnlyList<string> chain;
+        while ((chain = await Chain("ja")).Count == 1 && DateTime.UtcNow < deadline)
+            await Task.Delay(200, Ct);
+        Assert.Equal(["ja", "en", "vi"], chain);
     }
 }
