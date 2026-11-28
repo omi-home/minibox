@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Minibox.BuildingBlocks.Domain;
 using Minibox.Catalog.Domain.Errors;
 
@@ -14,7 +13,7 @@ public sealed record CategoryText(string Locale, string Name, string? Descriptio
 /// <summary>Danh mục sản phẩm nhiều cấp (bảng <c>category</c>, BRD BR-CAT-01): cây cha–con không vòng, tên/mô tả/slug theo locale
 /// ở <c>category_translation</c>, slug cũ lưu ở <c>category_slug_history</c> để redirect 301 (spec §6.6).</summary>
 /// <remarks>Kết thúc bằng xóa mềm (<see cref="ArchivedAt"/>), không xóa dòng; slug của danh mục đã xóa vẫn giữ chỗ.</remarks>
-public sealed partial class Category : AggregateRoot<Guid>
+public sealed class Category: AggregateRoot<Guid>
 {
     /// <summary>Độ dài tối đa của tên (khớp CHECK <c>category_translation.name</c>).</summary>
     public const int NameMaxLength = 200;
@@ -152,7 +151,7 @@ public sealed partial class Category : AggregateRoot<Guid>
         var clean = new List<CategoryText>(texts.Count);
         foreach (var t in texts)
         {
-            if (t is null || t.Locale is null || !LocalePattern().IsMatch(t.Locale) || t.Slug is null || !SlugPattern().IsMatch(t.Slug)
+            if (t is null || t.Locale is null || !TextRules.Locale().IsMatch(t.Locale) || t.Slug is null || !TextRules.Slug().IsMatch(t.Slug)
                 || t.Slug.Length > SlugMaxLength || string.IsNullOrWhiteSpace(t.Name) || t.Name.Trim().Length > NameMaxLength
                 || t.Description?.Length > DescriptionMaxLength || clean.Any(c => c.Locale == t.Locale))
                 return CategoryErrors.TranslationInvalid;
@@ -160,13 +159,6 @@ public sealed partial class Category : AggregateRoot<Guid>
         }
         return clean.Any(t => t.Locale == LocaleChain.Default) ? clean.ToArray() : CategoryErrors.DefaultTranslationMissing;
     }
-
-    [GeneratedRegex("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")]
-    private static partial Regex LocalePattern();
-
-    // Chữ thường/chữ không phân hoa thường (CJK…)/số, nối bằng một dấu '-'.
-    [GeneratedRegex(@"^[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Nd}]+(-[\p{Ll}\p{Lo}\p{Lm}\p{Mn}\p{Nd}]+)*$")]
-    private static partial Regex SlugPattern();
 }
 
 /// <summary>Bản dịch của danh mục ở một locale (dòng <c>category_translation</c>, khoá <c>(category_id, locale)</c>).</summary>

@@ -17,6 +17,8 @@ using Minibox.BuildingBlocks.Infrastructure.Localization;
 using Minibox.Catalog.Application;
 using Minibox.Catalog.Application.Features.Categories.Queries.GetCategoryTree;
 using Minibox.Catalog.Application.Features.Categories.Queries.ListCategoryTree;
+using Minibox.Catalog.Application.Abstractions;
+using Minibox.Catalog.Application.Features.Taxa.Queries.GetTaxa;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -231,6 +233,88 @@ public sealed class ApiHostTests : IAsyncLifetime
         Assert.Empty((await Client().GetFromJsonAsync<CategoryTreeNode[]>("/categories?locale=vi", Ct))!.Single(n => n.Id == root).Children);
         Assert.True((await Admin(child)).Archived);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/admin/categories", new { parentId = child, sortOrder = 0, translations = Texts("c5-moi") }, Ct)).StatusCode);
+    }
+
+    // ---- Bộ sưu tập và thẻ (#485) ----
+
+    static readonly string Curator = Token(CatalogPermissions.CollectionManage);
+
+    async Task<Guid> CreateTaxon(string path, string vi, string? en = null)
+    {
+        var response = await Client(Curator).PostAsJsonAsync($"/admin/{path}", new { sortOrder = 0, translations = Texts(vi, en) }, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<Guid>(Ct);
+    }
+
+    async Task<HttpStatusCode> SetTaxa(Guid product, string path, params Guid[] ids) =>
+        (await Client(Curator).PutAsJsonAsync($"/admin/products/{product}/{path}", new { ids }, Ct)).StatusCode;
+
+    async Task<long> TaxonVersion(string path, Guid id) =>
+        (await Client(Curator).GetFromJsonAsync<TaxonAdminRow[]>($"/admin/{path}", Ct))!.Single(r => r.Id == id).Version;
+
+    [Fact(DisplayName = "ac236_2: một sản phẩm thuộc nhiều bộ sưu tập và nhiều thẻ; đổi bộ sưu tập không đụng thẻ; danh mục độc lập")]
+    public async Task ac236_2_product_in_many_collections_and_tags()
+    {
+        var product = Guid.CreateVersion7();
+        var (a, b) = (await CreateTaxon("collections", "t2-qua-tang"), await CreateTaxon("collections", "t2-ban-chay"));
+        var (x, y) = (await CreateTaxon("tags", "t2-de-cham"), await CreateTaxon("tags", "t2-trong-nha"));
+        var category = await Create("t2-den");
+
+        Assert.Equal(HttpStatusCode.NoContent, await SetTaxa(product, "collections", a, b));
+        Assert.Equal(HttpStatusCode.NoContent, await SetTaxa(product, "tags", x, y, y));
+        Assert.Equal(4L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}'"));
+
+        Assert.Equal(HttpStatusCode.NoContent, await SetTaxa(product, "collections", b));
+        Assert.Equal(3L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}'"));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}' AND taxon_id = '{b}'"));
+
+        // Thẻ không gắn vào chỗ bộ sưu tập, Id danh mục không phải taxon, taxon đã xóa không gắn được: 404, dữ liệu không đổi.
+        Assert.Equal(HttpStatusCode.NotFound, await SetTaxa(product, "collections", x));
+        Assert.Equal(HttpStatusCode.NotFound, await SetTaxa(product, "collections", category));
+        Assert.Equal(HttpStatusCode.NoContent, (await Client(Curator).DeleteAsync($"/admin/collections/{a}?version={await TaxonVersion("collections", a)}", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, await SetTaxa(product, "collections", a, b));
+        Assert.Equal(3L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}'"));
+
+        Assert.Equal(HttpStatusCode.NoContent, await SetTaxa(product, "tags"));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM product_taxon WHERE product_id = '{product}'"));
+    }
+
+    [Fact(DisplayName = "ac236_4: thiếu quyền catalog.collection.manage 403 cho mọi thao tác ghi bộ sưu tập/thẻ và danh sách quản trị; 401 khi chưa đăng nhập")]
+    public async Task ac236_4_taxon_writes_require_permission()
+    {
+        var id = await CreateTaxon("collections", "t4-goc");
+        var other = Manager; // có catalog.category.manage nhưng không có catalog.collection.manage
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Client().PostAsJsonAsync("/admin/tags", new { sortOrder = 0, translations = Texts("t4-x") }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PostAsJsonAsync("/admin/tags", new { sortOrder = 0, translations = Texts("t4-x") }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PutAsJsonAsync($"/admin/collections/{id}", new { sortOrder = 0, translations = Texts("t4-y"), version = 0 }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).DeleteAsync($"/admin/collections/{id}?version=0", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).PutAsJsonAsync($"/admin/products/{Guid.CreateVersion7()}/collections", new { ids = new[] { id } }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Client(other).GetAsync("/admin/tags", Ct)).StatusCode);
+        Assert.Equal(0L, await Scalar("SELECT count(*) FROM taxon_translation WHERE slug IN ('t4-x', 't4-y')"));
+    }
+
+    [Fact(DisplayName = "Bộ sưu tập: đổi slug lưu lịch sử, slug trùng cùng locale 409 (kể cả với thẻ), sai loại 404; danh sách công khai theo locale có fallback vi, ẩn đã xóa")]
+    public async Task taxon_slug_history_and_public_list()
+    {
+        var id = await CreateTaxon("collections", "t5-qua", "t5-gifts");
+        var tag = await CreateTaxon("tags", "t5-the");
+        var client = Client(Curator);
+        var version = await TaxonVersion("collections", id);
+
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/admin/collections/{id}", new { sortOrder = 0, translations = Texts("t5-the"), version }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsJsonAsync($"/admin/tags/{id}", new { sortOrder = 0, translations = Texts("t5-z"), version }, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync($"/admin/collections/{id}", new { sortOrder = 0, translations = Texts("t5-qua-moi", "t5-gifts"), version }, Ct)).StatusCode);
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM taxon_slug_history WHERE taxon_id = '{id}' AND locale = 'vi' AND slug = 't5-qua'"));
+        Assert.Equal(1L, await Scalar($"SELECT count(*) FROM audit_log WHERE action = 'TaxonUpdated' AND aggregate_id = '{id}'"));
+
+        var en = (await Client().GetFromJsonAsync<TaxonView[]>("/collections?locale=en", Ct))!.Single(v => v.Id == id);
+        Assert.Equal(("en", "t5-gifts", "EN"), (en.Locale, en.Slug, en.Description));
+        var tagEn = (await Client().GetFromJsonAsync<TaxonView[]>("/tags?locale=en", Ct))!.Single(v => v.Id == tag);
+        Assert.Equal(("vi", "t5-the"), (tagEn.Locale, tagEn.Slug));
+        Assert.DoesNotContain((await Client().GetFromJsonAsync<TaxonView[]>("/tags", Ct))!, v => v.Id == id);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/admin/tags/{tag}?version={await TaxonVersion("tags", tag)}", Ct)).StatusCode);
+        Assert.DoesNotContain((await Client().GetFromJsonAsync<TaxonView[]>("/tags", Ct))!, v => v.Id == tag);
     }
 
     async Task<long> Scalar(string sql)

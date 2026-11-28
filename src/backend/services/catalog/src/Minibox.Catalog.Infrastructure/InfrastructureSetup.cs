@@ -19,5 +19,7 @@ public static class InfrastructureSetup
         .AddMiniboxPersistence<CatalogDbContext>(connectionString)
         .AddLocaleReplica<CatalogDbContext>()
         .AddScoped<ICategoryRepository, CategoryRepository>()
-        .AddScoped<ICategoryReadService, CategoryReadService>();
+        .AddScoped<ICategoryReadService, CategoryReadService>()
+        .AddScoped<ITaxonRepository, TaxonRepository>()
+        .AddScoped<ITaxonReadService, TaxonReadService>();
 }
