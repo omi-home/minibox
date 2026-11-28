@@ -424,12 +424,15 @@ AC thứ i của issue #p ↔ test có tên chứa chuỗi chữ thường `ac<p
 
 | Lệnh | Việc |
 |---|---|
-| `node scripts/test.mjs` | Build backend + frontend; unit, architecture, integration, database, contract, frontend. Exit ≠ 0 khi lỗi |
+| `node scripts/test.mjs [nhóm...]` | Build backend + frontend; unit, architecture, integration, database, contract, frontend. Exit ≠ 0 khi lỗi. Không tham số = nhóm `scripts` + `backend` + `frontend`; có tham số chỉ chạy nhóm đó (`scripts`, `backend` = dotnet test + hợp đồng, `frontend`, `e2e`) — mỗi job CI chạy một nhóm |
+| `node scripts/check.mjs [base]` | Check nhanh cho vòng sửa (omi `check`): lint + typecheck + test của phần đổi so với `origin/develop` (service backend → project test của service; building-blocks → cả solution; frontend → lint/typecheck/test; script/database/deploy/workflow → `node --test` tương ứng; hợp đồng → test hợp đồng). Chỉ docs/`*.md` → không chạy gì; file không phân loại được → chạy toàn bộ. `--ci` in output cho job `changes` |
 | `node scripts/accept.mjs <n>` | `dotnet test` lọc `ac<n>_` (gồm `database/tests`) + `playwright test -g "ac<n>_" --reporter=list` trong `src/frontend`, in tên test. Không có test khớp không tính là lỗi (omi phán quyết) |
 | `node scripts/e2e.mjs` | Toàn bộ Playwright (`src/frontend/e2e`) |
 | `node scripts/dev.mjs` | Compose môi trường dev |
 
-Cấu hình omi: `OMI_CLI init --repo-dir minibox --test-cmd "node scripts/test.mjs" --accept-cmd "node scripts/accept.mjs {n}"`.
+Cấu hình omi: `OMI_CLI init --repo-dir minibox --test-cmd "node scripts/test.mjs" --accept-cmd "node scripts/accept.mjs {n}"`; `.omi/project.json` → `commands.check = "node scripts/check.mjs"` (omi ≥ 0.6.2 dùng cho `check`, `commands.test` vẫn là bộ đầy đủ).
+
+CI (`.github/workflows/ci.yml`, #539): mọi PR và push `main` (không chạy lại khi push `develop`: merge squash, cây code giống bản PR đã kiểm). Job `changes` (`check.mjs --ci`) → các job song song `backend`, `frontend`, `scripts`, `e2e`, `images` có `if:` theo output; PR chỉ docs/`*.md`/`.github/ISSUE_TEMPLATE/**` thì job nặng skipped (= pass); sửa `.github/workflows/**` thì chạy đủ. Không dùng `paths` cấp workflow. Thời gian chờ ≈ job chậm nhất.
 
 ## 10. Ngưỡng phi chức năng
 

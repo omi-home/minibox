@@ -1,23 +1,47 @@
-# Build + toàn bộ test (backend, frontend, script, hợp đồng) và e2e smoke trên mọi PR (spec §9.3, NFR #217: ≤ 15 phút).
+# CI trên mọi PR (spec §9.3, NFR #217: ≤ 15 phút; #539: các job song song, chờ ≈ job chậm nhất).
+# Job `changes` chọn job nặng theo file đổi (scripts/check.mjs --ci, cùng luật với omi `check`); PR chỉ sửa docs/**, *.md,
+# .github/ISSUE_TEMPLATE/** thì job nặng skipped (= pass). Không dùng paths/paths-ignore cấp workflow: check sẽ treo "Expected".
+# Mỗi job chạy một nhóm của scripts/test.mjs (định nghĩa bước ở đó, không chép lệnh vào YAML).
+# Push chỉ main: PR đã chạy CI, merge squash vào develop nên cây code giống bản đã kiểm; deploy.yml tự chạy khi push develop.
 # Action ghim theo commit SHA (tag ghi đè được), dependabot (.github/dependabot.yml) đề xuất nâng (217.1).
 name: ci
 on:
   pull_request:
   push:
-    branches: [develop, main]
+    branches: [main]
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
 jobs:
-  test:
-    # ubuntu-latest có sẵn Docker cho Testcontainers (PostgreSQL/RabbitMQ) và docker compose.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.c.outputs.backend }}
+      frontend: ${{ steps.c.outputs.frontend }}
+      scripts: ${{ steps.c.outputs.scripts }}
+      e2e: ${{ steps.c.outputs.e2e }}
+      images: ${{ steps.c.outputs.images }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      # Push main không có base_ref → check.mjs cho chạy mọi job.
+      - id: c
+        run: node scripts/check.mjs --ci "${BASE_REF:+origin/$BASE_REF}" | tee -a "$GITHUB_OUTPUT"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+  backend:
+    # dotnet test (Testcontainers PostgreSQL/RabbitMQ, Docker có sẵn trên ubuntu-latest) + test hợp đồng contracts/tests.
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
-      DOTNET_NOLOGO: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
@@ -36,13 +60,56 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
           cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - run: node scripts/test.mjs backend
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 12.23.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
+      - run: node scripts/test.mjs frontend
+  scripts:
+    # node --test scripts/*.test.mjs database/tests/*.test.mjs (Docker cho PostgreSQL tạm và docker compose config).
+    needs: changes
+    if: needs.changes.outputs.scripts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/test.mjs scripts
+  e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 12.23.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: src/frontend/pnpm-lock.yaml
       # Trình duyệt Playwright theo phiên bản trong lockfile (217.2); thư viện hệ thống vẫn cài bằng --with-deps.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('src/frontend/pnpm-lock.yaml') }}
-      - run: node scripts/test.mjs
-      - run: node scripts/e2e.mjs
+      - run: node scripts/test.mjs e2e
       # Ảnh chụp /design 4 breakpoint (bằng chứng nghiệm thu #231) và trace khi lỗi.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
@@ -53,6 +120,8 @@ jobs:
   images:
     # Build image app như lúc deploy (src/backend/Dockerfile, src/frontend/Dockerfile) và kiểm nội dung (#424, 220.1),
     # rồi smoke e2e trên stack Compose dựng từ chính các image đó (cache build dùng lại): health mọi service, đăng nhập admin (#219).
+    needs: changes
+    if: needs.changes.outputs.images == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
