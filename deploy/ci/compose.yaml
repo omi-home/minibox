@@ -1,0 +1,62 @@
+# Stack smoke e2e trong CI (NFR #217, task #219): `node scripts/smoke.mjs`. Image app build tại chỗ từ Dockerfile như lúc deploy;
+# cấu hình qua biến môi trường thay Docker secret. Chỉ admin mở cổng (127.0.0.1) cho Playwright.
+# Mật khẩu/khoá dưới đây chỉ dùng cho stack tạm (down -v sau mỗi lần chạy), không sao chép sang môi trường thật.
+# Chuỗi kết nối role app do smoke.mjs đặt (mật khẩu sinh bởi bootstrap vào deploy/ci/secrets/).
+name: minibox-ci
+
+x-rabbitmq-uri: &amqp amqp://minibox:minibox@infra-rabbitmq:5672
+
+services:
+  database-postgres:
+    container_name: minibox-ci-database-postgres
+    environment:
+      POSTGRES_PASSWORD: minibox
+
+  infra-rabbitmq:
+    container_name: minibox-ci-infra-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: minibox
+      RABBITMQ_DEFAULT_PASS: minibox
+
+  infra-seaweedfs:
+    container_name: minibox-ci-infra-seaweedfs
+
+  infra-clamav:
+    container_name: minibox-ci-infra-clamav
+
+  infra-mailpit:
+    container_name: minibox-ci-infra-mailpit
+
+  backend-identity:
+    extends: { file: apps.yaml, service: backend-identity }
+    container_name: minibox-ci-backend-identity
+    build: { context: .., dockerfile: src/backend/Dockerfile, args: { SERVICE: identity, PROJECT: Identity } }
+    environment:
+      ConnectionStrings__App: ${IDENTITY_APP_CONNECTION:-}
+      ConnectionStrings__RabbitMq: *amqp
+      Mfa__EncryptionKey: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+
+  backend-localization:
+    extends: { file: apps.yaml, service: backend-localization }
+    container_name: minibox-ci-backend-localization
+    build: { context: .., dockerfile: src/backend/Dockerfile, args: { SERVICE: localization, PROJECT: Localization } }
+    environment:
+      ConnectionStrings__App: ${LOCALIZATION_APP_CONNECTION:-}
+      ConnectionStrings__RabbitMq: *amqp
+
+  frontend-admin:
+    extends: { file: apps.yaml, service: frontend-admin }
+    container_name: minibox-ci-frontend-admin
+    build: { context: .., dockerfile: src/frontend/Dockerfile, args: { APP: admin } }
+    ports: ["127.0.0.1:${SMOKE_ADMIN_PORT:-3201}:3000"]
+    environment:
+      ADMIN_ORIGIN: http://localhost:${SMOKE_ADMIN_PORT:-3201}
+      ADMIN_SESSION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      RABBITMQ_URL: *amqp
+
+  frontend-shop:
+    extends: { file: apps.yaml, service: frontend-shop }
+    container_name: minibox-ci-frontend-shop
+    build: { context: .., dockerfile: src/frontend/Dockerfile, args: { APP: shop } }
+    environment:
+      RABBITMQ_URL: *amqp
