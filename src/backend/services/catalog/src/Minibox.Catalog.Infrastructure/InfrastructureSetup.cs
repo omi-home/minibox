@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Minibox.BuildingBlocks.Application;
 using Minibox.BuildingBlocks.Infrastructure.Localization;
 using Minibox.BuildingBlocks.Infrastructure.Persistence;
+using Minibox.Catalog.Application.Abstractions;
 using Minibox.Catalog.Infrastructure.Persistence;
 
 namespace Minibox.Catalog.Infrastructure;
@@ -16,5 +17,7 @@ public static class InfrastructureSetup
     /// <returns><paramref name="services"/>.</returns>
     public static IServiceCollection AddCatalogInfrastructure(this IServiceCollection services, string connectionString) => services
         .AddMiniboxPersistence<CatalogDbContext>(connectionString)
-        .AddLocaleReplica<CatalogDbContext>();
+        .AddLocaleReplica<CatalogDbContext>()
+        .AddScoped<ICategoryRepository, CategoryRepository>()
+        .AddScoped<ICategoryReadService, CategoryReadService>();
 }
